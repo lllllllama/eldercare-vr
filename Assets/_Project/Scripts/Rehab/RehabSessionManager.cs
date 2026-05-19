@@ -57,6 +57,11 @@ namespace PicoElderCare.Rehab
             get { return _trainingCenter; }
         }
 
+        public bool IsSessionActive
+        {
+            get { return _sessionActive && !_sessionEnded; }
+        }
+
         private void Awake()
         {
             ResolveReferences();
@@ -144,6 +149,12 @@ namespace PicoElderCare.Rehab
             var firstMovement = movementEvaluator.CurrentMovement;
             _lastCoachMovementKey = null;
             _lastVideoMovementKey = null;
+            if (videoGuideController != null)
+            {
+                videoGuideController.SetSessionManager(this);
+                videoGuideController.StopAndHide();
+            }
+
             _currentResult = RehabTrainingResult.CreateStarted(
                 firstMovement != null ? firstMovement.movementId : movementEvaluator.movementId,
                 GetTrainingDisplayName(),
@@ -172,6 +183,8 @@ namespace PicoElderCare.Rehab
         {
             ResolveReferences();
 
+            CancelCurrentTraining();
+
             if (movementEvaluator == null)
             {
                 Debug.LogError("Cannot start rehab training because MovementEvaluator is missing.");
@@ -196,14 +209,41 @@ namespace PicoElderCare.Rehab
 
         public void StopSession()
         {
-            if (!_sessionActive || _sessionEnded) return;
+            if (!_sessionActive || _sessionEnded)
+            {
+                StopVideoGuide();
+                return;
+            }
+
             EndSession(RehabSessionEndReason.Stopped);
+        }
+
+        public void CancelCurrentTraining()
+        {
+            ResolveReferences();
+
+            _sessionActive = false;
+            _sessionEnded = true;
+            _lastCoachMovementKey = null;
+            _lastVideoMovementKey = null;
+            _currentResult = null;
+
+            if (virtualCoachController != null)
+            {
+                virtualCoachController.SetIdle();
+            }
+
+            StopVideoGuide();
         }
 
         public void RecenterTrainingArea()
         {
             _trainingAreaPlaced = false;
             TryPlaceTrainingArea();
+            if (IsSessionActive && videoGuideController != null)
+            {
+                videoGuideController.PlacePanelForCurrentView();
+            }
         }
 
         public void SetTrainingAreaCenter(Vector3 center, Vector3 forward, Vector3 headPosition)
@@ -265,10 +305,7 @@ namespace PicoElderCare.Rehab
                 virtualCoachController.SetIdle();
             }
 
-            if (videoGuideController != null)
-            {
-                videoGuideController.Stop();
-            }
+            StopVideoGuide();
 
             if (modeSelectUI != null)
             {
@@ -373,6 +410,7 @@ namespace PicoElderCare.Rehab
             if (modeSelectUI == null) modeSelectUI = FindObjectOfType<RehabModeSelectUI>(true);
             if (resultRecorder == null) resultRecorder = FindObjectOfType<TrainingResultRecorder>(true);
             if (videoGuideController == null) videoGuideController = FindObjectOfType<RehabVideoGuideController>(true);
+            if (videoGuideController != null) videoGuideController.SetSessionManager(this);
             if (virtualCoachController == null) virtualCoachController = FindObjectOfType<VirtualCoachController>(true);
             if (virtualCoachController == null && autoCreateVirtualCoach)
             {
@@ -423,7 +461,10 @@ namespace PicoElderCare.Rehab
 
             var movementKey = movement.movementId + "|" + movement.movementName;
 
-            if (videoGuideController != null && (force || movementKey != _lastVideoMovementKey))
+            if (IsSessionActive &&
+                videoGuideController != null &&
+                !string.IsNullOrWhiteSpace(movement.movementName) &&
+                (force || movementKey != _lastVideoMovementKey))
             {
                 _lastVideoMovementKey = movementKey;
                 videoGuideController.PlayForMovement(movement.movementId.ToString(), movement.movementName);
@@ -515,6 +556,14 @@ namespace PicoElderCare.Rehab
                     evaluation,
                     safety,
                     Mathf.Max(0f, sessionDurationSeconds - _elapsedTrainingSeconds));
+            }
+        }
+
+        private void StopVideoGuide()
+        {
+            if (videoGuideController != null)
+            {
+                videoGuideController.StopAndHide();
             }
         }
     }

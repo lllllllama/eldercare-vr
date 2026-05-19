@@ -14,10 +14,12 @@ namespace PicoElderCare.Rehab
         public Button baduanjinButton;
         public Button taiChiButton;
         public Button backButton;
+        public Button trainingBackButton;
         public ModuleHomeMenu homeMenu;
         public ComfortWorldSpaceUIPlacer uiPlacer;
 
         public RehabSessionManager sessionManager;
+        public RehabVideoGuideController videoGuideController;
         public bool showTrainingSelectOnStart = true;
         public bool placeUiOnStart = true;
         public bool placeUiOnMainMenuOpen = true;
@@ -47,6 +49,8 @@ namespace PicoElderCare.Rehab
 
         public void ShowMainMenuPanel()
         {
+            CancelCurrentTrainingAndHideVideo();
+
             SetPanelActive(mainMenuPanel, true);
             SetPanelActive(rehabTrainingSelectPanel, false);
             SetPanelActive(rehabTrainingPanel, false);
@@ -60,6 +64,8 @@ namespace PicoElderCare.Rehab
 
         public void ShowTrainingSelectPanel()
         {
+            CancelCurrentTrainingAndHideVideo();
+
             SetPanelActive(mainMenuPanel, false);
             SetPanelActive(rehabTrainingSelectPanel, true);
             SetPanelActive(rehabTrainingPanel, false);
@@ -78,6 +84,8 @@ namespace PicoElderCare.Rehab
 
         public void ShowTrainingResultPanel()
         {
+            StopVideoGuideOnly();
+
             SetPanelActive(mainMenuPanel, false);
             SetPanelActive(rehabTrainingSelectPanel, false);
             SetPanelActive(rehabTrainingPanel, false);
@@ -87,6 +95,7 @@ namespace PicoElderCare.Rehab
         public void ReturnToMainEntry()
         {
             ResolveReferences();
+            CancelCurrentTrainingAndHideVideo();
 
             if (homeMenu != null)
             {
@@ -105,6 +114,7 @@ namespace PicoElderCare.Rehab
         private void StartTraining(RehabTrainingType trainingType)
         {
             ResolveReferences();
+            CancelCurrentTrainingAndHideVideo();
 
             SetPanelActive(mainMenuPanel, false);
             SetPanelActive(rehabTrainingSelectPanel, false);
@@ -128,6 +138,11 @@ namespace PicoElderCare.Rehab
                 sessionManager = FindObjectOfType<RehabSessionManager>(true);
             }
 
+            if (videoGuideController == null)
+            {
+                videoGuideController = FindObjectOfType<RehabVideoGuideController>(true);
+            }
+
             if (homeMenu == null)
             {
                 homeMenu = FindObjectOfType<ModuleHomeMenu>(true);
@@ -136,6 +151,21 @@ namespace PicoElderCare.Rehab
             if (uiPlacer == null)
             {
                 uiPlacer = GetComponentInParent<ComfortWorldSpaceUIPlacer>();
+            }
+
+            if (trainingBackButton == null && rehabTrainingPanel != null)
+            {
+                var buttons = rehabTrainingPanel.GetComponentsInChildren<Button>(true);
+                for (var i = 0; i < buttons.Length; i++)
+                {
+                    var buttonName = buttons[i].name;
+                    if (buttonName == "HomeButton" ||
+                        buttonName.IndexOf("Back", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        trainingBackButton = buttons[i];
+                        break;
+                    }
+                }
             }
         }
 
@@ -174,6 +204,35 @@ namespace PicoElderCare.Rehab
                 backButton.onClick.RemoveListener(ShowMainMenuPanel);
                 backButton.onClick.RemoveListener(ReturnToMainEntry);
                 backButton.onClick.AddListener(ReturnToMainEntry);
+            }
+
+            if (trainingBackButton != null)
+            {
+                trainingBackButton.onClick.RemoveListener(ShowTrainingSelectPanel);
+                trainingBackButton.onClick.AddListener(ShowTrainingSelectPanel);
+            }
+        }
+
+        private void CancelCurrentTrainingAndHideVideo()
+        {
+            ResolveReferences();
+
+            if (sessionManager != null)
+            {
+                sessionManager.CancelCurrentTraining();
+                return;
+            }
+
+            StopVideoGuideOnly();
+        }
+
+        private void StopVideoGuideOnly()
+        {
+            ResolveReferences();
+
+            if (videoGuideController != null)
+            {
+                videoGuideController.StopAndHide();
             }
         }
 

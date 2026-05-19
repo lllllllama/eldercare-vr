@@ -4102,9 +4102,11 @@ MonoBehaviour:
   baduanjinButton: {fileID: 1561645780}
   taiChiButton: {fileID: 2048687410}
   backButton: {fileID: 1635066088}
+  trainingBackButton: {fileID: 574640926}
   homeMenu: {fileID: 0}
   uiPlacer: {fileID: 1674267118}
   sessionManager: {fileID: 752734334}
+  videoGuideController: {fileID: 1905000005}
   showTrainingSelectOnStart: 1
   placeUiOnStart: 1
   placeUiOnMainMenuOpen: 1
@@ -4411,6 +4413,7 @@ GameObject:
   - component: {fileID: 1905000003}
   - component: {fileID: 1905000004}
   - component: {fileID: 1905000005}
+  - component: {fileID: 1905000035}
   m_Layer: 0
   m_Name: RehabVideoPanel
   m_TagString: Untagged
@@ -4588,7 +4591,10 @@ MonoBehaviour:
   videoQuadRenderer: {fileID: 1905000034}
   videoMaterial: {fileID: 2100000, guid: b5e12212d97243eabf5235b20dba74bb, type: 2}
   renderTexture: {fileID: 8400000, guid: bb6b5399d51a27448b75ff2b530d9f3b, type: 2}
+  layoutController: {fileID: 1905000035}
+  sessionManager: {fileID: 752734334}
   displayMode: 1
+  requireActiveSession: 1
   muteAudio: 0
   volume: 0.7
   loopVideo: 1
@@ -4620,6 +4626,30 @@ MonoBehaviour:
   - movementId: ""
     movementName: "\u80CC\u540E\u4E03\u98A0\u767E\u75C5\u6D88"
     videoClip: {fileID: 32900000, guid: c7a58afda2d241d478e660345831d258, type: 3}
+--- !u!114 &1905000035
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1905000001}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: c74b456227f2435fad0e6efe235ebdd3, type: 3}
+  m_Name: ""
+  m_EditorClassIdentifier: ""
+  panelRoot: {fileID: 1905000002}
+  videoQuad: {fileID: 1905000032}
+  headTransform: {fileID: 0}
+  promptCanvas: {fileID: 1674267111}
+  trainingAreaRoot: {fileID: 447938368}
+  panelDistance: 1.8
+  videoRightOffset: 0.75
+  heightOffset: -0.05
+  videoWidth: 0.62
+  videoHeight: 0.35
+  preferPromptCanvasLayout: 1
+  faceUser: 1
 --- !u!1 &1905000006
 GameObject:
   m_ObjectHideFlags: 0
@@ -4948,7 +4978,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0.9, y: 0.5, z: 1}
+  m_LocalScale: {x: 0.62, y: 0.35, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
   m_Father: {fileID: 1905000002}
