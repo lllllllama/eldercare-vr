@@ -14,6 +14,7 @@ namespace PicoElderCare.Rehab
         public VirtualCoachController virtualCoachController;
         public CoachPlaybackState coachPlaybackStateOnMovementStart = CoachPlaybackState.Demonstration;
         public bool autoCreateVirtualCoach = true;
+        public RehabVideoGuideController videoGuideController;
 
         public Transform trainingAreaRoot;
         public Transform promptCanvas;
@@ -49,6 +50,7 @@ namespace PicoElderCare.Rehab
         private float _openSpaceSearchUntilTime;
         private float _nextOpenSpaceSearchTime;
         private string _lastCoachMovementKey;
+        private string _lastVideoMovementKey;
 
         public Vector3 TrainingCenter
         {
@@ -141,6 +143,7 @@ namespace PicoElderCare.Rehab
 
             var firstMovement = movementEvaluator.CurrentMovement;
             _lastCoachMovementKey = null;
+            _lastVideoMovementKey = null;
             _currentResult = RehabTrainingResult.CreateStarted(
                 firstMovement != null ? firstMovement.movementId : movementEvaluator.movementId,
                 GetTrainingDisplayName(),
@@ -262,6 +265,11 @@ namespace PicoElderCare.Rehab
                 virtualCoachController.SetIdle();
             }
 
+            if (videoGuideController != null)
+            {
+                videoGuideController.Stop();
+            }
+
             if (modeSelectUI != null)
             {
                 modeSelectUI.ShowTrainingResultPanel();
@@ -364,6 +372,7 @@ namespace PicoElderCare.Rehab
             if (uiController == null) uiController = FindObjectOfType<RehabUIController>(true);
             if (modeSelectUI == null) modeSelectUI = FindObjectOfType<RehabModeSelectUI>(true);
             if (resultRecorder == null) resultRecorder = FindObjectOfType<TrainingResultRecorder>(true);
+            if (videoGuideController == null) videoGuideController = FindObjectOfType<RehabVideoGuideController>(true);
             if (virtualCoachController == null) virtualCoachController = FindObjectOfType<VirtualCoachController>(true);
             if (virtualCoachController == null && autoCreateVirtualCoach)
             {
@@ -401,18 +410,26 @@ namespace PicoElderCare.Rehab
             controller.followSmoothTime = 0.35f;
             controller.maxFollowSpeedMetersPerSecond = 1.25f;
             controller.followRotationSlerpSpeed = 4f;
-            controller.autoCreatePlaceholderCue = true;
+            controller.autoCreatePlaceholderCue = false;
             return controller;
         }
 
         private void NotifyCoachForCurrentMovement(bool force)
         {
-            if (virtualCoachController == null || movementEvaluator == null) return;
+            if (movementEvaluator == null) return;
 
             var movement = movementEvaluator.CurrentMovement;
             if (movement == null) return;
 
             var movementKey = movement.movementId + "|" + movement.movementName;
+
+            if (videoGuideController != null && (force || movementKey != _lastVideoMovementKey))
+            {
+                _lastVideoMovementKey = movementKey;
+                videoGuideController.PlayForMovement(movement.movementId.ToString(), movement.movementName);
+            }
+
+            if (virtualCoachController == null) return;
             if (!force && movementKey == _lastCoachMovementKey) return;
 
             _lastCoachMovementKey = movementKey;

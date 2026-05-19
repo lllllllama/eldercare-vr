@@ -300,7 +300,7 @@ public static class RehabSceneBuilder
         controller.followSmoothTime = 0.35f;
         controller.maxFollowSpeedMetersPerSecond = 1.25f;
         controller.followRotationSlerpSpeed = 4f;
-        controller.autoCreatePlaceholderCue = true;
+        controller.autoCreatePlaceholderCue = false;
 
         EditorUtility.SetDirty(coach);
         return controller;

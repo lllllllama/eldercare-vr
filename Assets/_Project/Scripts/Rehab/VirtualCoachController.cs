@@ -38,7 +38,7 @@ namespace PicoElderCare.Rehab
         public bool faceUser = true;
 
         public GameObject placeholderCue;
-        public bool autoCreatePlaceholderCue = true;
+        public bool autoCreatePlaceholderCue = false;
         public float placeholderHeightMeters = 1.35f;
         public float placeholderBobMeters = 0.06f;
         public float placeholderBobSpeed = 2f;
@@ -347,7 +347,17 @@ namespace PicoElderCare.Rehab
 
         private void EnsurePlaceholderCue()
         {
-            if (!autoCreatePlaceholderCue || placeholderCue != null || coachRoot == null) return;
+            if (!autoCreatePlaceholderCue)
+            {
+                if (placeholderCue != null)
+                {
+                    placeholderCue.SetActive(false);
+                }
+
+                return;
+            }
+
+            if (placeholderCue != null || coachRoot == null) return;
 
             placeholderCue = GameObject.CreatePrimitive(PrimitiveType.Sphere);
             placeholderCue.name = "CoachPlaceholderCue";
@@ -394,6 +404,16 @@ namespace PicoElderCare.Rehab
 
         private void SetPlaceholderVisible(bool visible, string message)
         {
+            if (!autoCreatePlaceholderCue)
+            {
+                if (placeholderCue != null)
+                {
+                    placeholderCue.SetActive(false);
+                }
+
+                return;
+            }
+
             if (placeholderCue == null) return;
 
             placeholderCue.SetActive(visible);
