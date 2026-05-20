@@ -81,7 +81,12 @@ public static class RehabSelfTests
             AssertTrue(!first.completed, "Hold shorter than the minimum duration should not complete.");
 
             var second = evaluator.Evaluate(sample, 0.5f, false, 2f);
-            AssertTrue(second.completed, "Hold at the minimum duration should complete.");
+            AssertTrue(second.targetReached, "Hold at the minimum duration should mark the target as reached.");
+            AssertTrue(second.completion01 > 0.99f, "Reached target should report full current movement completion.");
+            AssertTrue(!second.completed, "Reached target should not complete the movement before the timer expires.");
+
+            evaluator.AdvanceCurrentStepByTimer(25f, 0);
+            AssertTrue(evaluator.Completed, "The movement sequence should complete only after timer-driven advancement.");
         }
         finally
         {
@@ -139,8 +144,12 @@ public static class RehabSelfTests
             evaluator.ResetEvaluation();
             var invalidPose = CreateSample(1.6f, 1.45f, 1.45f);
             var result = evaluator.Evaluate(invalidPose, 1.1f, false, 1.1f, 2);
-            AssertTrue(result.stepTimedOut, "A step should time out when the user does not reach the pose.");
-            AssertTrue(result.completed, "A one-step movement sequence should complete after timeout skip.");
+            AssertTrue(!result.stepTimedOut, "Evaluator should not time out movement flow by itself.");
+            AssertTrue(!result.completed, "A movement should not complete until the session advances it by timer.");
+            AssertTrue(evaluator.MovementResults.Count == 0, "Evaluation should not record until timer advancement.");
+
+            evaluator.AdvanceCurrentStepByTimer(1.1f, 2);
+            AssertTrue(evaluator.Completed, "A one-step movement sequence should complete after timer advancement.");
             AssertTrue(evaluator.MovementResults.Count == 1, "Timeout should still record the movement result.");
             AssertTrue(evaluator.MovementResults[0].skippedByTimeout, "Movement result should flag timeout skip.");
             AssertTrue(evaluator.MovementResults[0].completion < 0.01f, "Timed-out movement completion should stay at zero.");
@@ -197,7 +206,9 @@ public static class RehabSelfTests
 
             evaluator.ResetEvaluation();
             var leftBow = CreateSampleWithHands(1.6f, new Vector3(-0.52f, 1.2f, 0.15f), new Vector3(0.08f, 1.2f, 0.15f));
-            evaluator.Evaluate(leftBow, 0.5f, false, 0.5f, 1);
+            var firstStep = evaluator.Evaluate(leftBow, 0.5f, false, 0.5f, 1);
+            AssertTrue(firstStep.stepIndex == 1, "Completing the first step should advance to the next step without ending the movement.");
+            AssertTrue(firstStep.completion01 > 0.49f && firstStep.completion01 < 0.51f, "First step completion should report half of a two-step movement.");
             evaluator.FinalizeCurrentMovement(0.8f, 2);
 
             AssertTrue(evaluator.MovementResults.Count == 1, "Finalizing should record the in-progress movement.");

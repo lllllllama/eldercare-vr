@@ -82,10 +82,10 @@ namespace PicoElderCare.Rehab
         {
             ResolveReferences();
 
-            if (requireActiveSession && sessionManager != null && !sessionManager.IsSessionActive)
+            if (requireActiveSession && sessionManager != null && !sessionManager.IsTrainingActive)
             {
                 StopAndHide();
-                Debug.Log($"Skip rehab video guide because session is not active. movementId={movementId}, movementName={movementName}", this);
+                Debug.Log($"Skip rehab video guide because current movement is not training. movementId={movementId}, movementName={movementName}", this);
                 return;
             }
 
@@ -138,6 +138,59 @@ namespace PicoElderCare.Rehab
             StopAndHide();
         }
 
+        public void Pause()
+        {
+            ResolveReferences();
+
+            _playWhenPrepared = false;
+            if (videoPlayer != null && videoPlayer.isPlaying)
+            {
+                videoPlayer.Pause();
+            }
+
+            if (audioSource != null && audioSource.isPlaying)
+            {
+                audioSource.Pause();
+            }
+
+            Debug.Log("Pause rehab video guide", this);
+        }
+
+        public void Resume()
+        {
+            ResolveReferences();
+
+            if (videoPlayer == null || videoPlayer.clip == null)
+            {
+                return;
+            }
+
+            EnsurePlaybackObjectsReady();
+            PlacePanelForCurrentView();
+            ApplyDisplayVisible(true);
+            EnsureRenderTextureBinding();
+            ConfigureAudio();
+            ApplyDebugFrameVisible();
+
+            if (videoPlayer.isPrepared)
+            {
+                videoPlayer.Play();
+                if (audioSource != null)
+                {
+                    audioSource.UnPause();
+                }
+
+                Debug.Log("Resume rehab video guide", this);
+                return;
+            }
+
+            _playWhenPrepared = true;
+            UnsubscribePrepareCompleted();
+            videoPlayer.prepareCompleted += OnVideoPrepared;
+            videoPlayer.Prepare();
+            Debug.Log("Prepare rehab video guide for resume", this);
+        }
+
         public void StopAndHide()
         {
             _playWhenPrepared = false;
@@ -156,6 +209,19 @@ namespace PicoElderCare.Rehab
             _currentMovementKey = null;
             HideAllDisplays();
             Debug.Log("Stop video guide", this);
+        }
+
+        public float GetVideoDurationForMovement(string movementId, string movementName)
+        {
+            ResolveReferences();
+
+            var binding = FindBinding(movementId, movementName);
+            if (binding != null && binding.videoClip != null && binding.videoClip.length > 0f)
+            {
+                return (float)binding.videoClip.length;
+            }
+
+            return -1f;
         }
 
         public void SetSessionManager(RehabSessionManager manager)
@@ -420,6 +486,11 @@ namespace PicoElderCare.Rehab
             EnsureRenderTextureBinding();
             ApplyDebugFrameVisible();
             source.Play();
+            if (audioSource != null)
+            {
+                audioSource.UnPause();
+            }
+
             LogVideoState("Playback started", source.clip);
         }
 

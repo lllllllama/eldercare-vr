@@ -29,7 +29,7 @@ namespace PicoElderCare.Rehab
 
             if (remainingTimeText != null)
             {
-                var remaining = Mathf.Max(0f, evaluation.remainingSeconds > 0f ? evaluation.remainingSeconds : sessionRemainingSeconds);
+                var remaining = Mathf.Max(0f, evaluation.remainingSeconds);
                 remainingTimeText.text = string.Format("剩余 {0:00}:{1:00}", Mathf.FloorToInt(remaining / 60f), Mathf.FloorToInt(remaining % 60f));
             }
 
@@ -40,7 +40,11 @@ namespace PicoElderCare.Rehab
 
             if (safetyPromptText != null)
             {
-                safetyPromptText.text = safety.isPaused ? "请回到训练圈内，动作已暂停" : "保持舒适幅度，避免用力过猛";
+                safetyPromptText.text = safety.isPaused
+                    ? "请回到训练圈内，动作已暂停"
+                    : evaluation.targetReached
+                        ? "动作已达标，请继续跟随视频练习"
+                        : "保持舒适幅度，避免用力过猛";
             }
 
             if (debugText != null)
@@ -66,7 +70,13 @@ namespace PicoElderCare.Rehab
             }
 
             if (completionText != null) completionText.text = "完成度 0%";
-            if (safetyPromptText != null) safetyPromptText.text = "保持舒适幅度，准备开始";
+            if (safetyPromptText != null) safetyPromptText.text = stepInstruction;
+        }
+
+        public void SetSafetyPrompt(string message)
+        {
+            if (stepText != null) stepText.text = message;
+            if (safetyPromptText != null) safetyPromptText.text = message;
         }
     }
 }

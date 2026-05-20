@@ -6,11 +6,13 @@ namespace PicoElderCare.Rehab
         public bool completed;
         public bool stepCompleted;
         public bool stepTimedOut;
+        public bool targetReached;
         public float currentHoldSeconds;
         public float bestHoldSeconds;
         public float completionTimeSeconds;
         public float remainingSeconds;
         public float completion01;
+        public float currentMovementBestCompletion;
         public float symmetry;
         public float tempo;
         public int movementIndex;

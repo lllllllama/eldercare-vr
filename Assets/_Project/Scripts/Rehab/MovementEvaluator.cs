@@ -35,6 +35,8 @@ namespace PicoElderCare.Rehab
         private float _movementSymmetryTotal;
         private float _movementTempoTotal;
         private int _movementMetricCount;
+        private float _currentMovementBestCompletion;
+        private bool _currentStepTargetReached;
         private bool _completed;
         private bool _movementStarted;
         private bool _currentMovementSkippedByTimeout;
@@ -52,6 +54,16 @@ namespace PicoElderCare.Rehab
         public bool Completed
         {
             get { return _completed; }
+        }
+
+        public bool IsCurrentTargetReached
+        {
+            get { return _currentMovementBestCompletion >= 0.999f; }
+        }
+
+        public float CurrentCompletion
+        {
+            get { return _currentMovementBestCompletion; }
         }
 
         public MovementDefinition CurrentMovement
@@ -102,6 +114,8 @@ namespace PicoElderCare.Rehab
             _movementSymmetryTotal = 0f;
             _movementTempoTotal = 0f;
             _movementMetricCount = 0;
+            _currentMovementBestCompletion = 0f;
+            _currentStepTargetReached = false;
             _completed = false;
             _movementStarted = false;
             _currentMovementSkippedByTimeout = false;
@@ -184,22 +198,28 @@ namespace PicoElderCare.Rehab
             var requiredHoldSeconds = Mathf.Max(0.1f, step.requiredHoldSeconds > 0f ? step.requiredHoldSeconds : minimumHoldSeconds);
             if (_currentHoldSeconds >= requiredHoldSeconds)
             {
-                CompleteCurrentStep(false, elapsedSessionSeconds, safetyWarningCount);
-                return CreateSnapshot(true, true, false, "步骤完成");
+                var completedStepIndex = _stepIndex;
+                if (!_currentStepTargetReached)
+                {
+                    CompleteCurrentStepTarget(movement);
+                }
+
+                if (completedStepIndex < Mathf.Max(1, movement.StepCount) - 1)
+                {
+                    AdvanceToNextStep();
+                    return CreateSnapshot(true, true, false, "当前步骤已达标，请继续下一段动作");
+                }
+
+                return CreateSnapshot(true, true, false, "动作已达标，请继续跟随视频练习");
             }
 
-            var timeoutSeconds = Mathf.Max(1f, step.timeoutSeconds > 0f ? step.timeoutSeconds : defaultStepTimeoutSeconds);
-            if (_stepElapsedSeconds >= timeoutSeconds)
-            {
-                CompleteCurrentStep(true, elapsedSessionSeconds, safetyWarningCount);
-                return CreateSnapshot(false, true, true, "步骤超时，已自动跳过");
-            }
+            var message = _currentStepTargetReached
+                ? "动作已达标，请继续跟随视频练习"
+                : stepEvaluation.poseValid
+                    ? string.Format("保持动作 {0:0.0}/{1:0.0}s", _currentHoldSeconds, requiredHoldSeconds)
+                    : stepEvaluation.statusMessage;
 
-            var message = stepEvaluation.poseValid
-                ? string.Format("保持动作 {0:0.0}/{1:0.0}s", _currentHoldSeconds, requiredHoldSeconds)
-                : stepEvaluation.statusMessage;
-
-            return CreateSnapshot(stepEvaluation.poseValid, false, false, message);
+            return CreateSnapshot(stepEvaluation.poseValid, _currentStepTargetReached, false, message);
         }
 
         public static bool IsTwoHandsLiftHeavenPoseValid(
@@ -227,6 +247,7 @@ namespace PicoElderCare.Rehab
             _movementStarted = true;
             _movementStartSessionSeconds = elapsedSessionSeconds;
             _movementStartSafetyWarningCount = safetyWarningCount;
+            _completedStepCount = 0;
             _validStepCount = 0;
             _currentMovementSkippedByTimeout = false;
             _stepElapsedSeconds = 0f;
@@ -236,47 +257,70 @@ namespace PicoElderCare.Rehab
             _movementSymmetryTotal = 0f;
             _movementTempoTotal = 0f;
             _movementMetricCount = 0;
+            _currentMovementBestCompletion = 0f;
+            _currentStepTargetReached = false;
 
             movementId = movement.movementId;
             movementName = movement.movementName;
             ResetEvaluatorForMovement(movement, sample);
         }
 
-        private void CompleteCurrentStep(bool timedOut, float elapsedSessionSeconds, int safetyWarningCount)
+        public void AdvanceCurrentStepByTimer(float elapsedSessionSeconds, int safetyWarningCount)
         {
-            var movement = CurrentMovement;
-            if (movement == null) return;
+            if (_completed || !_movementStarted) return;
 
-            _completedStepCount++;
-            if (!timedOut)
+            FinishCurrentMovementByTimer(elapsedSessionSeconds, safetyWarningCount);
+        }
+
+        public void FinishCurrentMovementByTimer(float elapsedSessionSeconds, int safetyWarningCount)
+        {
+            if (_completed) return;
+
+            var movement = CurrentMovement;
+            if (movement == null)
             {
-                _validStepCount++;
+                _completed = true;
+                _completionTimeSeconds = elapsedSessionSeconds;
+                return;
             }
-            else
+
+            if (!_movementStarted)
+            {
+                _movementStarted = true;
+                _movementStartSessionSeconds = elapsedSessionSeconds;
+                _movementStartSafetyWarningCount = safetyWarningCount;
+            }
+
+            if (_currentStepTargetReached)
+            {
+                _validStepCount = Mathf.Max(_validStepCount, 1);
+            }
+            else if (_currentMovementBestCompletion <= 0f)
             {
                 _currentMovementSkippedByTimeout = true;
             }
 
-            _movementSymmetryTotal += Mathf.Clamp01(_lastSymmetry);
-            _movementTempoTotal += Mathf.Clamp01(_lastTempo);
-            _movementMetricCount++;
+            if (_movementMetricCount == 0)
+            {
+                _movementSymmetryTotal += Mathf.Clamp01(_lastSymmetry);
+                _movementTempoTotal += Mathf.Clamp01(_lastTempo);
+                _movementMetricCount++;
+            }
 
-            _stepIndex++;
+            FinishCurrentMovement(elapsedSessionSeconds, safetyWarningCount);
+            _movementIndex++;
+            _stepIndex = 0;
+            _completedStepCount = 0;
+            _validStepCount = 0;
+            _movementStarted = false;
             _currentHoldSeconds = 0f;
             _stepElapsedSeconds = 0f;
+            _currentStepTargetReached = false;
 
-            if (_stepIndex >= Mathf.Max(1, movement.StepCount))
+            if (_movementIndex >= MovementCount)
             {
-                FinishCurrentMovement(elapsedSessionSeconds, safetyWarningCount);
-                _movementIndex++;
-                _stepIndex = 0;
-                _movementStarted = false;
-
-                if (_movementIndex >= MovementCount)
-                {
-                    _completed = true;
-                    _completionTimeSeconds = elapsedSessionSeconds;
-                }
+                _completed = true;
+                _completionTimeSeconds = elapsedSessionSeconds;
             }
         }
 
@@ -287,18 +331,40 @@ namespace PicoElderCare.Rehab
 
             var stepCount = Mathf.Max(1, movement.StepCount);
             var metricCount = Mathf.Max(1, _movementMetricCount);
+            var completion = Mathf.Max(_currentMovementBestCompletion, Mathf.Clamp01((float)_validStepCount / stepCount));
             _movementResults.Add(new RehabMovementResult
             {
                 movementId = movement.movementId.ToString(),
                 movementName = movement.movementName,
                 duration = Mathf.Max(0f, elapsedSessionSeconds - _movementStartSessionSeconds),
-                completion = Mathf.Clamp01((float)_validStepCount / stepCount),
+                completion = Mathf.Clamp01(completion),
                 symmetry = Mathf.Clamp01(_movementSymmetryTotal / metricCount),
                 tempo = Mathf.Clamp01(_movementTempoTotal / metricCount),
                 safetyWarningCount = Mathf.Max(0, safetyWarningCount - _movementStartSafetyWarningCount),
                 timestamp = System.DateTime.UtcNow.ToString("o"),
                 skippedByTimeout = _currentMovementSkippedByTimeout
             });
+        }
+
+        private void CompleteCurrentStepTarget(MovementDefinition movement)
+        {
+            if (movement == null) return;
+
+            _currentStepTargetReached = true;
+            _completedStepCount = Mathf.Max(_completedStepCount, _stepIndex + 1);
+            _validStepCount = Mathf.Max(_validStepCount, _completedStepCount);
+            _movementSymmetryTotal += Mathf.Clamp01(_lastSymmetry);
+            _movementTempoTotal += Mathf.Clamp01(_lastTempo);
+            _movementMetricCount++;
+            UpdateCurrentMovementCompletion(movement);
+        }
+
+        private void AdvanceToNextStep()
+        {
+            _stepIndex++;
+            _currentHoldSeconds = 0f;
+            _stepElapsedSeconds = 0f;
+            _currentStepTargetReached = false;
         }
 
         public void FinalizeCurrentMovement(float elapsedSessionSeconds, int safetyWarningCount)
@@ -322,8 +388,6 @@ namespace PicoElderCare.Rehab
             var step = CurrentStep;
             var movementCount = MovementCount;
             var stepCount = movement != null ? Mathf.Max(1, movement.StepCount) : 1;
-            var completedSteps = _completed ? TotalStepCount : _completedStepCount;
-            var completion01 = TotalStepCount > 0 ? Mathf.Clamp01((float)completedSteps / TotalStepCount) : 0f;
             var timeoutSeconds = step != null ? Mathf.Max(1f, step.timeoutSeconds > 0f ? step.timeoutSeconds : defaultStepTimeoutSeconds) : defaultStepTimeoutSeconds;
 
             return new RehabMovementEvaluation
@@ -332,11 +396,13 @@ namespace PicoElderCare.Rehab
                 completed = _completed,
                 stepCompleted = stepCompleted,
                 stepTimedOut = stepTimedOut,
+                targetReached = _currentMovementBestCompletion >= 0.999f,
                 currentHoldSeconds = _currentHoldSeconds,
                 bestHoldSeconds = _bestHoldSeconds,
                 completionTimeSeconds = _completionTimeSeconds,
                 remainingSeconds = Mathf.Max(0f, timeoutSeconds - _stepElapsedSeconds),
-                completion01 = completion01,
+                completion01 = Mathf.Clamp01(_currentMovementBestCompletion),
+                currentMovementBestCompletion = Mathf.Clamp01(_currentMovementBestCompletion),
                 symmetry = _lastSymmetry,
                 tempo = _lastTempo,
                 movementIndex = Mathf.Clamp(_movementIndex, 0, Mathf.Max(0, movementCount - 1)),
@@ -460,6 +526,14 @@ namespace PicoElderCare.Rehab
 
             var firstIsTaiChi = IsTaiChiMovement(movementDefinitions[0]);
             return trainingMode == RehabTrainingMode.TaiChiTraining ? !firstIsTaiChi : firstIsTaiChi;
+        }
+
+        private void UpdateCurrentMovementCompletion(MovementDefinition movement)
+        {
+            var stepCount = Mathf.Max(1, movement != null ? movement.StepCount : 1);
+            _currentMovementBestCompletion = Mathf.Max(
+                _currentMovementBestCompletion,
+                Mathf.Clamp01((float)_validStepCount / stepCount));
         }
 
         private int MovementCount

@@ -3,6 +3,15 @@ using UnityEngine;
 
 namespace PicoElderCare.Rehab
 {
+    public enum RehabTrainingFlowState
+    {
+        Idle,
+        WaitingForUserInTrainingArea,
+        TrainingActive,
+        TrainingPausedOutOfArea,
+        MovementFinishedByTimer
+    }
+
     public class RehabSessionManager : MonoBehaviour
     {
         public HandPoseTracker handPoseTracker;
@@ -25,6 +34,12 @@ namespace PicoElderCare.Rehab
         public TMP_Text debugText;
 
         public float sessionDurationSeconds = 300f;
+        [SerializeField] private bool useVideoDurationForMovement = true;
+        [SerializeField] private float defaultMovementDurationSeconds = 25f;
+        [SerializeField] private float minMovementDurationSeconds = 10f;
+        [SerializeField] private float maxMovementDurationSeconds = 180f;
+        [SerializeField] private float videoDurationPaddingSeconds = 0f;
+        [SerializeField] private float trainingRadius = 1.0f;
         public float trainingDistanceMeters = 1.5f;
         public float trainingFloorY = 0f;
         public float promptHeightMeters = 1.65f;
@@ -51,6 +66,12 @@ namespace PicoElderCare.Rehab
         private float _nextOpenSpaceSearchTime;
         private string _lastCoachMovementKey;
         private string _lastVideoMovementKey;
+        private bool _currentMovementTargetReached;
+        private float _currentMovementBestCompletion;
+        private float _currentMovementRemainingSeconds;
+        private float _currentMovementDurationSeconds;
+        private bool _currentMovementVideoStarted;
+        private RehabTrainingFlowState _trainingFlowState = RehabTrainingFlowState.Idle;
 
         public Vector3 TrainingCenter
         {
@@ -60,6 +81,15 @@ namespace PicoElderCare.Rehab
         public bool IsSessionActive
         {
             get { return _sessionActive && !_sessionEnded; }
+        }
+
+        public bool IsTrainingActive
+        {
+            get
+            {
+                return IsSessionActive &&
+                       _trainingFlowState == RehabTrainingFlowState.TrainingActive;
+            }
         }
 
         private void Awake()
@@ -91,6 +121,11 @@ namespace PicoElderCare.Rehab
             if (!sample.IsValid)
             {
                 SetStatus("等待 XR 追踪");
+                if (_trainingFlowState == RehabTrainingFlowState.TrainingActive)
+                {
+                    PauseCurrentMovement("等待 XR 追踪");
+                }
+
                 return;
             }
 
@@ -104,28 +139,61 @@ namespace PicoElderCare.Rehab
                 _nextOpenSpaceSearchTime = Time.time + Mathf.Max(0.1f, openSpaceSearchIntervalSeconds);
             }
 
-            var safety = safetyMonitor.Evaluate(sample.headPosition, _trainingCenter, true);
-            var paused = safety.isPaused;
+            var safety = safetyMonitor.Evaluate(
+                sample.headPosition,
+                _trainingCenter,
+                _trainingFlowState == RehabTrainingFlowState.TrainingActive ||
+                _trainingFlowState == RehabTrainingFlowState.TrainingPausedOutOfArea);
+            var userInsideTrainingArea = IsUserInsideTrainingArea(sample.headPosition);
 
-            if (!paused)
+            switch (_trainingFlowState)
             {
-                _elapsedTrainingSeconds += Time.deltaTime;
+                case RehabTrainingFlowState.WaitingForUserInTrainingArea:
+                    if (userInsideTrainingArea && !safety.isPaused)
+                    {
+                        StartOrResumeCurrentMovement(false);
+                    }
+                    else
+                    {
+                        ShowWaitingForUserPrompt();
+                    }
+
+                    return;
+
+                case RehabTrainingFlowState.TrainingPausedOutOfArea:
+                    if (userInsideTrainingArea && !safety.isPaused)
+                    {
+                        StartOrResumeCurrentMovement(true);
+                    }
+                    else
+                    {
+                        ShowPausedOutOfAreaPrompt();
+                    }
+
+                    return;
+
+                case RehabTrainingFlowState.TrainingActive:
+                    if (!userInsideTrainingArea || safety.isPaused)
+                    {
+                        PauseCurrentMovement("请回到训练圈内，训练已暂停");
+                        ShowPausedOutOfAreaPrompt();
+                        return;
+                    }
+
+                    TickActiveTraining(sample, safety);
+                    return;
+
+                case RehabTrainingFlowState.MovementFinishedByTimer:
+                    _trainingFlowState = RehabTrainingFlowState.WaitingForUserInTrainingArea;
+                    return;
             }
 
-            var evaluation = movementEvaluator.Evaluate(sample, Time.deltaTime, paused, _elapsedTrainingSeconds, safety.pauseCount);
-            NotifyCoachForCurrentMovement(false);
-            RefreshUi(evaluation, safety);
-
-            if (evaluation.completed)
+            if (movementEvaluator.Completed)
             {
                 EndSession(RehabSessionEndReason.Completed);
                 return;
             }
 
-            if (_elapsedTrainingSeconds >= sessionDurationSeconds)
-            {
-                EndSession(RehabSessionEndReason.TimeLimit);
-            }
         }
 
         public void BeginSession()
@@ -149,11 +217,16 @@ namespace PicoElderCare.Rehab
             var firstMovement = movementEvaluator.CurrentMovement;
             _lastCoachMovementKey = null;
             _lastVideoMovementKey = null;
+            _currentMovementTargetReached = false;
+            _currentMovementBestCompletion = 0f;
+            _currentMovementVideoStarted = false;
             if (videoGuideController != null)
             {
                 videoGuideController.SetSessionManager(this);
                 videoGuideController.StopAndHide();
             }
+            PrepareCurrentMovementTimer();
+            _trainingFlowState = RehabTrainingFlowState.WaitingForUserInTrainingArea;
 
             _currentResult = RehabTrainingResult.CreateStarted(
                 firstMovement != null ? firstMovement.movementId : movementEvaluator.movementId,
@@ -166,14 +239,14 @@ namespace PicoElderCare.Rehab
             }
 
             RefreshTitle();
-            SetStatus(GetCurrentStepInstruction("\u8bf7\u51c6\u5907\u5f00\u59cb"));
+            SetStatus("请进入训练圈开始训练");
             RefreshTimer();
             if (uiController != null)
             {
                 uiController.SetIdle(
                     firstMovement != null ? firstMovement.movementName : movementEvaluator.movementName,
-                    GetCurrentStepInstruction("\u8bf7\u51c6\u5907\u5f00\u59cb"),
-                    sessionDurationSeconds);
+                    "请进入训练圈开始训练",
+                    _currentMovementRemainingSeconds);
             }
 
             NotifyCoachForCurrentMovement(true);
@@ -226,6 +299,12 @@ namespace PicoElderCare.Rehab
             _sessionEnded = true;
             _lastCoachMovementKey = null;
             _lastVideoMovementKey = null;
+            _currentMovementTargetReached = false;
+            _currentMovementBestCompletion = 0f;
+            _currentMovementRemainingSeconds = 0f;
+            _currentMovementDurationSeconds = 0f;
+            _currentMovementVideoStarted = false;
+            _trainingFlowState = RehabTrainingFlowState.Idle;
             _currentResult = null;
 
             if (virtualCoachController != null)
@@ -271,6 +350,7 @@ namespace PicoElderCare.Rehab
 
             _sessionEnded = true;
             _sessionActive = false;
+            _trainingFlowState = RehabTrainingFlowState.Idle;
 
             var completed = reason == RehabSessionEndReason.Completed;
             if (_currentResult != null)
@@ -310,6 +390,162 @@ namespace PicoElderCare.Rehab
             if (modeSelectUI != null)
             {
                 modeSelectUI.ShowTrainingResultPanel();
+            }
+        }
+
+        private void TickActiveTraining(RehabPoseSample sample, RehabSafetyState safety)
+        {
+            var deltaTime = Mathf.Max(0f, Time.deltaTime);
+            _elapsedTrainingSeconds += deltaTime;
+            _currentMovementRemainingSeconds = Mathf.Max(0f, _currentMovementRemainingSeconds - deltaTime);
+
+            var evaluation = movementEvaluator.Evaluate(
+                sample,
+                deltaTime,
+                false,
+                _elapsedTrainingSeconds,
+                safety.pauseCount);
+            _currentMovementTargetReached = evaluation.targetReached;
+            _currentMovementBestCompletion = Mathf.Max(
+                _currentMovementBestCompletion,
+                evaluation.currentMovementBestCompletion);
+            evaluation.remainingSeconds = _currentMovementRemainingSeconds;
+            evaluation.completion01 = Mathf.Max(evaluation.completion01, _currentMovementBestCompletion);
+            evaluation.currentMovementBestCompletion = _currentMovementBestCompletion;
+
+            RefreshUi(evaluation, safety);
+
+            if (_currentMovementRemainingSeconds <= 0f)
+            {
+                FinishCurrentMovementByTimer(safety.pauseCount);
+                return;
+            }
+
+            if (movementEvaluator.Completed)
+            {
+                EndSession(RehabSessionEndReason.Completed);
+                return;
+            }
+
+        }
+
+        private void StartOrResumeCurrentMovement(bool resume)
+        {
+            _trainingFlowState = RehabTrainingFlowState.TrainingActive;
+
+            var movement = movementEvaluator != null ? movementEvaluator.CurrentMovement : null;
+            if (movement != null && videoGuideController != null)
+            {
+                var movementKey = movement.movementId + "|" + movement.movementName;
+                if (resume && _currentMovementVideoStarted && movementKey == _lastVideoMovementKey)
+                {
+                    videoGuideController.Resume();
+                }
+                else
+                {
+                    _lastVideoMovementKey = movementKey;
+                    _currentMovementVideoStarted = true;
+                    videoGuideController.PlayForMovement(movement.movementId.ToString(), movement.movementName);
+                }
+            }
+
+            NotifyCoachForCurrentMovement(true);
+            SetStatus(resume ? "训练继续" : "训练开始");
+        }
+
+        private void PauseCurrentMovement(string message)
+        {
+            if (_trainingFlowState != RehabTrainingFlowState.TrainingActive) return;
+
+            _trainingFlowState = RehabTrainingFlowState.TrainingPausedOutOfArea;
+            if (videoGuideController != null)
+            {
+                videoGuideController.Pause();
+            }
+
+            SetStatus(message);
+        }
+
+        private void FinishCurrentMovementByTimer(int safetyWarningCount)
+        {
+            _trainingFlowState = RehabTrainingFlowState.MovementFinishedByTimer;
+            SetStatus("当前动作结束，进入下一式");
+
+            if (videoGuideController != null)
+            {
+                videoGuideController.StopAndHide();
+            }
+
+            movementEvaluator.FinishCurrentMovementByTimer(_elapsedTrainingSeconds, safetyWarningCount);
+            _lastVideoMovementKey = null;
+            _currentMovementVideoStarted = false;
+            _currentMovementTargetReached = false;
+            _currentMovementBestCompletion = 0f;
+
+            if (movementEvaluator.Completed)
+            {
+                EndSession(RehabSessionEndReason.Completed);
+                return;
+            }
+
+            PrepareCurrentMovementTimer();
+            RefreshTitle();
+            ShowWaitingForUserPrompt();
+        }
+
+        private void PrepareCurrentMovementTimer()
+        {
+            _currentMovementDurationSeconds = ResolveCurrentMovementDurationSeconds();
+            _currentMovementRemainingSeconds = _currentMovementDurationSeconds;
+            _currentMovementTargetReached = false;
+            _currentMovementBestCompletion = 0f;
+        }
+
+        private float ResolveCurrentMovementDurationSeconds()
+        {
+            var duration = Mathf.Max(1f, defaultMovementDurationSeconds);
+            var movement = movementEvaluator != null ? movementEvaluator.CurrentMovement : null;
+            if (useVideoDurationForMovement && videoGuideController != null && movement != null)
+            {
+                var videoDuration = videoGuideController.GetVideoDurationForMovement(
+                    movement.movementId.ToString(),
+                    movement.movementName);
+                if (videoDuration > 1f)
+                {
+                    duration = videoDuration + videoDurationPaddingSeconds;
+                }
+            }
+
+            return Mathf.Clamp(
+                duration,
+                Mathf.Max(1f, minMovementDurationSeconds),
+                Mathf.Max(minMovementDurationSeconds, maxMovementDurationSeconds));
+        }
+
+        private void ShowWaitingForUserPrompt()
+        {
+            SetStatus("请进入训练圈开始训练");
+            RefreshTitle();
+            RefreshTimer();
+
+            if (uiController != null)
+            {
+                var movement = movementEvaluator != null ? movementEvaluator.CurrentMovement : null;
+                uiController.SetIdle(
+                    movement != null ? movement.movementName : movementEvaluator != null ? movementEvaluator.movementName : string.Empty,
+                    "请进入训练圈开始训练",
+                    _currentMovementRemainingSeconds);
+            }
+        }
+
+        private void ShowPausedOutOfAreaPrompt()
+        {
+            SetStatus("请回到训练圈内，训练已暂停");
+            RefreshTimer();
+
+            if (uiController != null)
+            {
+                uiController.SetSafetyPrompt("请回到训练圈内，训练已暂停");
             }
         }
 
@@ -461,20 +697,17 @@ namespace PicoElderCare.Rehab
 
             var movementKey = movement.movementId + "|" + movement.movementName;
 
-            if (IsSessionActive &&
-                videoGuideController != null &&
-                !string.IsNullOrWhiteSpace(movement.movementName) &&
-                (force || movementKey != _lastVideoMovementKey))
-            {
-                _lastVideoMovementKey = movementKey;
-                videoGuideController.PlayForMovement(movement.movementId.ToString(), movement.movementName);
-            }
-
             if (virtualCoachController == null) return;
             if (!force && movementKey == _lastCoachMovementKey) return;
 
             _lastCoachMovementKey = movementKey;
             virtualCoachController.PlayMovement(movement, coachPlaybackStateOnMovementStart);
+        }
+
+        private bool IsUserInsideTrainingArea(Vector3 headPosition)
+        {
+            var center = trainingAreaRoot != null ? trainingAreaRoot.position : _trainingCenter;
+            return SafetyMonitor.CalculateHorizontalDistance(headPosition, center) <= Mathf.Max(0.1f, trainingRadius);
         }
 
         private void RefreshTitle()
@@ -526,8 +759,10 @@ namespace PicoElderCare.Rehab
         {
             if (timerText == null) return;
 
-            var remaining = Mathf.Max(0f, sessionDurationSeconds - _elapsedTrainingSeconds);
-            timerText.text = string.Format("剩余 {0:00}:{1:00}", Mathf.FloorToInt(remaining / 60f), Mathf.FloorToInt(remaining % 60f));
+            var remaining = _sessionActive
+                ? Mathf.Max(0f, _currentMovementRemainingSeconds)
+                : Mathf.Max(0f, sessionDurationSeconds - _elapsedTrainingSeconds);
+            timerText.text = string.Format("当前动作剩余 {0:00}:{1:00}", Mathf.FloorToInt(remaining / 60f), Mathf.FloorToInt(remaining % 60f));
         }
 
         private void RefreshUi(RehabMovementEvaluation evaluation, RehabSafetyState safety)
@@ -537,7 +772,7 @@ namespace PicoElderCare.Rehab
             if (timerText != null)
             {
                 var remaining = Mathf.Max(0f, evaluation.remainingSeconds);
-                timerText.text = string.Format("当前步骤剩余 {0:00}:{1:00}", Mathf.FloorToInt(remaining / 60f), Mathf.FloorToInt(remaining % 60f));
+                timerText.text = string.Format("当前动作剩余 {0:00}:{1:00}", Mathf.FloorToInt(remaining / 60f), Mathf.FloorToInt(remaining % 60f));
             }
 
             if (debugText != null)
@@ -555,7 +790,7 @@ namespace PicoElderCare.Rehab
                 uiController.Refresh(
                     evaluation,
                     safety,
-                    Mathf.Max(0f, sessionDurationSeconds - _elapsedTrainingSeconds));
+                    Mathf.Max(0f, _currentMovementRemainingSeconds));
             }
         }
 
@@ -565,6 +800,17 @@ namespace PicoElderCare.Rehab
             {
                 videoGuideController.StopAndHide();
             }
+        }
+
+        private string GetCurrentMovementKey()
+        {
+            if (movementEvaluator == null || movementEvaluator.CurrentMovement == null)
+            {
+                return string.Empty;
+            }
+
+            var movement = movementEvaluator.CurrentMovement;
+            return movement.movementId + "|" + movement.movementName;
         }
     }
 }
