@@ -12,6 +12,7 @@ public static class PingPongPhysicsSelfTests
         SolverClampsMaximumSpeed();
         ContactPlacementChangesLateralDirection();
         ServeProfilesCreateOppositeSpin();
+        DifficultyPresetsIncreaseServeSpeed();
         AerodynamicsDragAndTopspinAreDirectional();
         RigidbodySpinLimitCoversServeSpin();
         ControllerBallGrabberReportsNearbyBall();
@@ -88,6 +89,19 @@ public static class PingPongPhysicsSelfTests
         AssertTrue(topspin.sqrMagnitude > 1f, "Topspin serve should create angular velocity.");
         AssertTrue(backspin.sqrMagnitude > 1f, "Backspin serve should create angular velocity.");
         AssertTrue(Vector3.Dot(topspin.normalized, backspin.normalized) < -0.99f, "Topspin and backspin should use opposite spin axes.");
+    }
+
+    private static void DifficultyPresetsIncreaseServeSpeed()
+    {
+        var easy = PingPongDifficultyController.GetSpeed(PingPongDifficulty.Easy);
+        var normal = PingPongDifficultyController.GetSpeed(PingPongDifficulty.Normal);
+        var advanced = PingPongDifficultyController.GetSpeed(PingPongDifficulty.Advanced);
+        var challenge = PingPongDifficultyController.GetSpeed(PingPongDifficulty.Challenge);
+
+        AssertTrue(easy < normal, "Easy difficulty should be slower than normal.");
+        AssertTrue(normal < advanced, "Advanced difficulty should be faster than normal.");
+        AssertTrue(advanced < challenge, "Challenge difficulty should be the fastest preset.");
+        AssertTrue(PingPongDifficultyController.GetServeInterval(PingPongDifficulty.Easy) > PingPongDifficultyController.GetServeInterval(PingPongDifficulty.Challenge), "Easy difficulty should leave more time between serves.");
     }
 
     private static void AerodynamicsDragAndTopspinAreDirectional()

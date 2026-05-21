@@ -318,6 +318,11 @@ public static class RehabSceneBuilder
         var panelImage = panel.AddComponent<Image>();
         panelImage.color = new Color(0.03f, 0.05f, 0.08f, 0.86f);
 
+        CreateEntryDivider(panel.transform, "AmbientLineTop", new Vector2(0f, 302f), new Vector2(910f, 2f), new Color(0.38f, 0.92f, 1f, 0.18f));
+        CreateEntryDivider(panel.transform, "AmbientLineBottom", new Vector2(0f, -330f), new Vector2(820f, 2f), new Color(0.38f, 0.92f, 1f, 0.14f));
+        CreateEntryDivider(panel.transform, "AmbientLineLeft", new Vector2(-530f, -8f), new Vector2(2f, 560f), new Color(0.38f, 0.92f, 1f, 0.12f));
+        CreateEntryDivider(panel.transform, "AmbientLineRight", new Vector2(530f, -8f), new Vector2(2f, 560f), new Color(0.38f, 0.92f, 1f, 0.12f));
+
         CreateEntryStar(panel.transform, "StarA", new Vector2(-430f, 260f), 8f, 0.46f);
         CreateEntryStar(panel.transform, "StarB", new Vector2(390f, 210f), 7f, 0.38f);
         CreateEntryStar(panel.transform, "StarC", new Vector2(-370f, -270f), 6f, 0.32f);
@@ -332,13 +337,14 @@ public static class RehabSceneBuilder
             panel.transform,
             "Module_HealthGame",
             "健康游戏",
-            "乒乓球、投篮等趣味运动",
+            "乒乓球训练 · 速度可调",
             ElderCareIconType.Gamepad,
             new Vector2(-285f, 82f),
             new Vector2(460f, 220f),
             new Color(0.18f, 0.46f, 0.91f, 0.96f),
             true,
-            menu.LoadPingPong);
+            menu.LoadPingPong,
+            0.05f);
 
         CreateEntryModuleCard(
             panel.transform,
@@ -350,7 +356,8 @@ public static class RehabSceneBuilder
             new Vector2(460f, 220f),
             new Color(0.15f, 0.66f, 0.34f, 0.96f),
             true,
-            menu.LoadRehab);
+            menu.LoadRehab,
+            0.12f);
 
         CreateEntryModuleCard(
             panel.transform,
@@ -362,7 +369,8 @@ public static class RehabSceneBuilder
             new Vector2(460f, 220f),
             new Color(0.55f, 0.29f, 0.89f, 0.72f),
             false,
-            null);
+            null,
+            0.19f);
 
         CreateEntryModuleCard(
             panel.transform,
@@ -374,7 +382,8 @@ public static class RehabSceneBuilder
             new Vector2(460f, 220f),
             new Color(0.91f, 0.42f, 0.12f, 0.72f),
             false,
-            null);
+            null,
+            0.26f);
 
         var footer = CreateText(panel.transform, "FooterHint", "使用手柄或手势选择功能", 28, FontStyles.Normal, TextAlignmentOptions.Center, new Vector2(0f, -365f), new Vector2(900f, 50f));
         footer.color = new Color(1f, 1f, 1f, 0.62f);
@@ -392,37 +401,43 @@ public static class RehabSceneBuilder
         Vector2 size,
         Color baseColor,
         bool enabled,
-        UnityEngine.Events.UnityAction onClick)
+        UnityEngine.Events.UnityAction onClick,
+        float entranceDelay)
     {
         var go = CreateUiObject(name, parent);
         var rect = go.GetComponent<RectTransform>();
         rect.anchoredPosition = anchoredPosition;
         rect.sizeDelta = size;
 
+        var glow = CreateUiObject("Glow", go.transform);
+        var glowRect = glow.GetComponent<RectTransform>();
+        glowRect.anchoredPosition = Vector2.zero;
+        glowRect.sizeDelta = size + new Vector2(34f, 34f);
+        var glowImage = glow.AddComponent<Image>();
+        glowImage.color = new Color(baseColor.r, baseColor.g, baseColor.b, enabled ? 0.08f : 0.03f);
+        glowImage.raycastTarget = false;
+
         var panel = go.AddComponent<Image>();
-        panel.color = enabled ? baseColor : new Color(baseColor.r, baseColor.g, baseColor.b, 0.6f);
+        panel.color = enabled ? new Color(baseColor.r * 0.72f, baseColor.g * 0.82f, baseColor.b, 0.94f) : new Color(baseColor.r * 0.55f, baseColor.g * 0.55f, baseColor.b * 0.62f, 0.52f);
+        var outline = go.AddComponent<Outline>();
+        outline.effectColor = new Color(0.62f, 0.95f, 1f, enabled ? 0.32f : 0.14f);
+        outline.effectDistance = new Vector2(2f, -2f);
 
         var button = go.AddComponent<Button>();
         button.targetGraphic = panel;
         button.interactable = enabled;
-        var colors = button.colors;
-        colors.normalColor = panel.color;
-        colors.highlightedColor = Color.Lerp(baseColor, Color.white, 0.16f);
-        colors.pressedColor = Color.Lerp(baseColor, Color.black, 0.16f);
-        colors.selectedColor = colors.highlightedColor;
-        colors.disabledColor = panel.color;
-        colors.fadeDuration = 0.08f;
-        button.colors = colors;
+        button.transition = Selectable.Transition.None;
 
         if (enabled && onClick != null)
         {
             UnityEventTools.AddPersistentListener(button.onClick, onClick);
         }
 
-        CreateEntryDivider(go.transform, "TopHighlight", new Vector2(0f, size.y * 0.5f - 4f), new Vector2(size.x, 8f), new Color(1f, 1f, 1f, enabled ? 0.18f : 0.09f));
+        var edge = CreateEntryDivider(go.transform, "TopHighlight", new Vector2(0f, size.y * 0.5f - 4f), new Vector2(size.x - 24f, 8f), new Color(0.62f, 0.96f, 1f, enabled ? 0.42f : 0.14f));
+        CreateEntryDivider(go.transform, "BottomTrace", new Vector2(0f, -size.y * 0.5f + 18f), new Vector2(size.x - 92f, 3f), new Color(1f, 1f, 1f, enabled ? 0.2f : 0.08f));
 
         var icon = CreateText(go.transform, "Icon", GetEntryIconText(iconType), 62, FontStyles.Bold, TextAlignmentOptions.Center, new Vector2(0f, 52f), new Vector2(130f, 82f));
-        icon.color = new Color(1f, 1f, 1f, enabled ? 0.95f : 0.5f);
+        icon.color = new Color(0.88f, 0.98f, 1f, enabled ? 0.98f : 0.46f);
         icon.raycastTarget = false;
 
         var cardTitle = CreateText(go.transform, "Title", title, 42, FontStyles.Bold, TextAlignmentOptions.Center, new Vector2(0f, -28f), new Vector2(size.x - 36f, 58f));
@@ -439,6 +454,22 @@ public static class RehabSceneBuilder
             badge.color = new Color(1f, 1f, 1f, 0.58f);
             badge.raycastTarget = false;
         }
+
+        var motion = go.AddComponent<TechModuleCardMotion>();
+        motion.cardTransform = rect;
+        motion.canvasGroup = go.AddComponent<CanvasGroup>();
+        motion.cardGraphic = panel;
+        motion.glowGraphic = glowImage;
+        motion.edgeGraphic = edge;
+        motion.interactable = enabled;
+        motion.entranceDelay = entranceDelay;
+        motion.normalColor = panel.color;
+        motion.hoverColor = enabled ? Color.Lerp(panel.color, new Color(0.42f, 0.88f, 1f, 0.96f), 0.22f) : panel.color;
+        motion.pressedColor = Color.Lerp(panel.color, Color.black, 0.18f);
+        motion.glowColor = new Color(baseColor.r, baseColor.g, baseColor.b, enabled ? 0.26f : 0.06f);
+        motion.edgeColor = new Color(0.7f, 0.98f, 1f, enabled ? 0.54f : 0.16f);
+        motion.hoverScale = enabled ? 1.035f : 1f;
+        motion.pressedScale = enabled ? 0.97f : 1f;
 
         return button;
     }
@@ -460,7 +491,7 @@ public static class RehabSceneBuilder
         }
     }
 
-    private static void CreateEntryDivider(Transform parent, string name, Vector2 anchoredPosition, Vector2 size, Color color, float cornerRadius = 2f)
+    private static Image CreateEntryDivider(Transform parent, string name, Vector2 anchoredPosition, Vector2 size, Color color, float cornerRadius = 2f)
     {
         var go = CreateUiObject(name, parent);
         var rect = go.GetComponent<RectTransform>();
@@ -469,6 +500,7 @@ public static class RehabSceneBuilder
         var image = go.AddComponent<Image>();
         image.color = color;
         image.raycastTarget = false;
+        return image;
     }
 
     private static void CreateEntryStar(Transform parent, string name, Vector2 anchoredPosition, float size, float alpha)
