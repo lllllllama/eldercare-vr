@@ -15,8 +15,26 @@ namespace PicoElderCare.Rehab
         public float heightOffset = -0.05f;
         public float videoWidth = 0.62f;
         public float videoHeight = 0.35f;
+        public float videoScale = 1f;
+        public float minVideoScale = 0.65f;
+        public float maxVideoScale = 1.7f;
+        public float videoScaleStep = 0.12f;
+        public float minPanelDistance = 0.95f;
+        public float maxPanelDistance = 3.25f;
+        public float minHeightFromHead = -0.55f;
+        public float maxHeightFromHead = 0.45f;
         public bool preferPromptCanvasLayout = true;
+        public bool followTrainingAreaRoot = false;
+        public bool preserveUserPlacement = true;
         public bool faceUser = true;
+
+        private RehabSessionManager _sessionManager;
+        private bool _hasUserPlacement;
+
+        public Vector3 PanelPosition
+        {
+            get { return panelRoot != null ? panelRoot.position : transform.position; }
+        }
 
         private void Reset()
         {
@@ -34,6 +52,17 @@ namespace PicoElderCare.Rehab
             var headPosition = headTransform != null
                 ? headTransform.position
                 : new Vector3(0f, 1.5f, 0f);
+
+            if (preserveUserPlacement && _hasUserPlacement)
+            {
+                if (faceUser)
+                {
+                    FaceHeadYaw(headPosition);
+                }
+
+                return;
+            }
+
             var forward = GetHeadYawForward();
             var right = Vector3.Cross(Vector3.up, forward).normalized;
             if (right.sqrMagnitude < 0.0001f)
@@ -42,11 +71,11 @@ namespace PicoElderCare.Rehab
             }
 
             var baseCenter = headPosition + forward * Mathf.Max(0.1f, panelDistance);
-            if (preferPromptCanvasLayout && promptCanvas != null)
+            if (preferPromptCanvasLayout && promptCanvas != null && !IsPromptCanvasBoundToTrainingArea())
             {
                 baseCenter = promptCanvas.position;
             }
-            else if (trainingAreaRoot != null)
+            else if (followTrainingAreaRoot && trainingAreaRoot != null)
             {
                 var trainingToHead = headPosition - trainingAreaRoot.position;
                 trainingToHead.y = 0f;
@@ -65,12 +94,80 @@ namespace PicoElderCare.Rehab
             }
         }
 
-        private void ApplyVideoSize()
+        public void ResetVideoPlacement()
         {
+            _hasUserPlacement = false;
+            PlaceInRightFrontOfUserOnce();
+        }
+
+        public void MoveVideoToWorldPoint(Vector3 targetPosition, Vector3 headPosition)
+        {
+            ResolveReferences();
+            if (panelRoot == null) return;
+
+            var constrained = ConstrainPanelPosition(targetPosition, headPosition);
+            panelRoot.position = constrained;
+            _hasUserPlacement = true;
+
+            if (faceUser)
+            {
+                FaceHeadYaw(headPosition);
+            }
+        }
+
+        public void AdjustVideoScale(float delta)
+        {
+            SetVideoScale(videoScale + delta);
+        }
+
+        public void ScaleVideoUp()
+        {
+            AdjustVideoScale(Mathf.Abs(videoScaleStep));
+        }
+
+        public void ScaleVideoDown()
+        {
+            AdjustVideoScale(-Mathf.Abs(videoScaleStep));
+        }
+
+        public void SetVideoScale(float scale)
+        {
+            videoScale = Mathf.Clamp(scale, Mathf.Max(0.01f, minVideoScale), Mathf.Max(minVideoScale, maxVideoScale));
+            ApplyVideoSize();
+        }
+
+        public void ApplyVideoSize()
+        {
+            videoScale = Mathf.Clamp(videoScale, Mathf.Max(0.01f, minVideoScale), Mathf.Max(minVideoScale, maxVideoScale));
             if (videoQuad != null)
             {
-                videoQuad.localScale = new Vector3(videoWidth, videoHeight, 1f);
+                videoQuad.localScale = new Vector3(videoWidth * videoScale, videoHeight * videoScale, 1f);
             }
+        }
+
+        private Vector3 ConstrainPanelPosition(Vector3 targetPosition, Vector3 headPosition)
+        {
+            var horizontal = targetPosition - headPosition;
+            horizontal.y = 0f;
+            if (horizontal.sqrMagnitude < 0.0001f)
+            {
+                horizontal = GetHeadYawForward() * Mathf.Max(0.1f, panelDistance);
+            }
+
+            var distance = Mathf.Clamp(
+                horizontal.magnitude,
+                Mathf.Max(0.1f, minPanelDistance),
+                Mathf.Max(minPanelDistance, maxPanelDistance));
+            horizontal = horizontal.normalized * distance;
+
+            targetPosition.x = headPosition.x + horizontal.x;
+            targetPosition.z = headPosition.z + horizontal.z;
+            targetPosition.y = Mathf.Clamp(
+                targetPosition.y,
+                headPosition.y + minHeightFromHead,
+                headPosition.y + maxHeightFromHead);
+
+            return targetPosition;
         }
 
         private Vector3 GetHeadYawForward()
@@ -101,6 +198,11 @@ namespace PicoElderCare.Rehab
             }
 
             panelRoot.rotation = Quaternion.LookRotation(awayFromUser.normalized, Vector3.up);
+        }
+
+        private bool IsPromptCanvasBoundToTrainingArea()
+        {
+            return _sessionManager != null && _sessionManager.placePromptCanvasWithTrainingArea;
         }
 
         private void ResolveReferences()
@@ -138,9 +240,14 @@ namespace PicoElderCare.Rehab
                 var sessionManager = FindObjectOfType<RehabSessionManager>(true);
                 if (sessionManager != null)
                 {
+                    _sessionManager = sessionManager;
                     promptCanvas = sessionManager.promptCanvas;
                     trainingAreaRoot = trainingAreaRoot != null ? trainingAreaRoot : sessionManager.trainingAreaRoot;
                 }
+            }
+            else if (_sessionManager == null)
+            {
+                _sessionManager = FindObjectOfType<RehabSessionManager>(true);
             }
         }
     }

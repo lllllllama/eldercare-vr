@@ -27,6 +27,9 @@ public static class RehabSelfTests
         TrainingAreaDragHandleIsDisabledByDefault();
         ManualTrainingAreaPlacementUpdatesSessionCenter();
         PromptPanelStaysOutsideTrainingCircle();
+        VideoPanelLayoutIsDecoupledFromTrainingAreaByDefault();
+        VideoPanelScalingClampsAndKeepsPanelUpright();
+        SpatialRayControlCanPlaceTrainingAreaExplicitly();
         Debug.Log("Rehab self tests passed.");
     }
 
@@ -444,9 +447,10 @@ public static class RehabSelfTests
         {
             handleObject.name = "TrainingAreaDragHandle";
             var handle = handleObject.AddComponent<RehabTrainingAreaDragHandle>();
+            handle.allowUserPlacementDrag = true;
             handle.ApplyInteractionState();
 
-            AssertTrue(!handle.allowUserPlacementDrag, "Training-area drag should be disabled by default to prevent accidental placement changes.");
+            AssertTrue(!handle.allowUserPlacementDrag, "Legacy training-area drag should stay disabled even if an old scene serialized it as enabled.");
             AssertTrue(!handleObject.GetComponent<Renderer>().enabled, "Disabled training-area drag handle should hide its visible affordance.");
             AssertTrue(!handleObject.GetComponent<Collider>().enabled, "Disabled training-area drag handle should disable its collider.");
         }
@@ -484,6 +488,116 @@ public static class RehabSelfTests
         finally
         {
             Object.DestroyImmediate(promptObject);
+            Object.DestroyImmediate(areaObject);
+            Object.DestroyImmediate(sessionObject);
+        }
+    }
+
+    private static void VideoPanelLayoutIsDecoupledFromTrainingAreaByDefault()
+    {
+        var headObject = new GameObject("Head");
+        var panelObject = new GameObject("RehabVideoPanel");
+        var quadObject = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        var trainingAreaObject = new GameObject("TrainingArea");
+        try
+        {
+            headObject.transform.position = new Vector3(0f, 1.6f, 0f);
+            headObject.transform.rotation = Quaternion.identity;
+            quadObject.name = "VideoQuad";
+            quadObject.transform.SetParent(panelObject.transform, false);
+
+            var layout = panelObject.AddComponent<RehabVideoPanelLayoutController>();
+            layout.panelRoot = panelObject.transform;
+            layout.videoQuad = quadObject.transform;
+            layout.headTransform = headObject.transform;
+            layout.trainingAreaRoot = trainingAreaObject.transform;
+            layout.preferPromptCanvasLayout = false;
+            layout.followTrainingAreaRoot = false;
+            layout.panelDistance = 1.8f;
+            layout.videoRightOffset = 0.75f;
+
+            trainingAreaObject.transform.position = new Vector3(2f, 0f, 2f);
+            layout.PlaceInRightFrontOfUserOnce();
+            var firstPosition = panelObject.transform.position;
+
+            trainingAreaObject.transform.position = new Vector3(-2f, 0f, 4f);
+            layout.PlaceInRightFrontOfUserOnce();
+
+            AssertTrue(Vector3.Distance(panelObject.transform.position, firstPosition) < 0.001f, "Video panel should not follow training-area movement by default.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(trainingAreaObject);
+            Object.DestroyImmediate(quadObject);
+            Object.DestroyImmediate(panelObject);
+            Object.DestroyImmediate(headObject);
+        }
+    }
+
+    private static void VideoPanelScalingClampsAndKeepsPanelUpright()
+    {
+        var headObject = new GameObject("Head");
+        var panelObject = new GameObject("RehabVideoPanel");
+        var quadObject = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        try
+        {
+            headObject.transform.position = new Vector3(0f, 1.6f, 0f);
+            headObject.transform.rotation = Quaternion.identity;
+            quadObject.name = "VideoQuad";
+            quadObject.transform.SetParent(panelObject.transform, false);
+
+            var layout = panelObject.AddComponent<RehabVideoPanelLayoutController>();
+            layout.panelRoot = panelObject.transform;
+            layout.videoQuad = quadObject.transform;
+            layout.headTransform = headObject.transform;
+            layout.videoWidth = 0.62f;
+            layout.videoHeight = 0.35f;
+            layout.minVideoScale = 0.65f;
+            layout.maxVideoScale = 1.7f;
+
+            layout.SetVideoScale(99f);
+            AssertTrue(Mathf.Abs(quadObject.transform.localScale.x - layout.videoWidth * layout.maxVideoScale) < 0.001f, "Video scale should clamp to the configured maximum.");
+
+            layout.SetVideoScale(0.01f);
+            AssertTrue(Mathf.Abs(quadObject.transform.localScale.y - layout.videoHeight * layout.minVideoScale) < 0.001f, "Video scale should clamp to the configured minimum.");
+
+            layout.MoveVideoToWorldPoint(new Vector3(0.8f, 1.7f, 1.9f), headObject.transform.position);
+            AssertTrue(Vector3.Dot(panelObject.transform.up, Vector3.up) > 0.999f, "Video panel movement should keep the display upright without tilt.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(quadObject);
+            Object.DestroyImmediate(panelObject);
+            Object.DestroyImmediate(headObject);
+        }
+    }
+
+    private static void SpatialRayControlCanPlaceTrainingAreaExplicitly()
+    {
+        var sessionObject = new GameObject("RehabSessionSpatialPlacementTest");
+        var areaObject = new GameObject("TrainingArea");
+        var controlObject = new GameObject("RehabSpatialRayControl");
+        try
+        {
+            var session = sessionObject.AddComponent<RehabSessionManager>();
+            session.trainingAreaRoot = areaObject.transform;
+            session.trainingFloorY = 0f;
+
+            var control = controlObject.AddComponent<RehabSpatialRayControl>();
+            control.sessionManager = session;
+            control.floorY = 0f;
+            control.maxRayDistanceMeters = 10f;
+            control.SelectTrainingAreaTarget();
+            var placedByRay = control.TryPlaceTrainingAreaFromRay(new Ray(new Vector3(1.25f, 3f, 2.5f), Vector3.down));
+
+            AssertTrue(control.PlacementArmed, "Selecting the training-area target should arm explicit placement.");
+            AssertTrue(placedByRay, "Explicit spatial placement should accept a floor ray.");
+            AssertTrue(Vector3.Distance(session.TrainingCenter, new Vector3(1.25f, 0f, 2.5f)) < 0.001f, "Explicit spatial placement should update the session training center.");
+            AssertTrue(Vector3.Distance(areaObject.transform.position, session.TrainingCenter) < 0.001f, "Explicit spatial placement should move the training area root.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(controlObject);
             Object.DestroyImmediate(areaObject);
             Object.DestroyImmediate(sessionObject);
         }

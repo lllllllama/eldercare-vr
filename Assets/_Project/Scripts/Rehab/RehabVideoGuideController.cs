@@ -659,6 +659,8 @@ namespace PicoElderCare.Rehab
                 {
                     layoutController.videoQuad = videoQuad.transform;
                 }
+
+                layoutController.followTrainingAreaRoot = false;
             }
 
             if (sessionManager == null)
@@ -698,6 +700,11 @@ namespace PicoElderCare.Rehab
             }
 
             EnsureRenderTextureBinding();
+
+            if (layoutController != null)
+            {
+                RehabSpatialRayControl.EnsureRuntime(sessionManager, layoutController);
+            }
         }
     }
 }
