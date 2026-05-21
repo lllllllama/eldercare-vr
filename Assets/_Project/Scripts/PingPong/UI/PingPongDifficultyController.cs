@@ -1,6 +1,8 @@
+using System.Collections.Generic;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.XR;
 
 public enum PingPongDifficulty
 {
@@ -15,7 +17,7 @@ public class PingPongDifficultyController : MonoBehaviour
 {
     private const string DefaultPrefsKey = "PicoElderCare.PingPong.Difficulty";
     private const string RuntimePanelName = "DifficultyPanel";
-    private static readonly Vector2 ReadablePanelSize = new Vector2(560f, 340f);
+    private static readonly Vector2 ReadablePanelSize = new Vector2(560f, 280f);
     private static readonly Vector2 ReadablePanelPosition = new Vector2(630f, 148f);
 
     public BallSpawner ballSpawner;
@@ -32,9 +34,15 @@ public class PingPongDifficultyController : MonoBehaviour
     [Range(1.5f, 5.0f)] public float customSpeed = 3.0f;
     public bool controlServeInterval = true;
     public bool enhancePanelReadability = true;
+    public bool showScreenButtons = false;
+    public bool enableControllerSpeedButtons = true;
+    public XRNode controllerButtonNode = XRNode.RightHand;
 
+    private readonly List<InputDevice> _buttonDevices = new List<InputDevice>();
     private PingPongDifficulty _difficulty;
     private bool _buttonsWired;
+    private bool _wasAcceleratePressed;
+    private bool _wasDeceleratePressed;
 
     public PingPongDifficulty CurrentDifficulty => _difficulty;
     public float CurrentSpeed => ballSpawner != null ? ballSpawner.serveSpeed : GetPreset(startingDifficulty).speed;
@@ -52,7 +60,7 @@ public class PingPongDifficultyController : MonoBehaviour
         else
         {
             var existingController = root.GetComponent<PingPongDifficultyController>();
-            if (existingController != null && existingController.difficultyText != null && existingController.decreaseButton != null && existingController.increaseButton != null)
+            if (existingController != null && existingController.difficultyText != null)
             {
                 existingController.ballSpawner = spawner;
                 existingController.RebindButtons();
@@ -64,9 +72,9 @@ public class PingPongDifficultyController : MonoBehaviour
 
         var rootRect = ConfigureRect(root, ReadablePanelSize, ReadablePanelPosition);
         var background = ConfigureImage(GetOrCreateChild(root.transform, "Background"), ReadablePanelSize, Vector2.zero, new Color(0.015f, 0.04f, 0.07f, 0.94f));
-        var glow = ConfigureImage(GetOrCreateChild(root.transform, "Glow"), new Vector2(590f, 370f), Vector2.zero, new Color(0.2f, 0.82f, 1f, 0.1f));
+        var glow = ConfigureImage(GetOrCreateChild(root.transform, "Glow"), new Vector2(590f, 310f), Vector2.zero, new Color(0.2f, 0.82f, 1f, 0.1f));
         if (glow != null) glow.transform.SetAsFirstSibling();
-        ConfigureImage(GetOrCreateChild(root.transform, "TopScanLine"), new Vector2(486f, 4f), new Vector2(0f, 142f), new Color(0.42f, 0.92f, 1f, 0.72f));
+        ConfigureImage(GetOrCreateChild(root.transform, "TopScanLine"), new Vector2(486f, 4f), new Vector2(0f, 112f), new Color(0.42f, 0.92f, 1f, 0.72f));
 
         var title = ConfigureText(GetOrCreateChild(root.transform, "Title"), "发球速度", fontAsset, new Vector2(480f, 54f), new Vector2(0f, 116f), 34f, FontStyles.Bold, new Color(1f, 1f, 1f, 0.98f));
         var difficulty = ConfigureText(GetOrCreateChild(root.transform, "DifficultyText"), "难度：标准", fontAsset, new Vector2(480f, 48f), new Vector2(0f, 66f), 28f, FontStyles.Bold, new Color(0.62f, 0.96f, 1f, 0.98f));
@@ -76,6 +84,13 @@ public class PingPongDifficultyController : MonoBehaviour
         var decrease = ConfigureButton(GetOrCreateChild(root.transform, "DecreaseButton"), "-", fontAsset, new Vector2(104f, 68f), new Vector2(-166f, -66f));
         var reset = ConfigureButton(GetOrCreateChild(root.transform, "ResetButton"), "标准", fontAsset, new Vector2(150f, 68f), new Vector2(0f, -66f));
         var increase = ConfigureButton(GetOrCreateChild(root.transform, "IncreaseButton"), "+", fontAsset, new Vector2(104f, 68f), new Vector2(166f, -66f));
+        ConfigureText(title.gameObject, "发球速度", fontAsset, new Vector2(480f, 54f), new Vector2(0f, 86f), 34f, FontStyles.Bold, new Color(1f, 1f, 1f, 0.98f));
+        ConfigureText(difficulty.gameObject, "难度：标准", fontAsset, new Vector2(480f, 48f), new Vector2(0f, 36f), 28f, FontStyles.Bold, new Color(0.62f, 0.96f, 1f, 0.98f));
+        ConfigureText(speed.gameObject, "速度 3.0 m/s", fontAsset, new Vector2(480f, 46f), new Vector2(0f, -8f), 26f, FontStyles.Bold, new Color(1f, 1f, 1f, 0.94f));
+        ConfigureText(hint.gameObject, "A 加速 / B 减速", fontAsset, new Vector2(500f, 44f), new Vector2(0f, -86f), 22f, FontStyles.Normal, new Color(1f, 1f, 1f, 0.78f));
+        SetButtonVisible(decrease, false, new Vector2(104f, 68f), new Vector2(-166f, -66f));
+        SetButtonVisible(reset, false, new Vector2(150f, 68f), new Vector2(0f, -66f));
+        SetButtonVisible(increase, false, new Vector2(104f, 68f), new Vector2(166f, -66f));
 
         var controller = root.GetComponent<PingPongDifficultyController>();
         if (controller == null)
@@ -87,11 +102,13 @@ public class PingPongDifficultyController : MonoBehaviour
         controller.difficultyText = difficulty;
         controller.speedText = speed;
         controller.hintText = hint;
-        controller.decreaseButton = decrease;
-        controller.resetButton = reset;
-        controller.increaseButton = increase;
+        controller.decreaseButton = null;
+        controller.resetButton = null;
+        controller.increaseButton = null;
         controller.startingDifficulty = PingPongDifficulty.Normal;
         controller.controlServeInterval = true;
+        controller.showScreenButtons = false;
+        controller.enableControllerSpeedButtons = true;
         controller.RebindButtons();
         controller.ApplyLoadedDifficulty();
         controller.ApplyReadabilityLayout();
@@ -145,6 +162,11 @@ public class PingPongDifficultyController : MonoBehaviour
         UnwireButtons();
     }
 
+    private void Update()
+    {
+        HandleControllerSpeedButtons();
+    }
+
     public void IncreaseDifficulty()
     {
         SetDifficulty((PingPongDifficulty)Mathf.Min((int)_difficulty + 1, (int)PingPongDifficulty.Challenge));
@@ -192,22 +214,22 @@ public class PingPongDifficultyController : MonoBehaviour
 
         ConfigureRect(gameObject, ReadablePanelSize, ReadablePanelPosition);
         var background = ConfigureImage(GetOrCreateChild(transform, "Background"), ReadablePanelSize, Vector2.zero, new Color(0.015f, 0.04f, 0.07f, 0.94f));
-        var glow = ConfigureImage(GetOrCreateChild(transform, "Glow"), new Vector2(590f, 370f), Vector2.zero, new Color(0.2f, 0.82f, 1f, 0.1f));
+        var glow = ConfigureImage(GetOrCreateChild(transform, "Glow"), new Vector2(590f, 310f), Vector2.zero, new Color(0.2f, 0.82f, 1f, 0.1f));
         if (glow != null)
         {
             glow.transform.SetAsFirstSibling();
         }
 
-        ConfigureImage(GetOrCreateChild(transform, "TopScanLine"), new Vector2(486f, 4f), new Vector2(0f, 142f), new Color(0.42f, 0.92f, 1f, 0.72f));
+        ConfigureImage(GetOrCreateChild(transform, "TopScanLine"), new Vector2(486f, 4f), new Vector2(0f, 112f), new Color(0.42f, 0.92f, 1f, 0.72f));
 
-        ConfigureExistingText(FindPanelText("Title"), new Vector2(480f, 54f), new Vector2(0f, 116f), 34f, FontStyles.Bold, new Color(1f, 1f, 1f, 0.98f));
-        ConfigureExistingText(ResolveText(ref difficultyText, "DifficultyText"), new Vector2(480f, 48f), new Vector2(0f, 66f), 28f, FontStyles.Bold, new Color(0.62f, 0.96f, 1f, 0.98f));
-        ConfigureExistingText(ResolveText(ref speedText, "SpeedText"), new Vector2(480f, 46f), new Vector2(0f, 20f), 26f, FontStyles.Bold, new Color(1f, 1f, 1f, 0.94f));
-        ConfigureExistingText(ResolveText(ref hintText, "HintText"), new Vector2(500f, 44f), new Vector2(0f, -126f), 22f, FontStyles.Normal, new Color(1f, 1f, 1f, 0.78f));
+        ConfigureExistingText(FindPanelText("Title"), new Vector2(480f, 54f), new Vector2(0f, 86f), 34f, FontStyles.Bold, new Color(1f, 1f, 1f, 0.98f));
+        ConfigureExistingText(ResolveText(ref difficultyText, "DifficultyText"), new Vector2(480f, 48f), new Vector2(0f, 36f), 28f, FontStyles.Bold, new Color(0.62f, 0.96f, 1f, 0.98f));
+        ConfigureExistingText(ResolveText(ref speedText, "SpeedText"), new Vector2(480f, 46f), new Vector2(0f, -8f), 26f, FontStyles.Bold, new Color(1f, 1f, 1f, 0.94f));
+        ConfigureExistingText(ResolveText(ref hintText, "HintText"), new Vector2(500f, 44f), new Vector2(0f, -86f), 22f, FontStyles.Normal, new Color(1f, 1f, 1f, 0.78f));
 
-        ConfigureExistingButton(ResolveButton(ref decreaseButton, "DecreaseButton"), new Vector2(104f, 68f), new Vector2(-166f, -66f));
-        ConfigureExistingButton(ResolveButton(ref resetButton, "ResetButton"), new Vector2(150f, 68f), new Vector2(0f, -66f));
-        ConfigureExistingButton(ResolveButton(ref increaseButton, "IncreaseButton"), new Vector2(104f, 68f), new Vector2(166f, -66f));
+        SetButtonVisible(ResolveButton(ref decreaseButton, "DecreaseButton"), showScreenButtons, new Vector2(104f, 68f), new Vector2(-166f, -66f));
+        SetButtonVisible(ResolveButton(ref resetButton, "ResetButton"), showScreenButtons, new Vector2(150f, 68f), new Vector2(0f, -66f));
+        SetButtonVisible(ResolveButton(ref increaseButton, "IncreaseButton"), showScreenButtons, new Vector2(104f, 68f), new Vector2(166f, -66f));
 
         var motion = GetComponent<TechModuleCardMotion>();
         if (motion != null)
@@ -273,6 +295,7 @@ public class PingPongDifficultyController : MonoBehaviour
         }
 
         RefreshText(preset, persist);
+        RefreshControllerHint(preset, persist);
     }
 
     private void RefreshText(DifficultyPreset preset, bool changed)
@@ -293,6 +316,14 @@ public class PingPongDifficultyController : MonoBehaviour
         }
     }
 
+    private void RefreshControllerHint(DifficultyPreset preset, bool changed)
+    {
+        if (hintText != null)
+        {
+            hintText.text = changed ? $"当前发球速度：{preset.label}" : "A 加速 / B 减速";
+        }
+    }
+
     private PingPongDifficulty LoadDifficulty()
     {
         if (!rememberDifficulty) return startingDifficulty;
@@ -309,9 +340,9 @@ public class PingPongDifficultyController : MonoBehaviour
     private void WireButtons()
     {
         UnwireButtons();
-        if (decreaseButton != null) decreaseButton.onClick.AddListener(DecreaseDifficulty);
-        if (increaseButton != null) increaseButton.onClick.AddListener(IncreaseDifficulty);
-        if (resetButton != null) resetButton.onClick.AddListener(ResetDifficulty);
+        if (showScreenButtons && decreaseButton != null) decreaseButton.onClick.AddListener(DecreaseDifficulty);
+        if (showScreenButtons && increaseButton != null) increaseButton.onClick.AddListener(IncreaseDifficulty);
+        if (showScreenButtons && resetButton != null) resetButton.onClick.AddListener(ResetDifficulty);
         _buttonsWired = true;
     }
 
@@ -338,6 +369,42 @@ public class PingPongDifficultyController : MonoBehaviour
             default:
                 return new DifficultyPreset("标准", 3.0f, 4.2f);
         }
+    }
+
+    private void HandleControllerSpeedButtons()
+    {
+        if (!enableControllerSpeedButtons) return;
+
+        var acceleratePressed = ReadButton(controllerButtonNode, CommonUsages.primaryButton);
+        var deceleratePressed = ReadButton(controllerButtonNode, CommonUsages.secondaryButton);
+
+        if (acceleratePressed && !_wasAcceleratePressed)
+        {
+            IncreaseDifficulty();
+        }
+
+        if (deceleratePressed && !_wasDeceleratePressed)
+        {
+            DecreaseDifficulty();
+        }
+
+        _wasAcceleratePressed = acceleratePressed;
+        _wasDeceleratePressed = deceleratePressed;
+    }
+
+    private bool ReadButton(XRNode node, InputFeatureUsage<bool> usage)
+    {
+        InputDevices.GetDevicesAtXRNode(node, _buttonDevices);
+        for (var i = 0; i < _buttonDevices.Count; i++)
+        {
+            var device = _buttonDevices[i];
+            if (device.isValid && device.TryGetFeatureValue(usage, out var pressed) && pressed)
+            {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private readonly struct DifficultyPreset
@@ -463,6 +530,15 @@ public class PingPongDifficultyController : MonoBehaviour
             image.color = new Color(0.05f, 0.18f, 0.3f, 0.98f);
             image.raycastTarget = true;
         }
+    }
+
+    private static void SetButtonVisible(Button button, bool visible, Vector2 size, Vector2 anchoredPosition)
+    {
+        if (button == null) return;
+
+        ConfigureExistingButton(button, size, anchoredPosition);
+        button.interactable = visible;
+        button.gameObject.SetActive(visible);
     }
 
     private static Button ConfigureButton(GameObject go, string label, TMP_FontAsset fontAsset, Vector2 size, Vector2 anchoredPosition)

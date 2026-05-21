@@ -5,6 +5,8 @@ public class TablePassiveMotionLock : MonoBehaviour
 {
     public TableDragHandle dragHandle;
     public float restoreThreshold = 0.002f;
+    public bool normalizeTableHeightOnEnable = true;
+    public float standardTableTopHeight = PingPongGeometry.TableTopHeight;
 
     private Rigidbody _rigidbody;
     private Vector3 _acceptedPosition;
@@ -13,9 +15,15 @@ public class TablePassiveMotionLock : MonoBehaviour
     private void OnEnable()
     {
         _rigidbody = GetComponent<Rigidbody>();
+        NormalizeTableHeightIfNeeded();
         _acceptedPosition = transform.position;
         _acceptedRotation = transform.rotation;
         StabilizeRigidbody();
+
+        if (dragHandle != null)
+        {
+            dragHandle.SyncHeightDependentValues();
+        }
     }
 
     private void LateUpdate()
@@ -61,5 +69,16 @@ public class TablePassiveMotionLock : MonoBehaviour
         _rigidbody.isKinematic = true;
         _rigidbody.useGravity = false;
         _rigidbody.constraints = RigidbodyConstraints.FreezeAll;
+    }
+
+    public void NormalizeTableHeightIfNeeded()
+    {
+        if (!normalizeTableHeightOnEnable) return;
+
+        var targetY = Mathf.Max(0.1f, standardTableTopHeight) - PingPongGeometry.TableThickness * 0.5f;
+        var position = transform.position;
+        if (Mathf.Abs(position.y - targetY) <= 0.0001f) return;
+
+        transform.position = new Vector3(position.x, targetY, position.z);
     }
 }

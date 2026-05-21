@@ -24,6 +24,7 @@ public class PingPongOpenSpaceTablePlacer : MonoBehaviour
     public bool startServingAfterClearPlacement = true;
     public bool startServingAfterManualPlacement = true;
     public bool startServingAfterConfirmedPlacementOnly = true;
+    public bool disableSpatialTablePlacementForNow = true;
     public bool requireRoomSensingColliderForAutoPlacement = true;
     public int minimumRoomSensingColliderCount = 1;
     public float desiredDistanceMeters = 2.05f;
@@ -80,6 +81,12 @@ public class PingPongOpenSpaceTablePlacer : MonoBehaviour
             tableDragHandle.ClearSavedPlacement();
         }
 
+        if (disableSpatialTablePlacementForNow)
+        {
+            DisableSpatialTableControls();
+            return;
+        }
+
         if (controlServing)
         {
             StopServing(true);
@@ -94,6 +101,12 @@ public class PingPongOpenSpaceTablePlacer : MonoBehaviour
     private void Update()
     {
         ResolveReferences();
+        if (disableSpatialTablePlacementForNow)
+        {
+            DisableSpatialTableControls();
+            return;
+        }
+
         EnsureRemoteTableDragController();
 
         if (!_searching || IsDragging) return;
@@ -388,8 +401,16 @@ public class PingPongOpenSpaceTablePlacer : MonoBehaviour
 
     private void EnsureRemoteTableDragController()
     {
-        if (!enableRemoteDrag) return;
+        if (disableSpatialTablePlacementForNow || !enableRemoteDrag)
+        {
+            if (remoteTableDragController != null)
+            {
+                remoteTableDragController.enableRemoteDrag = false;
+                remoteTableDragController.enabled = false;
+            }
 
+            return;
+        }
         if (remoteTableDragController == null)
         {
             remoteTableDragController = GetComponent<RemoteTableDragController>();
@@ -404,6 +425,8 @@ public class PingPongOpenSpaceTablePlacer : MonoBehaviour
             interactionState = SimpleGripInteractionState.EnsureInstance();
         }
 
+        remoteTableDragController.enabled = true;
+        remoteTableDragController.disableRemoteTableDragForNow = false;
         remoteTableDragController.enableRemoteDrag = true;
         remoteTableDragController.tableRoot = tableRoot;
         remoteTableDragController.tableDragHandle = tableDragHandle;
@@ -424,6 +447,28 @@ public class PingPongOpenSpaceTablePlacer : MonoBehaviour
         remoteTableDragController.controlServing = controlServing;
         remoteTableDragController.clearBallsWhenDragging = clearBallsWhenTableMoves;
         remoteTableDragController.resumeServingOnRelease = startServingAfterManualPlacement;
+    }
+
+    private void DisableSpatialTableControls()
+    {
+        _searching = false;
+        _servingSuppressed = false;
+
+        if (tableDragHandle != null)
+        {
+            tableDragHandle.loadSavedPlacementOnEnable = false;
+            tableDragHandle.savePlacementOnRelease = false;
+            tableDragHandle.enableLocalHandleDrag = false;
+            tableDragHandle.hideLocalHandleVisuals = true;
+            tableDragHandle.ConfigureLocalHandleInteraction();
+            tableDragHandle.SyncHeightDependentValues();
+        }
+
+        if (remoteTableDragController != null)
+        {
+            remoteTableDragController.enableRemoteDrag = false;
+            remoteTableDragController.enabled = false;
+        }
     }
 
     private static void PrepareRoomSensingTemplates()

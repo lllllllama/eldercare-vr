@@ -1256,6 +1256,8 @@ public static class PingPongDemoSceneBuilder
         var passiveLock = EnsureComponent<TablePassiveMotionLock>(table);
         if (passiveLock != null)
         {
+            passiveLock.normalizeTableHeightOnEnable = true;
+            passiveLock.standardTableTopHeight = PingPongGeometry.TableTopHeight;
             passiveLock.AcceptCurrentTransform();
         }
 
@@ -1368,6 +1370,7 @@ public static class PingPongDemoSceneBuilder
         safety.controlServing = true;
         safety.clearBallsOnBlock = true;
         safety.moveRigWhenInside = false;
+        safety.moveTableWhenInside = false;
         safety.createRuntimePrompt = true;
         safety.createRuntimeBoundary = true;
         safety.useDefaultSafetyMarginsWhenUnset = true;
@@ -1470,19 +1473,19 @@ public static class PingPongDemoSceneBuilder
     private static PingPongDifficultyController BuildDifficultyUi(Transform canvasTransform, BallSpawner spawner)
     {
         var root = GetOrCreate("DifficultyPanel", canvasTransform);
-        var rootRect = ConfigureRect(root, new Vector2(560f, 340f), new Vector2(630f, 148f));
+        var rootRect = ConfigureRect(root, new Vector2(560f, 280f), new Vector2(630f, 148f));
 
         var controller = EnsureComponent<PingPongDifficultyController>(root);
         if (controller == null) return null;
 
-        var background = CreateRoundedPanel(rootRect, "Background", new Vector2(560f, 340f), Vector2.zero, new Color(0.015f, 0.04f, 0.07f, 0.94f), 26f);
+        var background = CreateRoundedPanel(rootRect, "Background", new Vector2(560f, 280f), Vector2.zero, new Color(0.015f, 0.04f, 0.07f, 0.94f), 26f);
         background.raycastTarget = false;
 
-        var glow = CreateRoundedPanel(rootRect, "Glow", new Vector2(590f, 370f), Vector2.zero, new Color(0.2f, 0.82f, 1f, 0.1f), 32f);
+        var glow = CreateRoundedPanel(rootRect, "Glow", new Vector2(590f, 310f), Vector2.zero, new Color(0.2f, 0.82f, 1f, 0.1f), 32f);
         glow.raycastTarget = false;
         glow.transform.SetAsFirstSibling();
 
-        CreateRoundedPanel(rootRect, "TopScanLine", new Vector2(486f, 4f), new Vector2(0f, 142f), new Color(0.42f, 0.92f, 1f, 0.72f), 2f);
+        CreateRoundedPanel(rootRect, "TopScanLine", new Vector2(486f, 4f), new Vector2(0f, 112f), new Color(0.42f, 0.92f, 1f, 0.72f), 2f);
 
         var title = CreateDifficultyText(rootRect, "Title", "发球速度", new Vector2(0f, 116f), new Vector2(480f, 54f), 34f, FontStyles.Bold, new Color(1f, 1f, 1f, 0.98f), TextAlignmentOptions.Center);
         var difficulty = CreateDifficultyText(rootRect, "DifficultyText", "难度：标准", new Vector2(0f, 66f), new Vector2(480f, 48f), 28f, FontStyles.Bold, new Color(0.62f, 0.96f, 1f, 0.98f), TextAlignmentOptions.Center);
@@ -1492,16 +1495,25 @@ public static class PingPongDemoSceneBuilder
         var decrease = CreateDifficultyButton(rootRect, "DecreaseButton", "-", new Vector2(-166f, -66f), new Vector2(104f, 68f));
         var reset = CreateDifficultyButton(rootRect, "ResetButton", "标准", new Vector2(0f, -66f), new Vector2(150f, 68f));
         var increase = CreateDifficultyButton(rootRect, "IncreaseButton", "+", new Vector2(166f, -66f), new Vector2(104f, 68f));
+        if (decrease != null) decrease.gameObject.SetActive(false);
+        if (reset != null) reset.gameObject.SetActive(false);
+        if (increase != null) increase.gameObject.SetActive(false);
+        ConfigureDifficultyText(title, "发球速度", new Vector2(0f, 86f), new Vector2(480f, 54f), 34f);
+        ConfigureDifficultyText(difficulty, "难度：标准", new Vector2(0f, 36f), new Vector2(480f, 48f), 28f);
+        ConfigureDifficultyText(speed, "速度 3.0 m/s", new Vector2(0f, -8f), new Vector2(480f, 46f), 26f);
+        ConfigureDifficultyText(hint, "A 加速 / B 减速", new Vector2(0f, -86f), new Vector2(500f, 44f), 22f);
 
         controller.ballSpawner = spawner;
         controller.difficultyText = difficulty;
         controller.speedText = speed;
         controller.hintText = hint;
-        controller.decreaseButton = decrease;
-        controller.increaseButton = increase;
-        controller.resetButton = reset;
+        controller.decreaseButton = null;
+        controller.increaseButton = null;
+        controller.resetButton = null;
         controller.startingDifficulty = PingPongDifficulty.Normal;
         controller.controlServeInterval = true;
+        controller.showScreenButtons = false;
+        controller.enableControllerSpeedButtons = true;
 
         var motion = EnsureComponent<TechModuleCardMotion>(root);
         if (motion != null)
@@ -1721,9 +1733,9 @@ public static class PingPongDemoSceneBuilder
         if (canvasTransform == null || menu == null) return;
 
         var root = GetOrCreateChild("BackHomeButton", canvasTransform);
-        var rootRect = ConfigureRect(root, new Vector2(320f, 88f), new Vector2(-720f, 405f));
+        var rootRect = ConfigureRect(root, new Vector2(300f, 78f), new Vector2(-760f, 500f));
 
-        var panel = CreateRoundedPanel(rootRect, "Panel", new Vector2(320f, 88f), Vector2.zero, new Color(0.06f, 0.12f, 0.2f, 0.88f), 22f);
+        var panel = CreateRoundedPanel(rootRect, "Panel", new Vector2(300f, 78f), Vector2.zero, new Color(0.06f, 0.12f, 0.2f, 0.88f), 22f);
         panel.raycastTarget = true;
 
         var iconGo = GetOrCreateChild("Icon", panel.transform);
@@ -1750,6 +1762,9 @@ public static class PingPongDemoSceneBuilder
         if (homeButton != null)
         {
             homeButton.menu = menu;
+            homeButton.applySafeGameplayLayout = true;
+            homeButton.safeAnchoredPosition = new Vector2(-760f, 500f);
+            homeButton.safeSize = new Vector2(300f, 78f);
         }
 
         EditorUtility.SetDirty(root);
@@ -1968,6 +1983,16 @@ public static class PingPongDemoSceneBuilder
         return text;
     }
 
+    private static void ConfigureDifficultyText(TMP_Text text, string value, Vector2 position, Vector2 size, float fontSize)
+    {
+        if (text == null) return;
+
+        ConfigureRect(text.gameObject, size, position);
+        text.text = value;
+        text.fontSize = fontSize;
+        text.raycastTarget = false;
+    }
+
     private static Button CreateDifficultyButton(RectTransform parent, string name, string label, Vector2 position, Vector2 size)
     {
         var go = GetOrCreateChild(name, parent);
@@ -2178,6 +2203,8 @@ public static class PingPongDemoSceneBuilder
             dragHandle.maxUserTableDistanceMeters = 3f;
             dragHandle.enableLocalHandleDrag = false;
             dragHandle.hideLocalHandleVisuals = true;
+            dragHandle.enforceStandardTableHeightOnEnable = true;
+            dragHandle.standardTableTopHeight = PingPongGeometry.TableTopHeight;
             dragHandle.ConfigureLocalHandleInteraction();
 
             if (spawner != null)
@@ -2272,13 +2299,14 @@ public static class PingPongDemoSceneBuilder
             tablePlacer.ballGrabber = leftBallGrabber != null ? leftBallGrabber : (dragHandle != null ? dragHandle.ballGrabber : Object.FindObjectOfType<ControllerBallGrabber>(true));
             tablePlacer.interactionState = gripState != null ? gripState : Object.FindObjectOfType<SimpleGripInteractionState>(true);
             tablePlacer.ballSpawners = Object.FindObjectsOfType<BallSpawner>(true);
-            tablePlacer.autoPlaceOnStart = true;
+            tablePlacer.autoPlaceOnStart = false;
             tablePlacer.clearSavedPlacementOnStart = true;
-            tablePlacer.controlServing = true;
+            tablePlacer.controlServing = false;
             tablePlacer.clearBallsWhenTableMoves = true;
             tablePlacer.startServingAfterClearPlacement = true;
             tablePlacer.startServingAfterManualPlacement = true;
             tablePlacer.startServingAfterConfirmedPlacementOnly = true;
+            tablePlacer.disableSpatialTablePlacementForNow = true;
             tablePlacer.requireRoomSensingColliderForAutoPlacement = true;
             tablePlacer.minimumRoomSensingColliderCount = 1;
             tablePlacer.desiredDistanceMeters = 2.05f;
@@ -2290,7 +2318,7 @@ public static class PingPongDemoSceneBuilder
             tablePlacer.tableCenterHeightAboveFloor = PingPongGeometry.TableTopHeight - PingPongGeometry.TableThickness * 0.5f;
             tablePlacer.searchDurationSeconds = 8f;
             tablePlacer.searchIntervalSeconds = 0.5f;
-            tablePlacer.enableRemoteDrag = true;
+            tablePlacer.enableRemoteDrag = false;
             tablePlacer.remoteDragControllerNode = XRNode.LeftHand;
             tablePlacer.remoteGrabSelectableRadiusMeters = 2.35f;
             tablePlacer.remoteGrabMaxDistanceMeters = 8f;
@@ -2323,7 +2351,8 @@ public static class PingPongDemoSceneBuilder
         var remoteDrag = EnsureComponent<RemoteTableDragController>(remoteObject);
         if (remoteDrag == null) return null;
 
-        remoteDrag.enableRemoteDrag = true;
+        remoteDrag.enableRemoteDrag = false;
+        remoteDrag.disableRemoteTableDragForNow = true;
         remoteDrag.tableRoot = table;
         remoteDrag.tableDragHandle = dragHandle;
         remoteDrag.controllerTransform = dragHandle != null ? dragHandle.controllerTransform : null;

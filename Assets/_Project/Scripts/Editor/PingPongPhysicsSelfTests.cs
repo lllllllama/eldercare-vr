@@ -18,6 +18,9 @@ public static class PingPongPhysicsSelfTests
         ControllerBallGrabberReportsNearbyBall();
         SimpleGripStatePreventsModeOverlap();
         TableDragHandleDisablesLocalInteraction();
+        TableHeightNormalizesToStandardHeight();
+        DifficultyPanelUsesControllerButtonsOnly();
+        SpatialTablePlacementIsDisabledByDefaultForNow();
         OpenSpacePlacementWaitsForRoomSensingColliders();
         OpenSpacePlacementAvoidsTableObstacle();
         OpenSpaceTablePlacementMovesServeReferences();
@@ -213,6 +216,75 @@ public static class PingPongPhysicsSelfTests
         }
     }
 
+    private static void TableHeightNormalizesToStandardHeight()
+    {
+        var tableObject = new GameObject("Table");
+        try
+        {
+            tableObject.transform.position = new Vector3(0f, 1.25f, 2f);
+            var lockComponent = tableObject.AddComponent<TablePassiveMotionLock>();
+            lockComponent.NormalizeTableHeightIfNeeded();
+
+            var tableTopY = tableObject.transform.position.y + PingPongGeometry.TableThickness * 0.5f;
+            AssertTrue(Mathf.Abs(tableTopY - PingPongGeometry.TableTopHeight) < 0.001f, "Runtime table lock should normalize the table top to the standard height.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(tableObject);
+        }
+    }
+
+    private static void DifficultyPanelUsesControllerButtonsOnly()
+    {
+        var canvasObject = new GameObject("DifficultyCanvas", typeof(RectTransform));
+        var spawnerObject = new GameObject("BallSpawner");
+        try
+        {
+            var spawner = spawnerObject.AddComponent<BallSpawner>();
+            var controller = PingPongDifficultyController.EnsureRuntimePanel(canvasObject.transform, spawner, null);
+
+            AssertTrue(controller != null, "Difficulty panel should be created.");
+            AssertTrue(!controller.showScreenButtons, "Difficulty panel should hide +/- screen buttons.");
+            AssertTrue(controller.enableControllerSpeedButtons, "Difficulty panel should use controller A/B buttons.");
+            AssertTrue(!IsChildActive(canvasObject.transform, "DifficultyPanel/DecreaseButton"), "Decrease screen button should be inactive.");
+            AssertTrue(!IsChildActive(canvasObject.transform, "DifficultyPanel/IncreaseButton"), "Increase screen button should be inactive.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(spawnerObject);
+            Object.DestroyImmediate(canvasObject);
+        }
+    }
+
+    private static void SpatialTablePlacementIsDisabledByDefaultForNow()
+    {
+        var placerObject = new GameObject("TableOpenSpacePlacer");
+        var remoteDragObject = new GameObject("RemoteTableDragController");
+        var existingGripState = Object.FindObjectOfType<SimpleGripInteractionState>(true);
+        try
+        {
+            var placer = placerObject.AddComponent<PingPongOpenSpaceTablePlacer>();
+            var remoteDrag = remoteDragObject.AddComponent<RemoteTableDragController>();
+
+            AssertTrue(placer.disableSpatialTablePlacementForNow, "Open-space table placement should be disabled until placement calibration is re-enabled intentionally.");
+            AssertTrue(remoteDrag.disableRemoteTableDragForNow, "Remote table drag should be disabled until table placement calibration is re-enabled intentionally.");
+        }
+        finally
+        {
+            if (existingGripState == null)
+            {
+                var generatedGripState = Object.FindObjectOfType<SimpleGripInteractionState>(true);
+                if (generatedGripState != null)
+                {
+                    Object.DestroyImmediate(generatedGripState.gameObject);
+                }
+            }
+
+            Object.DestroyImmediate(remoteDragObject);
+            Object.DestroyImmediate(placerObject);
+        }
+    }
+
     private static void OpenSpacePlacementWaitsForRoomSensingColliders()
     {
         var placerObject = new GameObject("TableOpenSpacePlacer");
@@ -364,6 +436,7 @@ public static class PingPongPhysicsSelfTests
             safety.tableTransform = table.transform;
             safety.hmdTransform = hmd.transform;
             safety.tableSize = new Vector2(PingPongGeometry.TableWidth, PingPongGeometry.TableLength);
+            AssertTrue(!safety.moveTableWhenInside, "Safety boundary should not move the table by default.");
 
             AssertTrue(
                 safety.EvaluateHeadPosition(hmd.transform.position) == PingPongTableSafetyState.Clear,
@@ -384,5 +457,11 @@ public static class PingPongPhysicsSelfTests
         {
             throw new System.Exception(message);
         }
+    }
+
+    private static bool IsChildActive(Transform parent, string path)
+    {
+        var child = parent != null ? parent.Find(path) : null;
+        return child != null && child.gameObject.activeSelf;
     }
 }

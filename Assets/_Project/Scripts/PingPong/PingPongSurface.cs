@@ -19,8 +19,8 @@ public class PingPongSurface : MonoBehaviour
     public bool useSweptFallback = true;
     public bool useTypeDefaults = true;
     public bool tuneNetVisualsForMr = true;
-    [Range(0.15f, 1f)] public float netVisualAlpha = 0.42f;
-    public Color netVisualColor = new Color(0.58f, 0.78f, 0.74f, 0.42f);
+    [Range(0.15f, 1f)] public float netVisualAlpha = 0.88f;
+    public Color netVisualColor = new Color(0.9f, 1f, 0.98f, 0.88f);
 
     private static PhysicMaterial _tableMaterial;
     private static PhysicMaterial _paddleMaterial;
@@ -83,6 +83,8 @@ public class PingPongSurface : MonoBehaviour
                 normalRestitution = 0.28f;
                 tangentialFriction = 0.45f;
                 useSweptFallback = true;
+                netVisualAlpha = 0.88f;
+                netVisualColor = new Color(0.9f, 1f, 0.98f, 0.88f);
                 break;
             case PingPongSurfaceType.PaddleBody:
                 normalRestitution = 0.72f;
@@ -284,7 +286,7 @@ public class PingPongSurface : MonoBehaviour
         if (material == null) return;
 
         var color = baseColor;
-        color.a = Mathf.Clamp(alpha, 0.15f, 1f);
+        color.a = Mathf.Clamp(alpha, 0.55f, 1f);
 
         if (material.HasProperty("_BaseColor"))
         {

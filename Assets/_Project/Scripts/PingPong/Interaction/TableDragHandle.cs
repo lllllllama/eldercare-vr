@@ -36,6 +36,8 @@ public class TableDragHandle : MonoBehaviour
     public float maxUserTableDistanceMeters = 3f;
     public bool enableLocalHandleDrag = false;
     public bool hideLocalHandleVisuals = true;
+    public bool enforceStandardTableHeightOnEnable = true;
+    public float standardTableTopHeight = PingPongGeometry.TableTopHeight;
 
     private float _lockedTableY;
     private bool _dragging;
@@ -47,6 +49,7 @@ public class TableDragHandle : MonoBehaviour
     private void OnEnable()
     {
         ResolveTableRoot();
+        ApplyStandardTableHeightIfNeeded();
         _lockedTableY = tableRoot != null ? tableRoot.position.y : PingPongGeometry.TableCenter.y;
         _loadedSavedPlacement = false;
         SyncHeightDependentValues();
@@ -195,6 +198,18 @@ public class TableDragHandle : MonoBehaviour
         {
             tableRoot = table.transform;
         }
+    }
+
+    private void ApplyStandardTableHeightIfNeeded()
+    {
+        if (!enforceStandardTableHeightOnEnable || tableRoot == null) return;
+
+        var targetY = Mathf.Max(0.1f, standardTableTopHeight) - PingPongGeometry.TableThickness * 0.5f;
+        var position = tableRoot.position;
+        if (Mathf.Abs(position.y - targetY) <= 0.0001f) return;
+
+        tableRoot.position = new Vector3(position.x, targetY, position.z);
+        AcceptTableTransform();
     }
 
     public void ConfigureLocalHandleInteraction()

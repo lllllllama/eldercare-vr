@@ -6,6 +6,7 @@ using UnityEngine.XR;
 public class RemoteTableDragController : MonoBehaviour
 {
     public bool enableRemoteDrag = true;
+    public bool disableRemoteTableDragForNow = true;
     public Transform tableRoot;
     public TableDragHandle tableDragHandle;
     public Transform controllerTransform;
@@ -69,6 +70,17 @@ public class RemoteTableDragController : MonoBehaviour
     private void Update()
     {
         ResolveReferences();
+        if (disableRemoteTableDragForNow)
+        {
+            if (_dragging)
+            {
+                EndRemoteDrag();
+            }
+
+            _wasGripPressed = false;
+            return;
+        }
+
         if (!enableRemoteDrag || tableRoot == null || controllerTransform == null) return;
 
         var gripPressed = IsGripPressed();

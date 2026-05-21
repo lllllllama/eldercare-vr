@@ -33,6 +33,7 @@ public class PingPongPlayerTableSafety : MonoBehaviour
     public bool controlServing = true;
     public bool clearBallsOnBlock = true;
     public bool moveRigWhenInside = false;
+    public bool moveTableWhenInside = false;
     public bool createRuntimePrompt = true;
     public bool createRuntimeBoundary = true;
     public bool useDefaultSafetyMarginsWhenUnset = true;
@@ -196,6 +197,7 @@ public class PingPongPlayerTableSafety : MonoBehaviour
 
     private void ApplyRepulsion(SafetyEvaluation evaluation)
     {
+        if (!moveTableWhenInside) return;
         if (!evaluation.insideRepulsionZone || evaluation.exitDirection.sqrMagnitude < 0.0001f) return;
         if (tableTransform == null) return;
 

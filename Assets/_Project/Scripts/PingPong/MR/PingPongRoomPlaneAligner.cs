@@ -13,6 +13,7 @@ public class PingPongRoomPlaneAligner : MonoBehaviour
     public bool alignOnlyOnce = true;
     public bool savePlacementAfterFloorAlignment = true;
     public bool upgradeToOpenSpacePlacement = true;
+    public bool disableSpatialTablePlacementForNow = true;
     public float tableCenterHeightAboveFloor = PingPongGeometry.TableTopHeight - PingPongGeometry.TableThickness * 0.5f;
     public float minimumHeightChange = 0.01f;
     public float maximumFloorDistance = 3f;
@@ -22,6 +23,10 @@ public class PingPongRoomPlaneAligner : MonoBehaviour
     private void Start()
     {
         ResolveReferences();
+        if (disableSpatialTablePlacementForNow)
+        {
+            return;
+        }
 
         if (upgradeToOpenSpacePlacement)
         {
@@ -58,6 +63,7 @@ public class PingPongRoomPlaneAligner : MonoBehaviour
 
     private void OnEnable()
     {
+        if (disableSpatialTablePlacementForNow) return;
         if (upgradeToOpenSpacePlacement) return;
         PXR_Manager.PlaneDetectionDataUpdated += HandlePlaneDetectionDataUpdated;
     }
@@ -264,13 +270,14 @@ public class PingPongRoomPlaneAligner : MonoBehaviour
         placer.ballGrabber = tableDragHandle != null ? tableDragHandle.ballGrabber : FindObjectOfType<ControllerBallGrabber>(true);
         placer.interactionState = SimpleGripInteractionState.EnsureInstance();
         placer.ballSpawners = FindObjectsOfType<BallSpawner>(true);
-        placer.autoPlaceOnStart = true;
+        placer.autoPlaceOnStart = false;
         placer.clearSavedPlacementOnStart = true;
-        placer.controlServing = true;
+        placer.controlServing = false;
         placer.clearBallsWhenTableMoves = true;
         placer.startServingAfterClearPlacement = true;
         placer.startServingAfterManualPlacement = true;
         placer.startServingAfterConfirmedPlacementOnly = true;
+        placer.disableSpatialTablePlacementForNow = true;
         placer.requireRoomSensingColliderForAutoPlacement = true;
         placer.minimumRoomSensingColliderCount = 1;
         placer.desiredDistanceMeters = 2.05f;
@@ -282,7 +289,7 @@ public class PingPongRoomPlaneAligner : MonoBehaviour
         placer.tableCenterHeightAboveFloor = tableCenterHeightAboveFloor;
         placer.searchDurationSeconds = 8f;
         placer.searchIntervalSeconds = 0.5f;
-        placer.enableRemoteDrag = true;
+        placer.enableRemoteDrag = false;
         placer.remoteDragControllerNode = XRNode.LeftHand;
         placer.remoteGrabSelectableRadiusMeters = 2.35f;
         placer.remoteGrabMaxDistanceMeters = 8f;
