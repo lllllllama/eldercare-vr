@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.UI;
 
 public class ComfortWorldSpaceUIPlacer : MonoBehaviour
 {
@@ -11,6 +12,9 @@ public class ComfortWorldSpaceUIPlacer : MonoBehaviour
     public bool recenterDuringStartup = true;
     public float startupRecenterSeconds = 1.25f;
     public int startupRecenterFrames = 18;
+    public bool enableRayDrag = true;
+    public bool enableThumbstickNavigation = true;
+    public bool invertThumbstickHorizontal = false;
     public bool comfortFollowEnabled;
     public float followYawThresholdDegrees = 35f;
     public float followPositionThresholdMeters = 0.8f;
@@ -32,11 +36,13 @@ public class ComfortWorldSpaceUIPlacer : MonoBehaviour
     private void Awake()
     {
         ResolveReferences();
+        EnsureWorldSpaceInteractionHelpers();
     }
 
     private void OnEnable()
     {
         ResolveReferences();
+        EnsureWorldSpaceInteractionHelpers();
         _hasFollowTarget = false;
 
         if (_started && placeOnEnable)
@@ -55,6 +61,8 @@ public class ComfortWorldSpaceUIPlacer : MonoBehaviour
             PlaceInFrontOfUser();
             BeginStartupRecenterWindow();
         }
+
+        EnsureWorldSpaceInteractionHelpers();
     }
 
     private void LateUpdate()
@@ -88,6 +96,13 @@ public class ComfortWorldSpaceUIPlacer : MonoBehaviour
     public void PlaceOnOpen()
     {
         PlaceInFrontOfUser();
+    }
+
+    public void NotifyUserMovedUi()
+    {
+        _startupRecenterActive = false;
+        _hasFollowTarget = false;
+        _followVelocity = Vector3.zero;
     }
 
     public void BeginStartupRecenterWindow()
@@ -225,6 +240,86 @@ public class ComfortWorldSpaceUIPlacer : MonoBehaviour
         if (camera != null)
         {
             headTransform = camera.transform;
+        }
+    }
+
+    public void EnsureWorldSpaceInteractionHelpers()
+    {
+        var root = TargetRoot as RectTransform;
+        if (root == null) return;
+
+        if (enableRayDrag)
+        {
+            EnsureRayDragHandle(root);
+        }
+
+        if (enableThumbstickNavigation)
+        {
+            var navigator = root.GetComponent<WorldSpaceUiThumbstickNavigator>();
+            if (navigator == null)
+            {
+                navigator = root.gameObject.AddComponent<WorldSpaceUiThumbstickNavigator>();
+            }
+
+            navigator.selectableRoot = root;
+            navigator.invertHorizontalInput = invertThumbstickHorizontal;
+            navigator.disableBuiltInSelectableNavigation = true;
+            navigator.ConfigureSelectableNavigation();
+        }
+    }
+
+    private void EnsureRayDragHandle(RectTransform root)
+    {
+        var existing = root.Find("RayDragHandle");
+        if (existing != null)
+        {
+            ConfigureRayDragHandle(existing.gameObject, root);
+            return;
+        }
+
+        var handle = new GameObject("RayDragHandle", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Outline), typeof(WorldSpaceUiRayDragHandle));
+        handle.transform.SetParent(root, false);
+        ConfigureRayDragHandle(handle, root);
+    }
+
+    private void ConfigureRayDragHandle(GameObject handle, RectTransform root)
+    {
+        if (handle == null || root == null) return;
+
+        var rect = handle.GetComponent<RectTransform>();
+        if (rect != null)
+        {
+            var rootHeight = Mathf.Max(300f, root.rect.height);
+            rect.anchorMin = new Vector2(0.5f, 0.5f);
+            rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.sizeDelta = new Vector2(340f, 18f);
+            rect.anchoredPosition = new Vector2(0f, rootHeight * 0.5f - 34f);
+            rect.localRotation = Quaternion.identity;
+            rect.localScale = Vector3.one;
+        }
+
+        var image = handle.GetComponent<Image>();
+        if (image != null)
+        {
+            image.raycastTarget = true;
+            image.color = new Color(0.35f, 0.95f, 1f, 0.34f);
+        }
+
+        var outline = handle.GetComponent<Outline>();
+        if (outline != null)
+        {
+            outline.effectColor = new Color(0.68f, 1f, 1f, 0.28f);
+            outline.effectDistance = new Vector2(2f, -2f);
+        }
+
+        var drag = handle.GetComponent<WorldSpaceUiRayDragHandle>();
+        if (drag != null)
+        {
+            drag.placer = this;
+            drag.targetRoot = root;
+            drag.headTransform = headTransform;
+            drag.handleGraphic = image;
         }
     }
 }

@@ -710,6 +710,9 @@ public static class RehabSceneBuilder
         placer.recenterDuringStartup = true;
         placer.startupRecenterSeconds = 1.25f;
         placer.startupRecenterFrames = 18;
+        placer.enableRayDrag = true;
+        placer.enableThumbstickNavigation = true;
+        placer.invertThumbstickHorizontal = false;
         placer.comfortFollowEnabled = false;
         placer.followYawThresholdDegrees = 35f;
         placer.followPositionThresholdMeters = 0.8f;

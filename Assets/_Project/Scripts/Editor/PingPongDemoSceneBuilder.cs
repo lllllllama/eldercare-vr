@@ -1566,6 +1566,9 @@ public static class PingPongDemoSceneBuilder
             comfortPlacer.recenterDuringStartup = true;
             comfortPlacer.startupRecenterSeconds = 1.25f;
             comfortPlacer.startupRecenterFrames = 18;
+            comfortPlacer.enableRayDrag = true;
+            comfortPlacer.enableThumbstickNavigation = true;
+            comfortPlacer.invertThumbstickHorizontal = false;
             comfortPlacer.comfortFollowEnabled = false;
             comfortPlacer.followYawThresholdDegrees = 35f;
             comfortPlacer.followPositionThresholdMeters = 0.8f;
@@ -1600,6 +1603,13 @@ public static class PingPongDemoSceneBuilder
             CreateHomeModuleCard(canvasRect, menu, "Module_Travel", "travel", "VR旅游", "长城、故宫名胜古迹", ElderCareIconType.MapPin, new Vector2(-330f, -215f), new Color(0.55f, 0.29f, 0.89f), new Color(0.66f, 0.39f, 1f), new Color(0.62f, 0.33f, 0.97f, 0.55f)),
             CreateHomeModuleCard(canvasRect, menu, "Module_Video", "video", "场景视频", "VR看房、生活场景体验", ElderCareIconType.Video, new Vector2(330f, -215f), new Color(0.91f, 0.42f, 0.12f), new Color(1f, 0.55f, 0.22f), new Color(0.98f, 0.45f, 0.12f, 0.55f))
         };
+        for (var i = 0; i < cards.Count; i++)
+        {
+            if (cards[i] != null)
+            {
+                cards[i].entranceDelay = 0.05f + i * 0.08f;
+            }
+        }
 
         var footer = CreateHomeText(canvasRect, "FooterHint", "使用手柄或手势选择功能", new Vector2(0f, -492f), new Vector2(900f, 70f), 30, FontStyle.Normal, new Color(1f, 1f, 1f, 0.62f), TextAnchor.MiddleCenter);
         CreateGameplayHomeButton(scoreCanvas != null ? scoreCanvas.transform : null, menu);
@@ -1685,6 +1695,7 @@ public static class PingPongDemoSceneBuilder
             card.moduleId = moduleId;
             card.moduleTitle = title;
             card.cardTransform = rootRect;
+            card.canvasGroup = EnsureComponent<CanvasGroup>(root);
             card.cardGraphic = panel;
             card.glowGraphic = glow;
             card.normalColor = normalColor;
@@ -1692,6 +1703,13 @@ public static class PingPongDemoSceneBuilder
             card.glowColor = glowColor;
             card.hoverScale = 1.05f;
             card.pressedScale = 0.96f;
+            card.selectedScale = 1.03f;
+            card.hoverLiftY = 9f;
+            card.selectedLiftY = 5f;
+            card.playEntrance = true;
+            card.ambientMotion = true;
+            card.ambientFloatY = 3.5f;
+            card.ambientPulseSpeed = 1.25f;
         }
 
         EditorUtility.SetDirty(root);

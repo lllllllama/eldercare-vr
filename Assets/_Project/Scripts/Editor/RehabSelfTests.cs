@@ -1,6 +1,8 @@
 using PicoElderCare.Rehab;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.UI;
 
 public static class RehabSelfTests
 {
@@ -29,6 +31,8 @@ public static class RehabSelfTests
         PromptPanelStaysOutsideTrainingCircle();
         ComfortUiPlacementUsesCurrentHeadYaw();
         ComfortUiStartupRecenterFollowsSettledHeadPose();
+        ComfortUiCreatesRayDragAndThumbstickHelpers();
+        ThumbstickNavigatorMovesLeftToLeftCard();
         VideoPanelLayoutIsDecoupledFromTrainingAreaByDefault();
         VideoPanelScalingClampsAndKeepsPanelUpright();
         SpatialRayControlCanPlaceTrainingAreaExplicitly();
@@ -554,6 +558,84 @@ public static class RehabSelfTests
         }
     }
 
+    private static void ComfortUiCreatesRayDragAndThumbstickHelpers()
+    {
+        var headObject = new GameObject("Head");
+        var uiObject = new GameObject("ComfortUiHelpers", typeof(RectTransform));
+        try
+        {
+            var rect = uiObject.GetComponent<RectTransform>();
+            rect.sizeDelta = new Vector2(900f, 500f);
+            headObject.transform.position = new Vector3(0f, 1.6f, 0f);
+            headObject.transform.rotation = Quaternion.identity;
+
+            var placer = uiObject.AddComponent<ComfortWorldSpaceUIPlacer>();
+            placer.headTransform = headObject.transform;
+            placer.uiRoot = rect;
+            placer.enableRayDrag = true;
+            placer.enableThumbstickNavigation = true;
+            placer.EnsureWorldSpaceInteractionHelpers();
+
+            var handle = rect.Find("RayDragHandle");
+            AssertTrue(handle != null, "Comfort UI should create a ray-drag handle for world-space manipulation.");
+            AssertTrue(handle.GetComponent<WorldSpaceUiRayDragHandle>() != null, "Ray-drag handle should own the drag behavior.");
+            AssertTrue(uiObject.GetComponent<WorldSpaceUiThumbstickNavigator>() != null, "Comfort UI should install the corrected thumbstick navigator.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(uiObject);
+            Object.DestroyImmediate(headObject);
+        }
+    }
+
+    private static void ThumbstickNavigatorMovesLeftToLeftCard()
+    {
+        var previousEventSystem = EventSystem.current;
+        var eventSystemObject = previousEventSystem == null ? new GameObject("EventSystem") : null;
+        var rootObject = new GameObject("NavigatorRoot", typeof(RectTransform));
+        var leftObject = CreateNavigationButton(rootObject.transform, "Left", new Vector2(-120f, 0f));
+        var middleObject = CreateNavigationButton(rootObject.transform, "Middle", Vector2.zero);
+        var rightObject = CreateNavigationButton(rootObject.transform, "Right", new Vector2(120f, 0f));
+        try
+        {
+            if (eventSystemObject != null)
+            {
+                eventSystemObject.AddComponent<EventSystem>();
+            }
+
+            var navigator = rootObject.AddComponent<WorldSpaceUiThumbstickNavigator>();
+            navigator.selectableRoot = rootObject.GetComponent<RectTransform>();
+            navigator.selectables = new Selectable[]
+            {
+                leftObject.GetComponent<Button>(),
+                middleObject.GetComponent<Button>(),
+                rightObject.GetComponent<Button>()
+            };
+
+            var eventSystem = EventSystem.current;
+            AssertTrue(eventSystem != null, "Thumbstick navigator test should have an EventSystem.");
+
+            eventSystem.SetSelectedGameObject(middleObject);
+            AssertTrue(navigator.NavigateForInput(Vector2.left), "Navigator should consume a left thumbstick input.");
+            AssertTrue(eventSystem.currentSelectedGameObject == leftObject, "Left thumbstick input should select the card on the user's left, not the right card.");
+
+            eventSystem.SetSelectedGameObject(middleObject);
+            AssertTrue(navigator.NavigateForInput(Vector2.right), "Navigator should consume a right thumbstick input.");
+            AssertTrue(eventSystem.currentSelectedGameObject == rightObject, "Right thumbstick input should select the card on the user's right.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(rightObject);
+            Object.DestroyImmediate(middleObject);
+            Object.DestroyImmediate(leftObject);
+            Object.DestroyImmediate(rootObject);
+            if (eventSystemObject != null)
+            {
+                Object.DestroyImmediate(eventSystemObject);
+            }
+        }
+    }
+
     private static void VideoPanelLayoutIsDecoupledFromTrainingAreaByDefault()
     {
         var headObject = new GameObject("Head");
@@ -678,6 +760,16 @@ public static class RehabSelfTests
             rightHandPosition = new Vector3(0.2f, rightY, 0.4f),
             rightHandRotation = Quaternion.identity
         };
+    }
+
+    private static GameObject CreateNavigationButton(Transform parent, string name, Vector2 anchoredPosition)
+    {
+        var buttonObject = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Button));
+        buttonObject.transform.SetParent(parent, false);
+        var rect = buttonObject.GetComponent<RectTransform>();
+        rect.sizeDelta = new Vector2(96f, 64f);
+        rect.anchoredPosition = anchoredPosition;
+        return buttonObject;
     }
 
     private static RehabPoseSample CreateSampleWithHands(float headY, Vector3 leftLocal, Vector3 rightLocal)
