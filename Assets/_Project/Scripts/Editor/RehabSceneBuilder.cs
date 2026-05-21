@@ -707,6 +707,9 @@ public static class RehabSceneBuilder
         placer.hmdHeightOffsetMeters = -0.1f;
         placer.placeOnStart = true;
         placer.placeOnEnable = false;
+        placer.recenterDuringStartup = true;
+        placer.startupRecenterSeconds = 1.25f;
+        placer.startupRecenterFrames = 18;
         placer.comfortFollowEnabled = false;
         placer.followYawThresholdDegrees = 35f;
         placer.followPositionThresholdMeters = 0.8f;

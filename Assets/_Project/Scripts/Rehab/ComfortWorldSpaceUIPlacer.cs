@@ -8,6 +8,9 @@ public class ComfortWorldSpaceUIPlacer : MonoBehaviour
     public float hmdHeightOffsetMeters = -0.1f;
     public bool placeOnStart = true;
     public bool placeOnEnable = false;
+    public bool recenterDuringStartup = true;
+    public float startupRecenterSeconds = 1.25f;
+    public int startupRecenterFrames = 18;
     public bool comfortFollowEnabled;
     public float followYawThresholdDegrees = 35f;
     public float followPositionThresholdMeters = 0.8f;
@@ -20,6 +23,9 @@ public class ComfortWorldSpaceUIPlacer : MonoBehaviour
     private Quaternion _followTargetRotation;
     private bool _hasFollowTarget;
     private bool _started;
+    private bool _startupRecenterActive;
+    private float _startupRecenterUntilTime;
+    private int _startupRecenterFramesRemaining;
 
     private Transform TargetRoot => uiRoot != null ? uiRoot : transform;
 
@@ -36,6 +42,7 @@ public class ComfortWorldSpaceUIPlacer : MonoBehaviour
         if (_started && placeOnEnable)
         {
             PlaceInFrontOfUser();
+            BeginStartupRecenterWindow();
         }
     }
 
@@ -46,11 +53,14 @@ public class ComfortWorldSpaceUIPlacer : MonoBehaviour
         if (placeOnStart)
         {
             PlaceInFrontOfUser();
+            BeginStartupRecenterWindow();
         }
     }
 
     private void LateUpdate()
     {
+        RefreshStartupPlacementIfNeeded();
+
         if (comfortFollowEnabled)
         {
             UpdateComfortFollow();
@@ -78,6 +88,35 @@ public class ComfortWorldSpaceUIPlacer : MonoBehaviour
     public void PlaceOnOpen()
     {
         PlaceInFrontOfUser();
+    }
+
+    public void BeginStartupRecenterWindow()
+    {
+        if (!recenterDuringStartup)
+        {
+            _startupRecenterActive = false;
+            return;
+        }
+
+        _startupRecenterActive = true;
+        _startupRecenterUntilTime = Time.unscaledTime + Mathf.Max(0f, startupRecenterSeconds);
+        _startupRecenterFramesRemaining = Mathf.Max(0, startupRecenterFrames);
+    }
+
+    public void RefreshStartupPlacementIfNeeded()
+    {
+        if (!_startupRecenterActive) return;
+
+        var stillWithinTime = Time.unscaledTime <= _startupRecenterUntilTime;
+        var stillWithinFrames = _startupRecenterFramesRemaining > 0;
+        if (!stillWithinTime && !stillWithinFrames)
+        {
+            _startupRecenterActive = false;
+            return;
+        }
+
+        PlaceInFrontOfUser();
+        _startupRecenterFramesRemaining--;
     }
 
     private void UpdateComfortFollow()

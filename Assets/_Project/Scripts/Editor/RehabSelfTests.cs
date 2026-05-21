@@ -27,6 +27,8 @@ public static class RehabSelfTests
         TrainingAreaDragHandleIsDisabledByDefault();
         ManualTrainingAreaPlacementUpdatesSessionCenter();
         PromptPanelStaysOutsideTrainingCircle();
+        ComfortUiPlacementUsesCurrentHeadYaw();
+        ComfortUiStartupRecenterFollowsSettledHeadPose();
         VideoPanelLayoutIsDecoupledFromTrainingAreaByDefault();
         VideoPanelScalingClampsAndKeepsPanelUpright();
         SpatialRayControlCanPlaceTrainingAreaExplicitly();
@@ -490,6 +492,65 @@ public static class RehabSelfTests
             Object.DestroyImmediate(promptObject);
             Object.DestroyImmediate(areaObject);
             Object.DestroyImmediate(sessionObject);
+        }
+    }
+
+    private static void ComfortUiPlacementUsesCurrentHeadYaw()
+    {
+        var headObject = new GameObject("Head");
+        var uiObject = new GameObject("ComfortUi");
+        try
+        {
+            headObject.transform.position = new Vector3(1f, 1.6f, 2f);
+            headObject.transform.rotation = Quaternion.Euler(0f, 90f, 0f);
+
+            var placer = uiObject.AddComponent<ComfortWorldSpaceUIPlacer>();
+            placer.headTransform = headObject.transform;
+            placer.uiRoot = uiObject.transform;
+            placer.distanceMeters = 2f;
+            placer.hmdHeightOffsetMeters = -0.1f;
+            placer.PlaceInFrontOfUser();
+
+            AssertTrue(Mathf.Abs(uiObject.transform.position.x - 3f) < 0.001f, "Comfort UI should use the current head yaw for initial X placement.");
+            AssertTrue(Mathf.Abs(uiObject.transform.position.z - 2f) < 0.001f, "Comfort UI should stay on the head yaw plane instead of the old world-forward direction.");
+            AssertTrue(Quaternion.Angle(uiObject.transform.rotation, Quaternion.LookRotation(Vector3.right, Vector3.up)) < 0.1f, "Comfort UI should rotate to face the current head yaw.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(uiObject);
+            Object.DestroyImmediate(headObject);
+        }
+    }
+
+    private static void ComfortUiStartupRecenterFollowsSettledHeadPose()
+    {
+        var headObject = new GameObject("Head");
+        var uiObject = new GameObject("ComfortUiStartup");
+        try
+        {
+            headObject.transform.position = new Vector3(0f, 1.6f, 0f);
+            headObject.transform.rotation = Quaternion.identity;
+
+            var placer = uiObject.AddComponent<ComfortWorldSpaceUIPlacer>();
+            placer.headTransform = headObject.transform;
+            placer.uiRoot = uiObject.transform;
+            placer.distanceMeters = 2f;
+            placer.hmdHeightOffsetMeters = -0.1f;
+            placer.startupRecenterSeconds = 0f;
+            placer.startupRecenterFrames = 1;
+            placer.PlaceInFrontOfUser();
+
+            headObject.transform.rotation = Quaternion.Euler(0f, -90f, 0f);
+            placer.BeginStartupRecenterWindow();
+            placer.RefreshStartupPlacementIfNeeded();
+
+            AssertTrue(uiObject.transform.position.x < -1.99f, "Startup recenter should update the UI after the XR head pose settles.");
+            AssertTrue(Mathf.Abs(uiObject.transform.position.z) < 0.001f, "Startup recenter should no longer leave the UI at the stale world-forward position.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(uiObject);
+            Object.DestroyImmediate(headObject);
         }
     }
 

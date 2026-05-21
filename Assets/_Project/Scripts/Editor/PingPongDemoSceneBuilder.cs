@@ -1563,6 +1563,9 @@ public static class PingPongDemoSceneBuilder
             comfortPlacer.hmdHeightOffsetMeters = -0.1f;
             comfortPlacer.placeOnStart = false;
             comfortPlacer.placeOnEnable = false;
+            comfortPlacer.recenterDuringStartup = true;
+            comfortPlacer.startupRecenterSeconds = 1.25f;
+            comfortPlacer.startupRecenterFrames = 18;
             comfortPlacer.comfortFollowEnabled = false;
             comfortPlacer.followYawThresholdDegrees = 35f;
             comfortPlacer.followPositionThresholdMeters = 0.8f;
