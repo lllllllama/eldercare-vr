@@ -6,6 +6,7 @@ namespace PicoElderCare.Rehab
 {
     public class RehabTrainingAreaDragHandle : MonoBehaviour
     {
+        public bool allowUserPlacementDrag = false;
         public RehabSessionManager sessionManager;
         public Transform trainingAreaRoot;
         public Transform controllerTransform;
@@ -27,10 +28,18 @@ namespace PicoElderCare.Rehab
         private void Awake()
         {
             ResolveReferences();
+            ApplyInteractionState();
         }
 
         private void Update()
         {
+            if (!allowUserPlacementDrag)
+            {
+                _dragging = false;
+                _wasGripPressed = false;
+                return;
+            }
+
             ResolveReferences();
             if (trainingAreaRoot == null || controllerTransform == null) return;
 
@@ -140,6 +149,32 @@ namespace PicoElderCare.Rehab
                 if (camera != null)
                 {
                     hmdTransform = camera.transform;
+                }
+            }
+        }
+
+        public void ApplyInteractionState()
+        {
+            SetHandleVisualsAndColliders(allowUserPlacementDrag);
+        }
+
+        private void SetHandleVisualsAndColliders(bool active)
+        {
+            var renderers = GetComponentsInChildren<Renderer>(true);
+            for (var i = 0; i < renderers.Length; i++)
+            {
+                if (renderers[i] != null)
+                {
+                    renderers[i].enabled = active;
+                }
+            }
+
+            var colliders = GetComponentsInChildren<Collider>(true);
+            for (var i = 0; i < colliders.Length; i++)
+            {
+                if (colliders[i] != null)
+                {
+                    colliders[i].enabled = active;
                 }
             }
         }

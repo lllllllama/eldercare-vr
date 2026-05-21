@@ -152,7 +152,7 @@ public static class RehabSceneBuilder
         managers.transform.SetParent(rehabRoot.transform, false);
         var homeMenu = managers.AddComponent<ModuleHomeMenu>();
 
-        var trainingArea = BuildTrainingArea(visualRoot.transform, out var trainingAreaDragHandle);
+        var trainingArea = BuildTrainingArea(visualRoot.transform);
         var rehabUi = BuildRehabPromptCanvas(uiRoot.transform, mainCamera, homeMenu);
         var promptCanvas = rehabUi.canvas;
         var rehabUiPlacer = ConfigureComfortUiPlacer(uiRoot, hmd, uiRoot.transform, 2f);
@@ -241,17 +241,6 @@ public static class RehabSceneBuilder
         if (rehabUi.trainingBackButton != null)
         {
             UnityEventTools.AddPersistentListener(rehabUi.trainingBackButton.onClick, modeSelectUi.ShowTrainingSelectPanel);
-        }
-
-        if (trainingAreaDragHandle != null)
-        {
-            trainingAreaDragHandle.sessionManager = session;
-            trainingAreaDragHandle.trainingAreaRoot = trainingArea.transform;
-            trainingAreaDragHandle.controllerTransform = leftController;
-            trainingAreaDragHandle.hmdTransform = hmd;
-            trainingAreaDragHandle.floorY = 0f;
-            trainingAreaDragHandle.activationRadiusMeters = 0.95f;
-            trainingAreaDragHandle.maxRayDistanceMeters = 4.5f;
         }
 
         var mrManager = managers.AddComponent<RehabMixedRealityManager>();
@@ -514,9 +503,8 @@ public static class RehabSceneBuilder
         image.raycastTarget = false;
     }
 
-    private static GameObject BuildTrainingArea(Transform parent, out RehabTrainingAreaDragHandle dragHandle)
+    private static GameObject BuildTrainingArea(Transform parent)
     {
-        dragHandle = null;
         var root = new GameObject("TrainingArea");
         root.transform.SetParent(parent, false);
 
@@ -540,26 +528,6 @@ public static class RehabSceneBuilder
             var angle = Mathf.PI * 2f * i / segments;
             renderer.SetPosition(i, new Vector3(Mathf.Cos(angle) * radius, 0.015f, Mathf.Sin(angle) * radius));
         }
-
-        var handle = GameObject.CreatePrimitive(PrimitiveType.Sphere);
-        handle.name = "TrainingAreaDragHandle";
-        handle.transform.SetParent(root.transform, false);
-        handle.transform.localPosition = new Vector3(0f, 0.08f, -radius);
-        handle.transform.localScale = Vector3.one * 0.12f;
-        var handleRenderer = handle.GetComponent<Renderer>();
-        if (handleRenderer != null)
-        {
-            handleRenderer.sharedMaterial = CreateOrLoadMaterial("RehabTrainingDragHandle", new Color(1f, 0.78f, 0.12f, 0.92f));
-        }
-
-        var handleCollider = handle.GetComponent<SphereCollider>();
-        if (handleCollider != null)
-        {
-            handleCollider.isTrigger = true;
-        }
-
-        dragHandle = handle.AddComponent<RehabTrainingAreaDragHandle>();
-        dragHandle.trainingAreaRoot = root.transform;
 
         return root;
     }

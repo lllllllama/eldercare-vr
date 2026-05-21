@@ -24,6 +24,7 @@ public static class RehabSelfTests
         TrainingResultSerializesToJson();
         OpenSpacePlacementAvoidsObstacleInFront();
         OpenSpacePlacementCanIgnoreExistingModuleObjects();
+        TrainingAreaDragHandleIsDisabledByDefault();
         ManualTrainingAreaPlacementUpdatesSessionCenter();
         PromptPanelStaysOutsideTrainingCircle();
         Debug.Log("Rehab self tests passed.");
@@ -433,6 +434,25 @@ public static class RehabSelfTests
             Object.DestroyImmediate(promptObject);
             Object.DestroyImmediate(areaObject);
             Object.DestroyImmediate(sessionObject);
+        }
+    }
+
+    private static void TrainingAreaDragHandleIsDisabledByDefault()
+    {
+        var handleObject = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        try
+        {
+            handleObject.name = "TrainingAreaDragHandle";
+            var handle = handleObject.AddComponent<RehabTrainingAreaDragHandle>();
+            handle.ApplyInteractionState();
+
+            AssertTrue(!handle.allowUserPlacementDrag, "Training-area drag should be disabled by default to prevent accidental placement changes.");
+            AssertTrue(!handleObject.GetComponent<Renderer>().enabled, "Disabled training-area drag handle should hide its visible affordance.");
+            AssertTrue(!handleObject.GetComponent<Collider>().enabled, "Disabled training-area drag handle should disable its collider.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(handleObject);
         }
     }
 
