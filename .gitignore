@@ -32,3 +32,8 @@ Thumbs.db
 *.key
 *.pem
 *.p12
+
+.playwright-mcp/
+/output/playwright/
+/pico-cast-*.md
+/pico-cast-*.png

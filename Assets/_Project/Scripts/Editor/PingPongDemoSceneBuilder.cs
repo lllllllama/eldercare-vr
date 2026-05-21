@@ -1355,14 +1355,14 @@ public static class PingPongDemoSceneBuilder
         safety.playerBodyProxy = playerBodyProxy != null ? playerBodyProxy : Object.FindObjectOfType<PingPongPlayerBodyProxy>(true);
         safety.ballSpawners = spawner != null ? new[] { spawner } : Object.FindObjectsOfType<BallSpawner>(true);
         safety.tableSize = new Vector2(PingPongGeometry.TableWidth, PingPongGeometry.TableLength);
-        safety.safetyMargin = 0f;
-        safety.hardMargin = 0f;
+        safety.safetyMargin = 0.12f;
+        safety.hardMargin = 0.08f;
         safety.repulsionStrength = 0.6f;
         safety.maxRepulsionSpeed = 0.4f;
-        safety.warningOnlyDistance = 0f;
-        safety.hardPauseDistance = 0f;
-        safety.blockedMarginMeters = 0f;
-        safety.warningMarginMeters = 0f;
+        safety.warningOnlyDistance = 0.45f;
+        safety.hardPauseDistance = 0.08f;
+        safety.blockedMarginMeters = 0.08f;
+        safety.warningMarginMeters = 0.45f;
         safety.resumeStableSeconds = 0.5f;
         safety.tableCenterHeightAboveFloor = PingPongGeometry.TableTopHeight - PingPongGeometry.TableThickness * 0.5f;
         safety.controlServing = true;
@@ -1370,6 +1370,10 @@ public static class PingPongDemoSceneBuilder
         safety.moveRigWhenInside = false;
         safety.createRuntimePrompt = true;
         safety.createRuntimeBoundary = true;
+        safety.useDefaultSafetyMarginsWhenUnset = true;
+        safety.defaultWarningMarginMeters = 0.45f;
+        safety.defaultBlockedMarginMeters = 0.08f;
+        safety.defaultRepulsionMarginMeters = 0.12f;
         safety.promptHeightMeters = 1.35f;
         safety.promptOuterOffsetMeters = 0.45f;
         safety.hapticAmplitude = 0.12f;
@@ -1452,12 +1456,13 @@ public static class PingPongDemoSceneBuilder
 
         EnsureWorldCanvasRaycasters(canvasGo);
 
-        score.hitText = CreateScoreText(canvasGo.transform, "HitText", new Vector2(0f, 150f));
-        score.servedText = CreateScoreText(canvasGo.transform, "ServedText", new Vector2(0f, 90f));
-        score.missedText = CreateScoreText(canvasGo.transform, "MissedText", new Vector2(0f, 30f));
-        score.accuracyText = CreateScoreText(canvasGo.transform, "AccuracyText", new Vector2(0f, -30f));
-        score.lastSpeedText = CreateScoreText(canvasGo.transform, "LastSpeedText", new Vector2(0f, -90f));
-        score.lastSpinText = CreateScoreText(canvasGo.transform, "LastSpinText", new Vector2(0f, -150f));
+        CreateScoreHudBackdrop(canvasGo.transform);
+        score.hitText = CreateScoreText(canvasGo.transform, "HitText", new Vector2(0f, 170f));
+        score.servedText = CreateScoreText(canvasGo.transform, "ServedText", new Vector2(0f, 102f));
+        score.missedText = CreateScoreText(canvasGo.transform, "MissedText", new Vector2(0f, 34f));
+        score.accuracyText = CreateScoreText(canvasGo.transform, "AccuracyText", new Vector2(0f, -34f));
+        score.lastSpeedText = CreateScoreText(canvasGo.transform, "LastSpeedText", new Vector2(0f, -102f));
+        score.lastSpinText = CreateScoreText(canvasGo.transform, "LastSpinText", new Vector2(0f, -170f));
 
         BuildDifficultyUi(canvasGo.transform, spawner);
     }
@@ -1465,28 +1470,28 @@ public static class PingPongDemoSceneBuilder
     private static PingPongDifficultyController BuildDifficultyUi(Transform canvasTransform, BallSpawner spawner)
     {
         var root = GetOrCreate("DifficultyPanel", canvasTransform);
-        var rootRect = ConfigureRect(root, new Vector2(500f, 318f), new Vector2(660f, 32f));
+        var rootRect = ConfigureRect(root, new Vector2(560f, 340f), new Vector2(630f, 148f));
 
         var controller = EnsureComponent<PingPongDifficultyController>(root);
         if (controller == null) return null;
 
-        var background = CreateRoundedPanel(rootRect, "Background", new Vector2(500f, 318f), Vector2.zero, new Color(0.025f, 0.055f, 0.095f, 0.88f), 26f);
+        var background = CreateRoundedPanel(rootRect, "Background", new Vector2(560f, 340f), Vector2.zero, new Color(0.015f, 0.04f, 0.07f, 0.94f), 26f);
         background.raycastTarget = false;
 
-        var glow = CreateRoundedPanel(rootRect, "Glow", new Vector2(524f, 342f), Vector2.zero, new Color(0.2f, 0.82f, 1f, 0.08f), 32f);
+        var glow = CreateRoundedPanel(rootRect, "Glow", new Vector2(590f, 370f), Vector2.zero, new Color(0.2f, 0.82f, 1f, 0.1f), 32f);
         glow.raycastTarget = false;
         glow.transform.SetAsFirstSibling();
 
-        CreateRoundedPanel(rootRect, "TopScanLine", new Vector2(430f, 4f), new Vector2(0f, 125f), new Color(0.42f, 0.92f, 1f, 0.58f), 2f);
+        CreateRoundedPanel(rootRect, "TopScanLine", new Vector2(486f, 4f), new Vector2(0f, 142f), new Color(0.42f, 0.92f, 1f, 0.72f), 2f);
 
-        var title = CreateDifficultyText(rootRect, "Title", "发球速度", new Vector2(0f, 102f), new Vector2(430f, 48f), 30f, FontStyles.Bold, new Color(1f, 1f, 1f, 0.96f), TextAlignmentOptions.Center);
-        var difficulty = CreateDifficultyText(rootRect, "DifficultyText", "难度：标准", new Vector2(0f, 55f), new Vector2(430f, 44f), 26f, FontStyles.Bold, new Color(0.62f, 0.93f, 1f, 0.95f), TextAlignmentOptions.Center);
-        var speed = CreateDifficultyText(rootRect, "SpeedText", "速度 3.0 m/s", new Vector2(0f, 10f), new Vector2(430f, 44f), 24f, FontStyles.Normal, new Color(1f, 1f, 1f, 0.86f), TextAlignmentOptions.Center);
-        var hint = CreateDifficultyText(rootRect, "HintText", "使用 +/- 调节下一次发球速度", new Vector2(0f, -118f), new Vector2(450f, 42f), 20f, FontStyles.Normal, new Color(1f, 1f, 1f, 0.62f), TextAlignmentOptions.Center);
+        var title = CreateDifficultyText(rootRect, "Title", "发球速度", new Vector2(0f, 116f), new Vector2(480f, 54f), 34f, FontStyles.Bold, new Color(1f, 1f, 1f, 0.98f), TextAlignmentOptions.Center);
+        var difficulty = CreateDifficultyText(rootRect, "DifficultyText", "难度：标准", new Vector2(0f, 66f), new Vector2(480f, 48f), 28f, FontStyles.Bold, new Color(0.62f, 0.96f, 1f, 0.98f), TextAlignmentOptions.Center);
+        var speed = CreateDifficultyText(rootRect, "SpeedText", "速度 3.0 m/s", new Vector2(0f, 20f), new Vector2(480f, 46f), 26f, FontStyles.Bold, new Color(1f, 1f, 1f, 0.94f), TextAlignmentOptions.Center);
+        var hint = CreateDifficultyText(rootRect, "HintText", "使用 +/- 调节下一次发球速度", new Vector2(0f, -126f), new Vector2(500f, 44f), 22f, FontStyles.Normal, new Color(1f, 1f, 1f, 0.78f), TextAlignmentOptions.Center);
 
-        var decrease = CreateDifficultyButton(rootRect, "DecreaseButton", "-", new Vector2(-146f, -60f), new Vector2(90f, 64f));
-        var reset = CreateDifficultyButton(rootRect, "ResetButton", "标准", new Vector2(0f, -60f), new Vector2(138f, 64f));
-        var increase = CreateDifficultyButton(rootRect, "IncreaseButton", "+", new Vector2(146f, -60f), new Vector2(90f, 64f));
+        var decrease = CreateDifficultyButton(rootRect, "DecreaseButton", "-", new Vector2(-166f, -66f), new Vector2(104f, 68f));
+        var reset = CreateDifficultyButton(rootRect, "ResetButton", "标准", new Vector2(0f, -66f), new Vector2(150f, 68f));
+        var increase = CreateDifficultyButton(rootRect, "IncreaseButton", "+", new Vector2(166f, -66f), new Vector2(104f, 68f));
 
         controller.ballSpawner = spawner;
         controller.difficultyText = difficulty;
@@ -1505,10 +1510,10 @@ public static class PingPongDemoSceneBuilder
             motion.canvasGroup = EnsureComponent<CanvasGroup>(root);
             motion.cardGraphic = background;
             motion.glowGraphic = glow;
-            motion.normalColor = new Color(0.025f, 0.055f, 0.095f, 0.88f);
-            motion.hoverColor = new Color(0.035f, 0.085f, 0.14f, 0.94f);
-            motion.pressedColor = new Color(0.02f, 0.045f, 0.08f, 0.94f);
-            motion.glowColor = new Color(0.25f, 0.9f, 1f, 0.18f);
+            motion.normalColor = new Color(0.015f, 0.04f, 0.07f, 0.94f);
+            motion.hoverColor = new Color(0.03f, 0.08f, 0.13f, 0.98f);
+            motion.pressedColor = new Color(0.01f, 0.035f, 0.06f, 0.98f);
+            motion.glowColor = new Color(0.25f, 0.9f, 1f, 0.2f);
             motion.hoverScale = 1.015f;
             motion.pressedScale = 0.99f;
             motion.entranceDelay = 0.22f;
@@ -1875,13 +1880,17 @@ public static class PingPongDemoSceneBuilder
         if (text == null) return null;
 
         var rect = go.GetComponent<RectTransform>();
-        rect.sizeDelta = new Vector2(560f, 72f);
+        rect.sizeDelta = new Vector2(620f, 64f);
         rect.anchoredPosition3D = new Vector3(position.x, position.y, 0f);
         rect.localRotation = Quaternion.identity;
         rect.localScale = Vector3.one;
-        text.fontSize = 48;
+        text.fontSize = 52;
+        text.fontStyle = FontStyles.Bold;
         text.alignment = TextAlignmentOptions.Left;
-        text.color = Color.white;
+        text.color = new Color(1f, 1f, 1f, 0.98f);
+        text.outlineColor = new Color(0f, 0f, 0f, 0.95f);
+        text.outlineWidth = 0.18f;
+        text.enableWordWrapping = false;
         var fontAsset = LoadPingPongTmpFont();
         if (fontAsset != null)
         {
@@ -1890,6 +1899,20 @@ public static class PingPongDemoSceneBuilder
 
         text.raycastTarget = false;
         return text;
+    }
+
+    private static void CreateScoreHudBackdrop(Transform canvasTransform)
+    {
+        var go = GetOrCreate("ScoreHudBackdrop", canvasTransform);
+        ConfigureRect(go, new Vector2(680f, 432f), Vector2.zero);
+        var image = EnsureComponent<Image>(go);
+        if (image != null)
+        {
+            image.color = new Color(0.015f, 0.03f, 0.045f, 0.78f);
+            image.raycastTarget = false;
+        }
+
+        go.transform.SetAsFirstSibling();
     }
 
     private static TMP_Text CreateDifficultyText(

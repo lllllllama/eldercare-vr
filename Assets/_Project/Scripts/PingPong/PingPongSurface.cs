@@ -18,6 +18,9 @@ public class PingPongSurface : MonoBehaviour
     [Range(0f, 1f)] public float tangentialFriction = 0.08f;
     public bool useSweptFallback = true;
     public bool useTypeDefaults = true;
+    public bool tuneNetVisualsForMr = true;
+    [Range(0.15f, 1f)] public float netVisualAlpha = 0.42f;
+    public Color netVisualColor = new Color(0.58f, 0.78f, 0.74f, 0.42f);
 
     private static PhysicMaterial _tableMaterial;
     private static PhysicMaterial _paddleMaterial;
@@ -38,6 +41,12 @@ public class PingPongSurface : MonoBehaviour
         }
 
         ApplyRuntimePhysicMaterial();
+        ApplyNetVisualReadability();
+    }
+
+    private void OnEnable()
+    {
+        ApplyNetVisualReadability();
     }
 
 #if UNITY_EDITOR
@@ -57,6 +66,7 @@ public class PingPongSurface : MonoBehaviour
         if (Application.isPlaying)
         {
             ApplyRuntimePhysicMaterial();
+            ApplyNetVisualReadability();
         }
     }
 
@@ -250,5 +260,75 @@ public class PingPongSurface : MonoBehaviour
             frictionCombine = PhysicMaterialCombine.Minimum,
             bounceCombine = PhysicMaterialCombine.Maximum
         };
+    }
+
+    private void ApplyNetVisualReadability()
+    {
+        if (!tuneNetVisualsForMr || surfaceType != PingPongSurfaceType.Net) return;
+
+        var renderers = GetComponentsInChildren<Renderer>(true);
+        foreach (var netRenderer in renderers)
+        {
+            if (netRenderer == null) continue;
+
+            var materials = netRenderer.materials;
+            for (var i = 0; i < materials.Length; i++)
+            {
+                ConfigureTransparentNetMaterial(materials[i], netVisualColor, netVisualAlpha);
+            }
+        }
+    }
+
+    private static void ConfigureTransparentNetMaterial(Material material, Color baseColor, float alpha)
+    {
+        if (material == null) return;
+
+        var color = baseColor;
+        color.a = Mathf.Clamp(alpha, 0.15f, 1f);
+
+        if (material.HasProperty("_BaseColor"))
+        {
+            material.SetColor("_BaseColor", color);
+        }
+
+        if (material.HasProperty("_Color"))
+        {
+            material.SetColor("_Color", color);
+        }
+
+        if (material.HasProperty("_Surface"))
+        {
+            material.SetFloat("_Surface", 1f);
+        }
+
+        if (material.HasProperty("_Blend"))
+        {
+            material.SetFloat("_Blend", 0f);
+        }
+
+        if (material.HasProperty("_Mode"))
+        {
+            material.SetFloat("_Mode", 3f);
+        }
+
+        if (material.HasProperty("_SrcBlend"))
+        {
+            material.SetFloat("_SrcBlend", (float)UnityEngine.Rendering.BlendMode.SrcAlpha);
+        }
+
+        if (material.HasProperty("_DstBlend"))
+        {
+            material.SetFloat("_DstBlend", (float)UnityEngine.Rendering.BlendMode.OneMinusSrcAlpha);
+        }
+
+        if (material.HasProperty("_ZWrite"))
+        {
+            material.SetFloat("_ZWrite", 0f);
+        }
+
+        material.EnableKeyword("_ALPHABLEND_ON");
+        material.EnableKeyword("_SURFACE_TYPE_TRANSPARENT");
+        material.SetOverrideTag("RenderType", "Transparent");
+        material.renderQueue = (int)UnityEngine.Rendering.RenderQueue.Transparent;
     }
 }

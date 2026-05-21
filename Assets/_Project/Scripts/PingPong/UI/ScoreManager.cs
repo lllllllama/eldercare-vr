@@ -1,11 +1,15 @@
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class ScoreManager : MonoBehaviour
 {
     public TMP_FontAsset uiFont;
     public BallSpawner ballSpawner;
     public bool autoCreateDifficultyControls = true;
+    public bool enhanceHudReadability = true;
+    public Vector2 hudPanelSize = new Vector2(680f, 432f);
+    public Color hudPanelColor = new Color(0.015f, 0.03f, 0.045f, 0.78f);
     public TMP_Text hitText;
     public TMP_Text servedText;
     public TMP_Text missedText;
@@ -13,6 +17,7 @@ public class ScoreManager : MonoBehaviour
     public TMP_Text lastSpeedText;
     public TMP_Text lastSpinText;
 
+    private Image _hudBackdrop;
     private int _servedCount;
     private int _hitCount;
     private int _missedCount;
@@ -27,12 +32,14 @@ public class ScoreManager : MonoBehaviour
         PingPongEvents.OnBallMissed += HandleBallMissed;
         ResolveFontIfNeeded();
         ApplyFont();
+        EnsureReadableHud();
         RefreshUI();
     }
 
     private void Start()
     {
         EnsureDifficultyControls();
+        EnsureReadableHud();
     }
 
     private void OnDisable()
@@ -100,6 +107,82 @@ public class ScoreManager : MonoBehaviour
         if (accuracyText != null) accuracyText.font = uiFont;
         if (lastSpeedText != null) lastSpeedText.font = uiFont;
         if (lastSpinText != null) lastSpinText.font = uiFont;
+    }
+
+    private void EnsureReadableHud()
+    {
+        if (!enhanceHudReadability) return;
+
+        var texts = new[] { hitText, servedText, missedText, accuracyText, lastSpeedText, lastSpinText };
+        Transform canvasTransform = null;
+        var firstSiblingIndex = int.MaxValue;
+        var validTextCount = 0;
+        var center = Vector2.zero;
+
+        foreach (var text in texts)
+        {
+            if (text == null) continue;
+
+            var rect = text.rectTransform;
+            if (rect == null) continue;
+
+            canvasTransform = canvasTransform != null
+                ? canvasTransform
+                : (text.canvas != null ? text.canvas.transform : rect.parent);
+            firstSiblingIndex = Mathf.Min(firstSiblingIndex, rect.GetSiblingIndex());
+            validTextCount++;
+            center += rect.anchoredPosition;
+
+            ConfigureHudText(text);
+        }
+
+        if (canvasTransform == null || validTextCount == 0) return;
+
+        center /= validTextCount;
+
+        if (_hudBackdrop == null)
+        {
+            var existing = canvasTransform.Find("ScoreHudBackdrop");
+            var backdropObject = existing != null
+                ? existing.gameObject
+                : new GameObject("ScoreHudBackdrop", typeof(RectTransform), typeof(Image));
+            backdropObject.transform.SetParent(canvasTransform, false);
+            _hudBackdrop = backdropObject.GetComponent<Image>();
+        }
+
+        if (_hudBackdrop == null) return;
+
+        var backdropRect = _hudBackdrop.rectTransform;
+        backdropRect.anchorMin = new Vector2(0.5f, 0.5f);
+        backdropRect.anchorMax = new Vector2(0.5f, 0.5f);
+        backdropRect.pivot = new Vector2(0.5f, 0.5f);
+        backdropRect.sizeDelta = hudPanelSize;
+        backdropRect.anchoredPosition = center;
+        backdropRect.localRotation = Quaternion.identity;
+        backdropRect.localScale = Vector3.one;
+        _hudBackdrop.color = hudPanelColor;
+        _hudBackdrop.raycastTarget = false;
+        _hudBackdrop.transform.SetSiblingIndex(Mathf.Max(0, firstSiblingIndex - 1));
+    }
+
+    private static void ConfigureHudText(TMP_Text text)
+    {
+        if (text == null) return;
+
+        var rect = text.rectTransform;
+        if (rect != null)
+        {
+            rect.sizeDelta = new Vector2(Mathf.Max(rect.sizeDelta.x, 620f), Mathf.Max(rect.sizeDelta.y, 64f));
+        }
+
+        text.fontSize = Mathf.Max(text.fontSize, 52f);
+        text.fontStyle = FontStyles.Bold;
+        text.alignment = TextAlignmentOptions.Left;
+        text.color = new Color(1f, 1f, 1f, 0.98f);
+        text.outlineColor = new Color(0f, 0f, 0f, 0.95f);
+        text.outlineWidth = Mathf.Max(text.outlineWidth, 0.18f);
+        text.enableWordWrapping = false;
+        text.raycastTarget = false;
     }
 
     private void EnsureDifficultyControls()

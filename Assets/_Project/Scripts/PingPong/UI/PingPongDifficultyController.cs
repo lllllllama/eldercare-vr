@@ -15,6 +15,8 @@ public class PingPongDifficultyController : MonoBehaviour
 {
     private const string DefaultPrefsKey = "PicoElderCare.PingPong.Difficulty";
     private const string RuntimePanelName = "DifficultyPanel";
+    private static readonly Vector2 ReadablePanelSize = new Vector2(560f, 340f);
+    private static readonly Vector2 ReadablePanelPosition = new Vector2(630f, 148f);
 
     public BallSpawner ballSpawner;
     public TMP_Text difficultyText;
@@ -29,6 +31,7 @@ public class PingPongDifficultyController : MonoBehaviour
 
     [Range(1.5f, 5.0f)] public float customSpeed = 3.0f;
     public bool controlServeInterval = true;
+    public bool enhancePanelReadability = true;
 
     private PingPongDifficulty _difficulty;
     private bool _buttonsWired;
@@ -54,24 +57,25 @@ public class PingPongDifficultyController : MonoBehaviour
                 existingController.ballSpawner = spawner;
                 existingController.RebindButtons();
                 existingController.ApplyLoadedDifficulty();
+                existingController.ApplyReadabilityLayout();
                 return existingController;
             }
         }
 
-        var rootRect = ConfigureRect(root, new Vector2(500f, 318f), new Vector2(660f, 32f));
-        var background = ConfigureImage(GetOrCreateChild(root.transform, "Background"), new Vector2(500f, 318f), Vector2.zero, new Color(0.025f, 0.055f, 0.095f, 0.88f));
-        var glow = ConfigureImage(GetOrCreateChild(root.transform, "Glow"), new Vector2(524f, 342f), Vector2.zero, new Color(0.2f, 0.82f, 1f, 0.08f));
+        var rootRect = ConfigureRect(root, ReadablePanelSize, ReadablePanelPosition);
+        var background = ConfigureImage(GetOrCreateChild(root.transform, "Background"), ReadablePanelSize, Vector2.zero, new Color(0.015f, 0.04f, 0.07f, 0.94f));
+        var glow = ConfigureImage(GetOrCreateChild(root.transform, "Glow"), new Vector2(590f, 370f), Vector2.zero, new Color(0.2f, 0.82f, 1f, 0.1f));
         if (glow != null) glow.transform.SetAsFirstSibling();
-        ConfigureImage(GetOrCreateChild(root.transform, "TopScanLine"), new Vector2(430f, 4f), new Vector2(0f, 125f), new Color(0.42f, 0.92f, 1f, 0.58f));
+        ConfigureImage(GetOrCreateChild(root.transform, "TopScanLine"), new Vector2(486f, 4f), new Vector2(0f, 142f), new Color(0.42f, 0.92f, 1f, 0.72f));
 
-        var title = ConfigureText(GetOrCreateChild(root.transform, "Title"), "发球速度", fontAsset, new Vector2(430f, 48f), new Vector2(0f, 102f), 30f, FontStyles.Bold, new Color(1f, 1f, 1f, 0.96f));
-        var difficulty = ConfigureText(GetOrCreateChild(root.transform, "DifficultyText"), "难度：标准", fontAsset, new Vector2(430f, 44f), new Vector2(0f, 55f), 26f, FontStyles.Bold, new Color(0.62f, 0.93f, 1f, 0.95f));
-        var speed = ConfigureText(GetOrCreateChild(root.transform, "SpeedText"), "速度 3.0 m/s", fontAsset, new Vector2(430f, 44f), new Vector2(0f, 10f), 24f, FontStyles.Normal, new Color(1f, 1f, 1f, 0.86f));
-        var hint = ConfigureText(GetOrCreateChild(root.transform, "HintText"), "使用 +/- 调节下一次发球速度", fontAsset, new Vector2(450f, 42f), new Vector2(0f, -118f), 20f, FontStyles.Normal, new Color(1f, 1f, 1f, 0.62f));
+        var title = ConfigureText(GetOrCreateChild(root.transform, "Title"), "发球速度", fontAsset, new Vector2(480f, 54f), new Vector2(0f, 116f), 34f, FontStyles.Bold, new Color(1f, 1f, 1f, 0.98f));
+        var difficulty = ConfigureText(GetOrCreateChild(root.transform, "DifficultyText"), "难度：标准", fontAsset, new Vector2(480f, 48f), new Vector2(0f, 66f), 28f, FontStyles.Bold, new Color(0.62f, 0.96f, 1f, 0.98f));
+        var speed = ConfigureText(GetOrCreateChild(root.transform, "SpeedText"), "速度 3.0 m/s", fontAsset, new Vector2(480f, 46f), new Vector2(0f, 20f), 26f, FontStyles.Bold, new Color(1f, 1f, 1f, 0.94f));
+        var hint = ConfigureText(GetOrCreateChild(root.transform, "HintText"), "使用 +/- 调节下一次发球速度", fontAsset, new Vector2(500f, 44f), new Vector2(0f, -126f), 22f, FontStyles.Normal, new Color(1f, 1f, 1f, 0.78f));
 
-        var decrease = ConfigureButton(GetOrCreateChild(root.transform, "DecreaseButton"), "-", fontAsset, new Vector2(90f, 64f), new Vector2(-146f, -60f));
-        var reset = ConfigureButton(GetOrCreateChild(root.transform, "ResetButton"), "标准", fontAsset, new Vector2(138f, 64f), new Vector2(0f, -60f));
-        var increase = ConfigureButton(GetOrCreateChild(root.transform, "IncreaseButton"), "+", fontAsset, new Vector2(90f, 64f), new Vector2(146f, -60f));
+        var decrease = ConfigureButton(GetOrCreateChild(root.transform, "DecreaseButton"), "-", fontAsset, new Vector2(104f, 68f), new Vector2(-166f, -66f));
+        var reset = ConfigureButton(GetOrCreateChild(root.transform, "ResetButton"), "标准", fontAsset, new Vector2(150f, 68f), new Vector2(0f, -66f));
+        var increase = ConfigureButton(GetOrCreateChild(root.transform, "IncreaseButton"), "+", fontAsset, new Vector2(104f, 68f), new Vector2(166f, -66f));
 
         var controller = root.GetComponent<PingPongDifficultyController>();
         if (controller == null)
@@ -90,6 +94,7 @@ public class PingPongDifficultyController : MonoBehaviour
         controller.controlServeInterval = true;
         controller.RebindButtons();
         controller.ApplyLoadedDifficulty();
+        controller.ApplyReadabilityLayout();
 
         var motion = root.GetComponent<TechModuleCardMotion>();
         if (motion == null)
@@ -125,12 +130,14 @@ public class PingPongDifficultyController : MonoBehaviour
         }
 
         WireButtons();
+        ApplyReadabilityLayout();
     }
 
     private void Start()
     {
         _difficulty = LoadDifficulty();
         ApplyDifficulty(_difficulty, false);
+        ApplyReadabilityLayout();
     }
 
     private void OnDestroy()
@@ -173,6 +180,47 @@ public class PingPongDifficultyController : MonoBehaviour
     {
         _difficulty = LoadDifficulty();
         ApplyDifficulty(_difficulty, false);
+        ApplyReadabilityLayout();
+    }
+
+    public void ApplyReadabilityLayout()
+    {
+        if (!enhancePanelReadability) return;
+
+        var rootRect = transform as RectTransform;
+        if (rootRect == null) return;
+
+        ConfigureRect(gameObject, ReadablePanelSize, ReadablePanelPosition);
+        var background = ConfigureImage(GetOrCreateChild(transform, "Background"), ReadablePanelSize, Vector2.zero, new Color(0.015f, 0.04f, 0.07f, 0.94f));
+        var glow = ConfigureImage(GetOrCreateChild(transform, "Glow"), new Vector2(590f, 370f), Vector2.zero, new Color(0.2f, 0.82f, 1f, 0.1f));
+        if (glow != null)
+        {
+            glow.transform.SetAsFirstSibling();
+        }
+
+        ConfigureImage(GetOrCreateChild(transform, "TopScanLine"), new Vector2(486f, 4f), new Vector2(0f, 142f), new Color(0.42f, 0.92f, 1f, 0.72f));
+
+        ConfigureExistingText(FindPanelText("Title"), new Vector2(480f, 54f), new Vector2(0f, 116f), 34f, FontStyles.Bold, new Color(1f, 1f, 1f, 0.98f));
+        ConfigureExistingText(ResolveText(ref difficultyText, "DifficultyText"), new Vector2(480f, 48f), new Vector2(0f, 66f), 28f, FontStyles.Bold, new Color(0.62f, 0.96f, 1f, 0.98f));
+        ConfigureExistingText(ResolveText(ref speedText, "SpeedText"), new Vector2(480f, 46f), new Vector2(0f, 20f), 26f, FontStyles.Bold, new Color(1f, 1f, 1f, 0.94f));
+        ConfigureExistingText(ResolveText(ref hintText, "HintText"), new Vector2(500f, 44f), new Vector2(0f, -126f), 22f, FontStyles.Normal, new Color(1f, 1f, 1f, 0.78f));
+
+        ConfigureExistingButton(ResolveButton(ref decreaseButton, "DecreaseButton"), new Vector2(104f, 68f), new Vector2(-166f, -66f));
+        ConfigureExistingButton(ResolveButton(ref resetButton, "ResetButton"), new Vector2(150f, 68f), new Vector2(0f, -66f));
+        ConfigureExistingButton(ResolveButton(ref increaseButton, "IncreaseButton"), new Vector2(104f, 68f), new Vector2(166f, -66f));
+
+        var motion = GetComponent<TechModuleCardMotion>();
+        if (motion != null)
+        {
+            motion.cardTransform = rootRect;
+            motion.canvasGroup = EnsureCanvasGroup(gameObject);
+            motion.cardGraphic = background;
+            motion.glowGraphic = glow;
+            motion.normalColor = new Color(0.015f, 0.04f, 0.07f, 0.94f);
+            motion.hoverColor = new Color(0.03f, 0.08f, 0.13f, 0.98f);
+            motion.pressedColor = new Color(0.01f, 0.035f, 0.06f, 0.98f);
+            motion.glowColor = new Color(0.25f, 0.9f, 1f, 0.2f);
+        }
     }
 
     public static string GetLabel(PingPongDifficulty difficulty)
@@ -360,6 +408,61 @@ public class PingPongDifficultyController : MonoBehaviour
         text.enableWordWrapping = true;
         text.raycastTarget = false;
         return text;
+    }
+
+    private TMP_Text ResolveText(ref TMP_Text field, string childName)
+    {
+        if (field == null)
+        {
+            field = FindPanelText(childName);
+        }
+
+        return field;
+    }
+
+    private Button ResolveButton(ref Button field, string childName)
+    {
+        if (field == null)
+        {
+            var child = FindChild(transform, childName);
+            field = child != null ? child.GetComponent<Button>() : null;
+        }
+
+        return field;
+    }
+
+    private TMP_Text FindPanelText(string childName)
+    {
+        var child = FindChild(transform, childName);
+        return child != null ? child.GetComponent<TMP_Text>() : null;
+    }
+
+    private static void ConfigureExistingText(TMP_Text text, Vector2 size, Vector2 anchoredPosition, float fontSize, FontStyles style, Color color)
+    {
+        if (text == null) return;
+
+        ConfigureRect(text.gameObject, size, anchoredPosition);
+        text.fontSize = fontSize;
+        text.fontStyle = style;
+        text.color = color;
+        text.alignment = TextAlignmentOptions.Center;
+        text.outlineColor = new Color(0f, 0f, 0f, 0.92f);
+        text.outlineWidth = Mathf.Max(text.outlineWidth, 0.12f);
+        text.enableWordWrapping = true;
+        text.raycastTarget = false;
+    }
+
+    private static void ConfigureExistingButton(Button button, Vector2 size, Vector2 anchoredPosition)
+    {
+        if (button == null) return;
+
+        ConfigureRect(button.gameObject, size, anchoredPosition);
+        var image = button.GetComponent<Image>();
+        if (image != null)
+        {
+            image.color = new Color(0.05f, 0.18f, 0.3f, 0.98f);
+            image.raycastTarget = true;
+        }
     }
 
     private static Button ConfigureButton(GameObject go, string label, TMP_FontAsset fontAsset, Vector2 size, Vector2 anchoredPosition)

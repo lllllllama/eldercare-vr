@@ -29,10 +29,17 @@ public class PingPongBall : MonoBehaviour
     public float maxAngularVelocity = DefaultMaxAngularVelocity;
     [Range(0f, 1f)] public float rawPaddleVelocityBlend = 0.28f;
     [Range(0f, 1f)] public float highAccelerationRawBlend = 0.34f;
+    public bool enhanceBallVisibility = true;
+    public Color ballCoreColor = new Color(1f, 0.96f, 0.76f, 1f);
+    public Color trailStartColor = new Color(0.35f, 0.95f, 1f, 0.82f);
+    public Color trailEndColor = new Color(0.35f, 0.95f, 1f, 0f);
 
     private readonly RaycastHit[] _sweepHits = new RaycastHit[16];
+    private static Material _trackingTrailMaterial;
     private Rigidbody _rb;
     private SphereCollider _sphereCollider;
+    private TrailRenderer _trackingTrail;
+    private MaterialPropertyBlock _ballVisualBlock;
     private ControllerBallGrabber _activeGrabber;
     private Collider _lastSurfaceCollider;
     private Vector3 _lastSweepPosition;
@@ -56,6 +63,7 @@ public class PingPongBall : MonoBehaviour
         ConfigureGameplayCollisionFilter(true);
         _sphereCollider = GetComponent<SphereCollider>();
         _lastSweepPosition = transform.position;
+        ConfigureVisualTrackingAid();
     }
 
     private void OnEnable()
@@ -64,6 +72,11 @@ public class PingPongBall : MonoBehaviour
         _lastSurfaceCollider = null;
         _lastSurfaceHitTime = -1f;
         ConfigureGameplayCollisionFilter(true);
+        ConfigureVisualTrackingAid();
+        if (_trackingTrail != null)
+        {
+            _trackingTrail.Clear();
+        }
     }
 
     public void ExcludeIgnoredRoomSensingLayerFromSweep()
@@ -110,6 +123,11 @@ public class PingPongBall : MonoBehaviour
 
         TryApplySweptSurfaceFallback(_lastSweepPosition, transform.position);
         _lastSweepPosition = transform.position;
+    }
+
+    private void LateUpdate()
+    {
+        UpdateVisualTrackingAidState();
     }
 
     private void OnCollisionEnter(Collision collision)
@@ -330,6 +348,111 @@ public class PingPongBall : MonoBehaviour
         _rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
         _rb.interpolation = RigidbodyInterpolation.Interpolate;
         ConfigureSpinLimit(_rb, maxAngularVelocity);
+    }
+
+    private void ConfigureVisualTrackingAid()
+    {
+        if (!enhanceBallVisibility) return;
+
+        ConfigureBallRenderers();
+
+        if (_trackingTrail == null)
+        {
+            _trackingTrail = GetComponent<TrailRenderer>();
+            if (_trackingTrail == null)
+            {
+                _trackingTrail = gameObject.AddComponent<TrailRenderer>();
+            }
+        }
+
+        var radius = Mathf.Max(0.01f, GetWorldRadius());
+        _trackingTrail.time = 0.22f;
+        _trackingTrail.startWidth = radius * 1.15f;
+        _trackingTrail.endWidth = radius * 0.12f;
+        _trackingTrail.minVertexDistance = radius * 0.35f;
+        _trackingTrail.numCornerVertices = 2;
+        _trackingTrail.numCapVertices = 2;
+        _trackingTrail.alignment = LineAlignment.View;
+        _trackingTrail.textureMode = LineTextureMode.Stretch;
+        _trackingTrail.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        _trackingTrail.receiveShadows = false;
+        _trackingTrail.material = _trackingTrailMaterial ?? (_trackingTrailMaterial = CreateTrackingTrailMaterial());
+
+        var gradient = new Gradient();
+        gradient.SetKeys(
+            new[]
+            {
+                new GradientColorKey(trailStartColor, 0f),
+                new GradientColorKey(trailEndColor, 1f)
+            },
+            new[]
+            {
+                new GradientAlphaKey(trailStartColor.a, 0f),
+                new GradientAlphaKey(0f, 1f)
+            });
+        _trackingTrail.colorGradient = gradient;
+    }
+
+    private void ConfigureBallRenderers()
+    {
+        var renderers = GetComponentsInChildren<Renderer>(true);
+        foreach (var ballRenderer in renderers)
+        {
+            if (ballRenderer == null || ballRenderer is TrailRenderer) continue;
+
+            var sharedMaterials = ballRenderer.sharedMaterials;
+            if (sharedMaterials == null || sharedMaterials.Length == 0) continue;
+
+            if (_ballVisualBlock == null)
+            {
+                _ballVisualBlock = new MaterialPropertyBlock();
+            }
+            for (var i = 0; i < sharedMaterials.Length; i++)
+            {
+                var sharedMaterial = sharedMaterials[i];
+                if (sharedMaterial == null) continue;
+
+                ballRenderer.GetPropertyBlock(_ballVisualBlock, i);
+
+                if (sharedMaterial.HasProperty("_BaseColor"))
+                {
+                    _ballVisualBlock.SetColor("_BaseColor", ballCoreColor);
+                }
+
+                if (sharedMaterial.HasProperty("_Color"))
+                {
+                    _ballVisualBlock.SetColor("_Color", ballCoreColor);
+                }
+
+                if (sharedMaterial.HasProperty("_EmissionColor"))
+                {
+                    _ballVisualBlock.SetColor("_EmissionColor", ballCoreColor * 0.35f);
+                }
+
+                ballRenderer.SetPropertyBlock(_ballVisualBlock, i);
+            }
+        }
+    }
+
+    private void UpdateVisualTrackingAidState()
+    {
+        if (_trackingTrail == null) return;
+
+        var moving = _rb != null && !_rb.isKinematic && _rb.velocity.sqrMagnitude > 0.2f;
+        _trackingTrail.emitting = enhanceBallVisibility && moving && !IsGrabbed;
+    }
+
+    private static Material CreateTrackingTrailMaterial()
+    {
+        var shader = Shader.Find("Sprites/Default");
+        if (shader == null)
+        {
+            shader = Shader.Find("Universal Render Pipeline/Unlit");
+        }
+
+        var material = shader != null ? new Material(shader) : new Material(Shader.Find("Standard"));
+        material.name = "PingPongBallTrackingTrail";
+        return material;
     }
 
     public static void ConfigureSpinLimit(Rigidbody rb, float requiredAngularVelocity)

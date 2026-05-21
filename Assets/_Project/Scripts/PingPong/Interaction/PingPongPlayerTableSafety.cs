@@ -35,6 +35,10 @@ public class PingPongPlayerTableSafety : MonoBehaviour
     public bool moveRigWhenInside = false;
     public bool createRuntimePrompt = true;
     public bool createRuntimeBoundary = true;
+    public bool useDefaultSafetyMarginsWhenUnset = true;
+    public float defaultWarningMarginMeters = 0.45f;
+    public float defaultBlockedMarginMeters = 0.08f;
+    public float defaultRepulsionMarginMeters = 0.12f;
     public Transform warningCanvasTransform;
     public TMP_Text warningText;
     public LineRenderer boundaryLine;
@@ -59,6 +63,7 @@ public class PingPongPlayerTableSafety : MonoBehaviour
 
     private void OnEnable()
     {
+        ApplyDefaultSafetyMarginsIfUnset();
         _safeSinceTime = -1f;
         CurrentState = PingPongTableSafetyState.Clear;
         ConfigureSafetyLayerIgnores();
@@ -73,7 +78,7 @@ public class PingPongPlayerTableSafety : MonoBehaviour
         var evaluation = EvaluateSafety(headPosition);
         CurrentState = evaluation.state;
 
-        UpdateBoundary(evaluation.state != PingPongTableSafetyState.Clear);
+        UpdateBoundary(evaluation.state);
         UpdatePrompt(evaluation.state);
 
         if (evaluation.state != PingPongTableSafetyState.Clear)
@@ -124,12 +129,15 @@ public class PingPongPlayerTableSafety : MonoBehaviour
         var local = GetHorizontalTableLocal(headPosition);
         var halfX = tableSize.x * 0.5f;
         var halfZ = tableSize.y * 0.5f;
-        var safetyHalfX = halfX;
-        var safetyHalfZ = halfZ;
-        var warningHalfX = halfX;
-        var warningHalfZ = halfZ;
-        var hardHalfX = halfX;
-        var hardHalfZ = halfZ;
+        var repulsionMargin = Mathf.Max(0f, safetyMargin);
+        var blockedMargin = Mathf.Max(0f, hardMargin, hardPauseDistance, blockedMarginMeters);
+        var warningMargin = Mathf.Max(blockedMargin, warningOnlyDistance, warningMarginMeters, repulsionMargin);
+        var safetyHalfX = halfX + repulsionMargin;
+        var safetyHalfZ = halfZ + repulsionMargin;
+        var warningHalfX = halfX + warningMargin;
+        var warningHalfZ = halfZ + warningMargin;
+        var hardHalfX = halfX + blockedMargin;
+        var hardHalfZ = halfZ + blockedMargin;
 
         var absX = Mathf.Abs(local.x);
         var absZ = Mathf.Abs(local.y);
@@ -163,6 +171,27 @@ public class PingPongPlayerTableSafety : MonoBehaviour
         }
 
         return new SafetyEvaluation(state, exitDirection, Mathf.Max(0f, penetration), insideSafety);
+    }
+
+    private void ApplyDefaultSafetyMarginsIfUnset()
+    {
+        if (!useDefaultSafetyMarginsWhenUnset) return;
+
+        var hasExplicitMargins =
+            safetyMargin > 0f ||
+            hardMargin > 0f ||
+            warningOnlyDistance > 0f ||
+            hardPauseDistance > 0f ||
+            blockedMarginMeters > 0f ||
+            warningMarginMeters > 0f;
+
+        if (hasExplicitMargins) return;
+
+        safetyMargin = Mathf.Max(0f, defaultRepulsionMarginMeters);
+        hardMargin = Mathf.Max(0f, defaultBlockedMarginMeters);
+        blockedMarginMeters = Mathf.Max(0f, defaultBlockedMarginMeters);
+        warningOnlyDistance = Mathf.Max(0f, defaultWarningMarginMeters);
+        warningMarginMeters = Mathf.Max(0f, defaultWarningMarginMeters);
     }
 
     private void ApplyRepulsion(SafetyEvaluation evaluation)
@@ -221,7 +250,7 @@ public class PingPongPlayerTableSafety : MonoBehaviour
         _servingStoppedBySafety = false;
     }
 
-    private void UpdateBoundary(bool visible)
+    private void UpdateBoundary(PingPongTableSafetyState state)
     {
         if (boundaryLine == null && createRuntimeBoundary)
         {
@@ -230,8 +259,15 @@ public class PingPongPlayerTableSafety : MonoBehaviour
 
         if (boundaryLine == null) return;
 
+        var visible = state != PingPongTableSafetyState.Clear;
         boundaryLine.enabled = visible;
         if (!visible || tableTransform == null) return;
+
+        var color = state == PingPongTableSafetyState.Blocked
+            ? new Color(1f, 0.15f, 0.1f, 0.9f)
+            : new Color(1f, 0.78f, 0.18f, 0.8f);
+        boundaryLine.startColor = color;
+        boundaryLine.endColor = color;
 
         var halfX = tableSize.x * 0.5f;
         var halfZ = tableSize.y * 0.5f;
@@ -291,10 +327,10 @@ public class PingPongPlayerTableSafety : MonoBehaviour
         boundaryLine = go.AddComponent<LineRenderer>();
         boundaryLine.useWorldSpace = true;
         boundaryLine.loop = false;
-        boundaryLine.startWidth = 0.035f;
-        boundaryLine.endWidth = 0.035f;
-        boundaryLine.startColor = new Color(1f, 0.15f, 0.1f, 0.82f);
-        boundaryLine.endColor = new Color(1f, 0.15f, 0.1f, 0.82f);
+        boundaryLine.startWidth = 0.045f;
+        boundaryLine.endWidth = 0.045f;
+        boundaryLine.startColor = new Color(1f, 0.78f, 0.18f, 0.8f);
+        boundaryLine.endColor = new Color(1f, 0.78f, 0.18f, 0.8f);
         boundaryLine.material = new Material(Shader.Find("Sprites/Default"));
         boundaryLine.enabled = false;
     }
