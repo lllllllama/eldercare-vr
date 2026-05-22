@@ -20,6 +20,10 @@ public static class PingPongPhysicsSelfTests
         TableDragHandleDisablesLocalInteraction();
         TableHeightNormalizesToStandardHeight();
         DifficultyPanelUsesControllerButtonsOnly();
+        BallGeometryUsesElderReadableSize();
+        TableSurfaceCorrectionRaisesEmbeddedBall();
+        TableDragHandleDoesNotSyncWorldUiCanvas();
+        ScoreCanvasInstallsRayDragHandle();
         SpatialTablePlacementIsDisabledByDefaultForNow();
         OpenSpacePlacementWaitsForRoomSensingColliders();
         OpenSpacePlacementAvoidsTableObstacle();
@@ -252,6 +256,96 @@ public static class PingPongPhysicsSelfTests
         finally
         {
             Object.DestroyImmediate(spawnerObject);
+            Object.DestroyImmediate(canvasObject);
+        }
+    }
+
+    private static void BallGeometryUsesElderReadableSize()
+    {
+        AssertTrue(PingPongGeometry.BallRadius >= 0.028f, "Ping-pong ball radius should be enlarged for elder users.");
+        AssertTrue(Mathf.Abs(PingPongGeometry.BallPrefabScale.x - PingPongGeometry.BallDiameter) < 0.0001f, "Ball prefab scale should follow the configured readable diameter.");
+    }
+
+    private static void TableSurfaceCorrectionRaisesEmbeddedBall()
+    {
+        var tableObject = GameObject.CreatePrimitive(PrimitiveType.Cube);
+        var ballObject = GameObject.CreatePrimitive(PrimitiveType.Sphere);
+        try
+        {
+            tableObject.name = "Table";
+            tableObject.transform.position = PingPongGeometry.TableCenter;
+            tableObject.transform.localScale = PingPongGeometry.TableColliderWorldSize;
+            var surface = tableObject.AddComponent<PingPongSurface>();
+            surface.Configure(PingPongSurfaceType.Table);
+
+            ballObject.name = "EmbeddedBall";
+            ballObject.transform.localScale = PingPongGeometry.BallPrefabScale;
+            var rigidbody = ballObject.AddComponent<Rigidbody>();
+            rigidbody.velocity = Vector3.down;
+            var ball = ballObject.AddComponent<PingPongBall>();
+
+            Physics.SyncTransforms();
+            var tableCollider = tableObject.GetComponent<Collider>();
+            var embeddedCenterY = tableCollider.bounds.max.y + PingPongGeometry.BallRadius * 0.25f;
+            ballObject.transform.position = new Vector3(0f, embeddedCenterY, PingPongGeometry.TableCenter.z);
+            Physics.SyncTransforms();
+
+            AssertTrue(ball.CorrectSurfacePenetrationIfNeeded(surface, tableCollider, Vector3.up, tableCollider.bounds.max), "Embedded table ball should be corrected out of the tabletop.");
+            AssertTrue(ballObject.transform.position.y >= tableCollider.bounds.max.y + PingPongGeometry.BallRadius, "Corrected ball center should sit above the tabletop.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(ballObject);
+            Object.DestroyImmediate(tableObject);
+        }
+    }
+
+    private static void TableDragHandleDoesNotSyncWorldUiCanvas()
+    {
+        var tableObject = new GameObject("Table");
+        var uiObject = new GameObject("WorldSpaceCanvas", typeof(RectTransform), typeof(Canvas));
+        var handleObject = new GameObject("TableHandle");
+        try
+        {
+            tableObject.transform.position = PingPongGeometry.TableCenter;
+            uiObject.transform.position = new Vector3(-0.5f, 1.55f, 2.8f);
+            uiObject.AddComponent<ComfortWorldSpaceUIPlacer>();
+            var initialUiPosition = uiObject.transform.position;
+
+            var dragHandle = handleObject.AddComponent<TableDragHandle>();
+            dragHandle.tableRoot = tableObject.transform;
+            dragHandle.syncedTransforms = new[] { uiObject.transform };
+            dragHandle.lockTableHeight = false;
+            dragHandle.constrainToBounds = false;
+            dragHandle.SetTablePosition(tableObject.transform.position + Vector3.right);
+
+            AssertTrue(Vector3.Distance(uiObject.transform.position, initialUiPosition) < 0.001f, "Detached world-space UI canvas should not be moved by table placement.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(handleObject);
+            Object.DestroyImmediate(uiObject);
+            Object.DestroyImmediate(tableObject);
+        }
+    }
+
+    private static void ScoreCanvasInstallsRayDragHandle()
+    {
+        var canvasObject = new GameObject("ScoreCanvas", typeof(RectTransform), typeof(Canvas));
+        try
+        {
+            var rect = canvasObject.GetComponent<RectTransform>();
+            rect.sizeDelta = new Vector2(900f, 560f);
+            var score = canvasObject.AddComponent<ScoreManager>();
+            score.autoCreateDifficultyControls = false;
+
+            score.EnsureDisplayCanvasInteraction();
+
+            AssertTrue(canvasObject.GetComponent<ComfortWorldSpaceUIPlacer>() != null, "Score canvas should get a comfort placer for ray manipulation.");
+            AssertTrue(rect.Find("RayDragHandle") != null, "Score canvas should expose a ray-drag handle.");
+        }
+        finally
+        {
             Object.DestroyImmediate(canvasObject);
         }
     }

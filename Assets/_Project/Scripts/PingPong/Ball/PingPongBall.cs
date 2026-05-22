@@ -4,6 +4,7 @@ using UnityEngine;
 public class PingPongBall : MonoBehaviour
 {
     public const float DefaultMaxAngularVelocity = 180f;
+    private const float SurfaceCorrectionSkin = 0.006f;
 
     public float paddleVelocityMultiplier = 0.85f;
     public float forwardBoost = 2.2f;
@@ -11,7 +12,7 @@ public class PingPongBall : MonoBehaviour
     public float minimumPaddleHitSpeed = 2.6f;
     public float heldBallHitSpeed = 3.2f;
     public float paddleHitCooldown = 0.12f;
-    public float surfaceHitCooldown = 0.08f;
+    public float surfaceHitCooldown = 0.035f;
     public float minimumClosingSpeed = 0.15f;
     public float heldBallMinimumSwingSpeed = 0.35f;
     public float maxSpeed = 9f;
@@ -628,7 +629,6 @@ public class PingPongBall : MonoBehaviour
     private void ApplySurfaceBounce(PingPongSurface surface, Collider collider, Vector3 normal, Vector3 contactPoint, bool forcePositionCorrection)
     {
         if (surface == null || collider == null || _rb == null || _rb.isKinematic) return;
-        if (_lastSurfaceCollider == collider && Time.time - _lastSurfaceHitTime < surfaceHitCooldown) return;
 
         if (normal.sqrMagnitude < 0.0001f)
         {
@@ -641,8 +641,18 @@ public class PingPongBall : MonoBehaviour
             normal = -normal;
         }
 
+        if (_lastSurfaceCollider == collider && Time.time - _lastSurfaceHitTime < surfaceHitCooldown)
+        {
+            CorrectSurfacePenetrationIfNeeded(surface, collider, normal, contactPoint);
+            return;
+        }
+
         var closingSpeed = -Vector3.Dot(_rb.velocity, normal);
-        if (closingSpeed < 0.02f) return;
+        if (closingSpeed < 0.02f)
+        {
+            CorrectSurfacePenetrationIfNeeded(surface, collider, normal, contactPoint);
+            return;
+        }
 
         var incomingVelocity = _rb.velocity;
         var input = PingPongHitSolver.CreateDefault(incomingVelocity, _rb.angularVelocity, normal, Vector3.zero);
@@ -657,7 +667,7 @@ public class PingPongBall : MonoBehaviour
         var result = PingPongHitSolver.Solve(input);
         if (!result.accepted) return;
 
-        if (forcePositionCorrection)
+        if (forcePositionCorrection || ShouldCorrectSurfacePosition(surface))
         {
             transform.position = CorrectedSurfacePosition(contactPoint, normal);
         }
@@ -665,6 +675,7 @@ public class PingPongBall : MonoBehaviour
         var finalAngularVelocity = Vector3.ClampMagnitude(result.angularVelocity, DefaultMaxAngularVelocity);
         _rb.velocity = result.velocity;
         _rb.angularVelocity = finalAngularVelocity;
+        CorrectSurfacePenetrationIfNeeded(surface, collider, normal, contactPoint);
         _lastSurfaceCollider = collider;
         _lastSurfaceHitTime = Time.time;
         _lastSweepPosition = transform.position;
@@ -752,7 +763,46 @@ public class PingPongBall : MonoBehaviour
             surfacePoint = transform.position;
         }
 
-        return surfacePoint + normal.normalized * (GetWorldRadius() + 0.002f);
+        return surfacePoint + normal.normalized * (GetWorldRadius() + SurfaceCorrectionSkin);
+    }
+
+    public bool CorrectSurfacePenetrationIfNeeded(PingPongSurface surface, Collider collider, Vector3 normal, Vector3 contactPoint)
+    {
+        if (_rb == null)
+        {
+            _rb = GetComponent<Rigidbody>();
+        }
+
+        if (surface == null || collider == null || _rb == null) return false;
+        if (!ShouldCorrectSurfacePosition(surface)) return false;
+
+        var radius = GetWorldRadius();
+        var minCenterY = collider.bounds.max.y + radius + SurfaceCorrectionSkin;
+        var position = transform.position;
+        if (position.y >= minCenterY)
+        {
+            return false;
+        }
+
+        position.y = minCenterY;
+        transform.position = position;
+
+        var velocity = _rb.velocity;
+        if (velocity.y < 0.05f)
+        {
+            velocity.y = Mathf.Max(0.25f, Mathf.Abs(velocity.y) * 0.45f);
+            _rb.velocity = velocity;
+        }
+
+        _lastSweepPosition = transform.position;
+        return true;
+    }
+
+    private static bool ShouldCorrectSurfacePosition(PingPongSurface surface)
+    {
+        return surface != null &&
+               (surface.surfaceType == PingPongSurfaceType.Table ||
+                surface.surfaceType == PingPongSurfaceType.Floor);
     }
 
     private void DetachFromGrabIfNeeded()

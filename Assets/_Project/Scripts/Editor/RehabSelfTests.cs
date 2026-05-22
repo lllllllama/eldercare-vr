@@ -36,6 +36,8 @@ public static class RehabSelfTests
         VideoPanelLayoutIsDecoupledFromTrainingAreaByDefault();
         VideoPanelScalingClampsAndKeepsPanelUpright();
         SpatialRayControlCanPlaceTrainingAreaExplicitly();
+        SpatialRayControlDragsVideoOnlyWhileTriggerHeld();
+        TrainingSelectPanelUsesComfortRayPlacement();
         Debug.Log("Rehab self tests passed.");
     }
 
@@ -612,8 +614,13 @@ public static class RehabSelfTests
                 rightObject.GetComponent<Button>()
             };
 
-            var eventSystem = EventSystem.current;
+            var eventSystem = EventSystem.current != null
+                ? EventSystem.current
+                : eventSystemObject != null
+                    ? eventSystemObject.GetComponent<EventSystem>()
+                    : Object.FindObjectOfType<EventSystem>();
             AssertTrue(eventSystem != null, "Thumbstick navigator test should have an EventSystem.");
+            navigator.eventSystemOverride = eventSystem;
 
             eventSystem.SetSelectedGameObject(middleObject);
             AssertTrue(navigator.NavigateForInput(Vector2.left), "Navigator should consume a left thumbstick input.");
@@ -743,6 +750,103 @@ public static class RehabSelfTests
             Object.DestroyImmediate(controlObject);
             Object.DestroyImmediate(areaObject);
             Object.DestroyImmediate(sessionObject);
+        }
+    }
+
+    private static void SpatialRayControlDragsVideoOnlyWhileTriggerHeld()
+    {
+        var headObject = new GameObject("Head");
+        var panelObject = new GameObject("RehabVideoPanel");
+        var quadObject = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        var controlObject = new GameObject("RehabSpatialRayControl");
+        try
+        {
+            headObject.transform.position = new Vector3(0f, 1.6f, 0f);
+            headObject.transform.rotation = Quaternion.identity;
+            panelObject.transform.position = new Vector3(0f, 1.6f, 2f);
+            quadObject.name = "VideoQuad";
+            quadObject.transform.SetParent(panelObject.transform, false);
+
+            var layout = panelObject.AddComponent<RehabVideoPanelLayoutController>();
+            layout.panelRoot = panelObject.transform;
+            layout.videoQuad = quadObject.transform;
+            layout.headTransform = headObject.transform;
+            layout.minPanelDistance = 0.5f;
+            layout.maxPanelDistance = 5f;
+
+            var control = controlObject.AddComponent<RehabSpatialRayControl>();
+            control.videoLayoutController = layout;
+            control.hmdTransform = headObject.transform;
+            control.maxRayDistanceMeters = 5f;
+            control.EnsureControlCanvas();
+            control.EnsureVideoRayTarget();
+
+            AssertTrue(panelObject.transform.Find("RehabSpatialControls/MoveVideoButton") == null, "Video move button should be removed because the video surface is dragged directly.");
+
+            var beginRay = new Ray(new Vector3(0f, 1.6f, 0f), Vector3.forward);
+            AssertTrue(control.TryBeginDirectVideoPanelDrag(beginRay), "Direct video drag should begin from a ray hit on the video surface.");
+            AssertTrue(control.DirectVideoDragActive, "Direct video drag should stay active while the trigger is held.");
+
+            var before = panelObject.transform.position;
+            var dragRay = new Ray(new Vector3(0.25f, 1.72f, 0f), Vector3.forward);
+            AssertTrue(control.UpdateDirectVideoPanelDrag(dragRay), "Direct video drag should update from the current controller ray.");
+            AssertTrue(Vector3.Distance(panelObject.transform.position, before) > 0.05f, "Direct video drag should move the panel.");
+
+            control.EndDirectVideoPanelDrag();
+            AssertTrue(!control.DirectVideoDragActive, "Direct video drag should end when the trigger is released.");
+            var afterRelease = panelObject.transform.position;
+            control.UpdateDirectVideoPanelDrag(new Ray(new Vector3(-0.4f, 1.2f, 0f), Vector3.forward));
+            AssertTrue(Vector3.Distance(panelObject.transform.position, afterRelease) < 0.001f, "Released video panel should keep its last position.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(controlObject);
+            Object.DestroyImmediate(quadObject);
+            Object.DestroyImmediate(panelObject);
+            Object.DestroyImmediate(headObject);
+        }
+    }
+
+    private static void TrainingSelectPanelUsesComfortRayPlacement()
+    {
+        var headObject = new GameObject("Head");
+        var uiObject = new GameObject("RehabModeSelectCanvas", typeof(RectTransform));
+        var selectPanel = new GameObject("TrainingSelectPanel");
+        try
+        {
+            headObject.transform.position = new Vector3(0f, 1.6f, 0f);
+            headObject.transform.rotation = Quaternion.identity;
+            selectPanel.transform.SetParent(uiObject.transform, false);
+
+            var rect = uiObject.GetComponent<RectTransform>();
+            rect.sizeDelta = new Vector2(900f, 560f);
+
+            var placer = uiObject.AddComponent<ComfortWorldSpaceUIPlacer>();
+            placer.headTransform = headObject.transform;
+            placer.uiRoot = rect;
+            placer.distanceMeters = 1.7f;
+            placer.hmdHeightOffsetMeters = -0.12f;
+            placer.enableRayDrag = true;
+            placer.enableThumbstickNavigation = true;
+
+            var modeUi = uiObject.AddComponent<RehabModeSelectUI>();
+            modeUi.uiPlacer = placer;
+            modeUi.rehabTrainingSelectPanel = selectPanel;
+            modeUi.placeUiOnTrainingSelectOpen = true;
+            modeUi.trainingSelectDistanceMeters = 2.45f;
+            modeUi.trainingSelectHeightOffsetMeters = 0.08f;
+
+            modeUi.ShowTrainingSelectPanel();
+
+            AssertTrue(uiObject.transform.position.z > 2.4f, "Training selection panel should open farther from the user.");
+            AssertTrue(uiObject.transform.position.y > 1.67f, "Training selection panel should open higher than the old low placement.");
+            AssertTrue(rect.Find("RayDragHandle") != null, "Training selection panel should expose a ray-drag handle.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(selectPanel);
+            Object.DestroyImmediate(uiObject);
+            Object.DestroyImmediate(headObject);
         }
     }
 

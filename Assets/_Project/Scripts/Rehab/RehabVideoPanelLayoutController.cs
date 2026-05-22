@@ -10,11 +10,11 @@ namespace PicoElderCare.Rehab
         public Transform promptCanvas;
         public Transform trainingAreaRoot;
 
-        public float panelDistance = 1.8f;
-        public float videoRightOffset = 0.75f;
-        public float heightOffset = -0.05f;
-        public float videoWidth = 0.62f;
-        public float videoHeight = 0.35f;
+        public float panelDistance = 2.15f;
+        public float videoRightOffset = 0.9f;
+        public float heightOffset = 0.08f;
+        public float videoWidth = 0.78f;
+        public float videoHeight = 0.44f;
         public float videoScale = 1f;
         public float minVideoScale = 0.65f;
         public float maxVideoScale = 1.7f;
@@ -23,7 +23,7 @@ namespace PicoElderCare.Rehab
         public float maxPanelDistance = 3.25f;
         public float minHeightFromHead = -0.55f;
         public float maxHeightFromHead = 0.45f;
-        public bool preferPromptCanvasLayout = true;
+        public bool preferPromptCanvasLayout = false;
         public bool followTrainingAreaRoot = false;
         public bool preserveUserPlacement = true;
         public bool faceUser = true;

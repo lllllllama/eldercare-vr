@@ -8,6 +8,7 @@ public class WorldSpaceUiThumbstickNavigator : MonoBehaviour
 {
     public RectTransform selectableRoot;
     public Selectable[] selectables;
+    public EventSystem eventSystemOverride;
     public bool invertHorizontalInput = false;
     public bool invertVerticalInput = false;
     public bool disableBuiltInSelectableNavigation = true;
@@ -156,7 +157,7 @@ public class WorldSpaceUiThumbstickNavigator : MonoBehaviour
 
     private Selectable GetCurrentSelectable()
     {
-        var eventSystem = EventSystem.current;
+        var eventSystem = GetEventSystem();
         if (eventSystem == null || eventSystem.currentSelectedGameObject == null)
         {
             return null;
@@ -181,10 +182,16 @@ public class WorldSpaceUiThumbstickNavigator : MonoBehaviour
 
     private void Select(Selectable selectable)
     {
-        if (EventSystem.current != null && selectable != null)
+        var eventSystem = GetEventSystem();
+        if (eventSystem != null && selectable != null)
         {
-            EventSystem.current.SetSelectedGameObject(selectable.gameObject);
+            eventSystem.SetSelectedGameObject(selectable.gameObject);
         }
+    }
+
+    private EventSystem GetEventSystem()
+    {
+        return eventSystemOverride != null ? eventSystemOverride : EventSystem.current;
     }
 
     private bool ContainsSelectable(Selectable selectable)

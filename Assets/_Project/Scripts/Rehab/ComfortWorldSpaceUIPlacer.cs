@@ -245,56 +245,59 @@ public class ComfortWorldSpaceUIPlacer : MonoBehaviour
 
     public void EnsureWorldSpaceInteractionHelpers()
     {
-        var root = TargetRoot as RectTransform;
+        var root = TargetRoot;
         if (root == null) return;
+
+        var rootRect = root as RectTransform;
 
         if (enableRayDrag)
         {
-            EnsureRayDragHandle(root);
+            EnsureRayDragHandle(root, rootRect);
         }
 
-        if (enableThumbstickNavigation)
+        if (enableThumbstickNavigation && rootRect != null)
         {
-            var navigator = root.GetComponent<WorldSpaceUiThumbstickNavigator>();
+            var navigator = rootRect.GetComponent<WorldSpaceUiThumbstickNavigator>();
             if (navigator == null)
             {
-                navigator = root.gameObject.AddComponent<WorldSpaceUiThumbstickNavigator>();
+                navigator = rootRect.gameObject.AddComponent<WorldSpaceUiThumbstickNavigator>();
             }
 
-            navigator.selectableRoot = root;
+            navigator.selectableRoot = rootRect;
             navigator.invertHorizontalInput = invertThumbstickHorizontal;
             navigator.disableBuiltInSelectableNavigation = true;
             navigator.ConfigureSelectableNavigation();
         }
     }
 
-    private void EnsureRayDragHandle(RectTransform root)
+    private void EnsureRayDragHandle(Transform root, RectTransform rootRect)
     {
         var existing = root.Find("RayDragHandle");
         if (existing != null)
         {
-            ConfigureRayDragHandle(existing.gameObject, root);
+            ConfigureRayDragHandle(existing.gameObject, root, rootRect);
             return;
         }
 
         var handle = new GameObject("RayDragHandle", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image), typeof(Outline), typeof(WorldSpaceUiRayDragHandle));
         handle.transform.SetParent(root, false);
-        ConfigureRayDragHandle(handle, root);
+        ConfigureRayDragHandle(handle, root, rootRect);
     }
 
-    private void ConfigureRayDragHandle(GameObject handle, RectTransform root)
+    private void ConfigureRayDragHandle(GameObject handle, Transform root, RectTransform rootRect)
     {
         if (handle == null || root == null) return;
 
         var rect = handle.GetComponent<RectTransform>();
         if (rect != null)
         {
-            var rootHeight = Mathf.Max(300f, root.rect.height);
+            var rootHeight = rootRect != null ? Mathf.Max(300f, rootRect.rect.height) : 540f;
+            var rootWidth = rootRect != null ? Mathf.Max(480f, rootRect.rect.width) : 720f;
             rect.anchorMin = new Vector2(0.5f, 0.5f);
             rect.anchorMax = new Vector2(0.5f, 0.5f);
             rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.sizeDelta = new Vector2(340f, 18f);
-            rect.anchoredPosition = new Vector2(0f, rootHeight * 0.5f - 34f);
+            rect.sizeDelta = new Vector2(Mathf.Min(rootWidth - 120f, 460f), 30f);
+            rect.anchoredPosition = new Vector2(0f, rootHeight * 0.5f - 42f);
             rect.localRotation = Quaternion.identity;
             rect.localScale = Vector3.one;
         }
@@ -303,7 +306,7 @@ public class ComfortWorldSpaceUIPlacer : MonoBehaviour
         if (image != null)
         {
             image.raycastTarget = true;
-            image.color = new Color(0.35f, 0.95f, 1f, 0.34f);
+            image.color = new Color(0.35f, 0.95f, 1f, 0.42f);
         }
 
         var outline = handle.GetComponent<Outline>();

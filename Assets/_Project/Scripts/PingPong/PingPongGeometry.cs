@@ -8,9 +8,9 @@ public static class PingPongGeometry
     public const float TableThickness = 0.08f;
     public const float NetHeight = 0.1525f;
     public const float NetThickness = 0.01f;
-    public const float BallRadius = 0.02f;
+    public const float BallRadius = 0.03f;
     public const float BallDiameter = BallRadius * 2f;
-    public const float BallMass = 0.0027f;
+    public const float BallMass = 0.004f;
     public const float BallDrag = 0.03f;
     public const float BallAngularDrag = 0.05f;
 

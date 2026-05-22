@@ -71,6 +71,7 @@ namespace PicoElderCare.Rehab
         private float _currentMovementRemainingSeconds;
         private float _currentMovementDurationSeconds;
         private bool _currentMovementVideoStarted;
+        private bool _currentMovementUsesVideoTimer;
         private RehabTrainingFlowState _trainingFlowState = RehabTrainingFlowState.Idle;
 
         public Vector3 TrainingCenter
@@ -220,9 +221,11 @@ namespace PicoElderCare.Rehab
             _currentMovementTargetReached = false;
             _currentMovementBestCompletion = 0f;
             _currentMovementVideoStarted = false;
+            _currentMovementUsesVideoTimer = false;
             if (videoGuideController != null)
             {
                 videoGuideController.SetSessionManager(this);
+                videoGuideController.loopVideo = false;
                 videoGuideController.StopAndHide();
             }
             PrepareCurrentMovementTimer();
@@ -304,6 +307,7 @@ namespace PicoElderCare.Rehab
             _currentMovementRemainingSeconds = 0f;
             _currentMovementDurationSeconds = 0f;
             _currentMovementVideoStarted = false;
+            _currentMovementUsesVideoTimer = false;
             _trainingFlowState = RehabTrainingFlowState.Idle;
             _currentResult = null;
 
@@ -397,7 +401,14 @@ namespace PicoElderCare.Rehab
         {
             var deltaTime = Mathf.Max(0f, Time.deltaTime);
             _elapsedTrainingSeconds += deltaTime;
-            _currentMovementRemainingSeconds = Mathf.Max(0f, _currentMovementRemainingSeconds - deltaTime);
+            if (_currentMovementUsesVideoTimer)
+            {
+                SyncCurrentMovementTimerToVideo();
+            }
+            else
+            {
+                _currentMovementRemainingSeconds = Mathf.Max(0f, _currentMovementRemainingSeconds - deltaTime);
+            }
 
             var evaluation = movementEvaluator.Evaluate(
                 sample,
@@ -415,7 +426,7 @@ namespace PicoElderCare.Rehab
 
             RefreshUi(evaluation, safety);
 
-            if (_currentMovementRemainingSeconds <= 0f)
+            if (ShouldFinishCurrentMovementByTimer())
             {
                 FinishCurrentMovementByTimer(safety.pauseCount);
                 return;
@@ -445,6 +456,7 @@ namespace PicoElderCare.Rehab
                 {
                     _lastVideoMovementKey = movementKey;
                     _currentMovementVideoStarted = true;
+                    videoGuideController.loopVideo = false;
                     videoGuideController.PlayForMovement(movement.movementId.ToString(), movement.movementName);
                 }
             }
@@ -497,6 +509,7 @@ namespace PicoElderCare.Rehab
         {
             _currentMovementDurationSeconds = ResolveCurrentMovementDurationSeconds();
             _currentMovementRemainingSeconds = _currentMovementDurationSeconds;
+            _currentMovementUsesVideoTimer = CurrentMovementHasVideoDuration();
             _currentMovementTargetReached = false;
             _currentMovementBestCompletion = 0f;
         }
@@ -504,22 +517,63 @@ namespace PicoElderCare.Rehab
         private float ResolveCurrentMovementDurationSeconds()
         {
             var duration = Mathf.Max(1f, defaultMovementDurationSeconds);
-            var movement = movementEvaluator != null ? movementEvaluator.CurrentMovement : null;
-            if (useVideoDurationForMovement && videoGuideController != null && movement != null)
+            if (TryResolveCurrentMovementVideoDuration(out var videoDuration))
             {
-                var videoDuration = videoGuideController.GetVideoDurationForMovement(
-                    movement.movementId.ToString(),
-                    movement.movementName);
-                if (videoDuration > 1f)
-                {
-                    duration = videoDuration + videoDurationPaddingSeconds;
-                }
+                duration = videoDuration + videoDurationPaddingSeconds;
             }
 
             return Mathf.Clamp(
                 duration,
                 Mathf.Max(1f, minMovementDurationSeconds),
                 Mathf.Max(minMovementDurationSeconds, maxMovementDurationSeconds));
+        }
+
+        private bool CurrentMovementHasVideoDuration()
+        {
+            return TryResolveCurrentMovementVideoDuration(out _);
+        }
+
+        private bool TryResolveCurrentMovementVideoDuration(out float duration)
+        {
+            duration = -1f;
+            var movement = movementEvaluator != null ? movementEvaluator.CurrentMovement : null;
+            if (!useVideoDurationForMovement || videoGuideController == null || movement == null)
+            {
+                return false;
+            }
+
+            duration = videoGuideController.GetVideoDurationForMovement(
+                movement.movementId.ToString(),
+                movement.movementName);
+            return duration > 1f;
+        }
+
+        private void SyncCurrentMovementTimerToVideo()
+        {
+            if (videoGuideController == null || !videoGuideController.HasPlayableCurrentVideo())
+            {
+                return;
+            }
+
+            var remaining = videoGuideController.GetCurrentVideoRemainingSeconds(_currentMovementRemainingSeconds);
+            _currentMovementRemainingSeconds = Mathf.Min(
+                _currentMovementDurationSeconds,
+                Mathf.Max(0f, remaining + Mathf.Max(0f, videoDurationPaddingSeconds)));
+        }
+
+        private bool ShouldFinishCurrentMovementByTimer()
+        {
+            if (!_currentMovementUsesVideoTimer)
+            {
+                return _currentMovementRemainingSeconds <= 0f;
+            }
+
+            if (videoGuideController == null || !videoGuideController.HasPlayableCurrentVideo())
+            {
+                return false;
+            }
+
+            return videoGuideController.CurrentVideoReachedEnd();
         }
 
         private void ShowWaitingForUserPrompt()

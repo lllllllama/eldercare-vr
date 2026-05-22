@@ -33,6 +33,7 @@ public class ScoreManager : MonoBehaviour
         ResolveFontIfNeeded();
         ApplyFont();
         EnsureReadableHud();
+        EnsureDisplayCanvasInteraction();
         RefreshUI();
     }
 
@@ -40,6 +41,7 @@ public class ScoreManager : MonoBehaviour
     {
         EnsureDifficultyControls();
         EnsureReadableHud();
+        EnsureDisplayCanvasInteraction();
     }
 
     private void OnDisable()
@@ -200,6 +202,34 @@ public class ScoreManager : MonoBehaviour
         if (ballSpawner == null) return;
 
         PingPongDifficultyController.EnsureRuntimePanel(canvasTransform, ballSpawner, uiFont);
+    }
+
+    public void EnsureDisplayCanvasInteraction()
+    {
+        var canvasTransform = ResolveCanvasTransform();
+        if (canvasTransform == null) return;
+
+        var placer = canvasTransform.GetComponent<ComfortWorldSpaceUIPlacer>();
+        if (placer == null)
+        {
+            placer = canvasTransform.gameObject.AddComponent<ComfortWorldSpaceUIPlacer>();
+        }
+
+        placer.uiRoot = canvasTransform;
+        if (placer.headTransform == null && Camera.main != null)
+        {
+            placer.headTransform = Camera.main.transform;
+        }
+
+        placer.distanceMeters = Mathf.Max(placer.distanceMeters, 2.35f);
+        placer.hmdHeightOffsetMeters = Mathf.Max(placer.hmdHeightOffsetMeters, 0.12f);
+        placer.placeOnStart = false;
+        placer.placeOnEnable = false;
+        placer.recenterDuringStartup = false;
+        placer.enableRayDrag = true;
+        placer.enableThumbstickNavigation = true;
+        placer.comfortFollowEnabled = false;
+        placer.EnsureWorldSpaceInteractionHelpers();
     }
 
     private Transform ResolveCanvasTransform()

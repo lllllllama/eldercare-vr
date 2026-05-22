@@ -26,6 +26,8 @@ namespace PicoElderCare.Rehab
         public RehabSpatialRayTarget activeTarget = RehabSpatialRayTarget.VideoPanel;
         public bool enableVideoPanelControl = true;
         public bool enableTrainingAreaControl = true;
+        public bool enableDirectVideoRayDrag = true;
+        public bool createVideoRayCollider = true;
         public bool autoCreateControlCanvas = true;
         public GameObject controlCanvasRoot;
         public TMP_Text statusText;
@@ -34,14 +36,24 @@ namespace PicoElderCare.Rehab
         public float maxRayDistanceMeters = 4.5f;
         public float videoMovePlaneDistanceMeters = 1.8f;
         public float triggerThreshold = 0.65f;
+        public float videoColliderDepthMeters = 0.05f;
 
         private readonly List<InputDevice> _devices = new List<InputDevice>();
         private bool _placementArmed;
         private bool _waitForTriggerRelease;
+        private bool _directVideoDragging;
+        private Plane _directVideoDragPlane;
+        private Vector3 _directVideoDragOffset;
+        private Collider _videoRayCollider;
 
         public bool PlacementArmed
         {
             get { return _placementArmed; }
+        }
+
+        public bool DirectVideoDragActive
+        {
+            get { return _directVideoDragging; }
         }
 
         public static RehabSpatialRayControl EnsureRuntime(
@@ -72,6 +84,7 @@ namespace PicoElderCare.Rehab
 
             controller.ResolveReferences();
             controller.EnsureControlCanvas();
+            controller.EnsureVideoRayTarget();
             return controller;
         }
 
@@ -79,11 +92,13 @@ namespace PicoElderCare.Rehab
         {
             ResolveReferences();
             EnsureControlCanvas();
+            EnsureVideoRayTarget();
         }
 
         private void Start()
         {
             ResolveReferences();
+            EnsureVideoRayTarget();
             if (videoLayoutController != null)
             {
                 videoLayoutController.PlaceInRightFrontOfUserOnce();
@@ -100,6 +115,8 @@ namespace PicoElderCare.Rehab
                 ResolveReferences();
             }
 
+            EnsureVideoRayTarget();
+
             var triggerPressed = TryGetPressedControllerRay(out var ray);
             if (_waitForTriggerRelease)
             {
@@ -112,23 +129,42 @@ namespace PicoElderCare.Rehab
                 return;
             }
 
+            if (_directVideoDragging)
+            {
+                if (!triggerPressed)
+                {
+                    EndDirectVideoPanelDrag();
+                    SetRayPreviewVisible(false, ray);
+                    return;
+                }
+
+                var directMoved = UpdateDirectVideoPanelDrag(ray);
+                SetRayPreviewVisible(directMoved, ray);
+                return;
+            }
+
+            if (triggerPressed && TryBeginDirectVideoPanelDrag(ray))
+            {
+                SetRayPreviewVisible(true, ray);
+                return;
+            }
+
             if (!_placementArmed || !triggerPressed)
             {
                 SetRayPreviewVisible(false, ray);
                 return;
             }
 
-            var moved = activeTarget == RehabSpatialRayTarget.VideoPanel
-                ? TryMoveVideoPanelFromRay(ray)
-                : TryPlaceTrainingAreaFromRay(ray);
+            var moved = activeTarget == RehabSpatialRayTarget.TrainingArea &&
+                        TryPlaceTrainingAreaFromRay(ray);
             SetRayPreviewVisible(moved, ray);
         }
 
         public void SelectVideoTarget()
         {
             activeTarget = RehabSpatialRayTarget.VideoPanel;
-            _placementArmed = true;
-            _waitForTriggerRelease = true;
+            _placementArmed = false;
+            _waitForTriggerRelease = false;
             RefreshStatus();
         }
 
@@ -187,6 +223,61 @@ namespace PicoElderCare.Rehab
 
             activeTarget = RehabSpatialRayTarget.TrainingArea;
             _placementArmed = false;
+            RefreshStatus();
+        }
+
+        public Collider EnsureVideoRayTarget()
+        {
+            if (!createVideoRayCollider) return null;
+            if (videoLayoutController == null) ResolveReferences();
+            if (videoLayoutController == null || videoLayoutController.videoQuad == null) return null;
+
+            var target = videoLayoutController.videoQuad.gameObject;
+            var box = target.GetComponent<BoxCollider>();
+            if (box == null)
+            {
+                box = target.AddComponent<BoxCollider>();
+            }
+
+            box.isTrigger = true;
+            box.center = Vector3.zero;
+            box.size = new Vector3(1.04f, 1.04f, Mathf.Max(0.005f, videoColliderDepthMeters));
+            _videoRayCollider = box;
+            return _videoRayCollider;
+        }
+
+        public bool TryBeginDirectVideoPanelDrag(Ray ray)
+        {
+            if (!enableVideoPanelControl || !enableDirectVideoRayDrag) return false;
+            if (videoLayoutController == null) ResolveReferences();
+            if (videoLayoutController == null || videoLayoutController.panelRoot == null) return false;
+
+            EnsureVideoRayTarget();
+            if (!TryHitVideoPanel(ray, out var hitPoint)) return false;
+
+            _placementArmed = false;
+            activeTarget = RehabSpatialRayTarget.VideoPanel;
+            var normal = GetVideoDragPlaneNormal();
+            _directVideoDragPlane = new Plane(normal, videoLayoutController.PanelPosition);
+            _directVideoDragOffset = videoLayoutController.PanelPosition - hitPoint;
+            _directVideoDragging = true;
+            RefreshStatus();
+            return true;
+        }
+
+        public bool UpdateDirectVideoPanelDrag(Ray ray)
+        {
+            if (!_directVideoDragging || videoLayoutController == null) return false;
+            if (!_directVideoDragPlane.Raycast(ray, out var distance)) return false;
+            if (distance < 0f || distance > Mathf.Max(maxRayDistanceMeters, 0.1f)) return false;
+
+            MoveVideoPanelToWorldPoint(ray.GetPoint(distance) + _directVideoDragOffset);
+            return true;
+        }
+
+        public void EndDirectVideoPanelDrag()
+        {
+            _directVideoDragging = false;
             RefreshStatus();
         }
 
@@ -296,7 +387,17 @@ namespace PicoElderCare.Rehab
 
         public void EnsureControlCanvas()
         {
-            if (!autoCreateControlCanvas || controlCanvasRoot != null) return;
+            if (!autoCreateControlCanvas)
+            {
+                return;
+            }
+
+            if (controlCanvasRoot != null)
+            {
+                RemoveLegacyVideoMoveButton(controlCanvasRoot.transform);
+                RefreshStatus();
+                return;
+            }
 
             if (videoLayoutController == null)
             {
@@ -310,7 +411,12 @@ namespace PicoElderCare.Rehab
             if (existing != null)
             {
                 controlCanvasRoot = existing.gameObject;
-                statusText = controlCanvasRoot.GetComponentInChildren<TMP_Text>(true);
+                var status = controlCanvasRoot.transform.Find("Status");
+                statusText = status != null
+                    ? status.GetComponent<TMP_Text>()
+                    : controlCanvasRoot.GetComponentInChildren<TMP_Text>(true);
+                RemoveLegacyVideoMoveButton(controlCanvasRoot.transform);
+                RefreshStatus();
                 return;
             }
 
@@ -322,12 +428,12 @@ namespace PicoElderCare.Rehab
                 typeof(GraphicRaycaster),
                 typeof(TrackedDeviceGraphicRaycaster));
             controlCanvasRoot.transform.SetParent(parent, false);
-            controlCanvasRoot.transform.localPosition = new Vector3(0f, -0.33f, 0.02f);
+            controlCanvasRoot.transform.localPosition = new Vector3(0f, -0.37f, 0.02f);
             controlCanvasRoot.transform.localRotation = Quaternion.identity;
             controlCanvasRoot.transform.localScale = Vector3.one * 0.0015f;
 
             var rect = controlCanvasRoot.GetComponent<RectTransform>();
-            rect.sizeDelta = new Vector2(820f, 126f);
+            rect.sizeDelta = new Vector2(700f, 118f);
 
             var canvas = controlCanvasRoot.GetComponent<Canvas>();
             canvas.renderMode = RenderMode.WorldSpace;
@@ -337,22 +443,106 @@ namespace PicoElderCare.Rehab
             scaler.dynamicPixelsPerUnit = 12f;
 
             var background = controlCanvasRoot.AddComponent<Image>();
-            background.color = new Color(0.015f, 0.055f, 0.07f, 0.88f);
+            background.color = new Color(0.012f, 0.048f, 0.062f, 0.74f);
             var outline = controlCanvasRoot.AddComponent<Outline>();
-            outline.effectColor = new Color(0.33f, 0.94f, 1f, 0.36f);
+            outline.effectColor = new Color(0.33f, 0.94f, 1f, 0.28f);
             outline.effectDistance = new Vector2(2f, -2f);
 
-            CreateDivider(controlCanvasRoot.transform, "TopTrace", new Vector2(0f, 57f), new Vector2(760f, 3f), new Color(0.42f, 0.96f, 1f, 0.56f));
-            CreateDivider(controlCanvasRoot.transform, "BottomTrace", new Vector2(0f, -57f), new Vector2(520f, 2f), new Color(0.42f, 0.96f, 1f, 0.28f));
+            CreateDivider(controlCanvasRoot.transform, "TopTrace", new Vector2(0f, 53f), new Vector2(640f, 3f), new Color(0.42f, 0.96f, 1f, 0.5f));
+            CreateDivider(controlCanvasRoot.transform, "BottomTrace", new Vector2(0f, -53f), new Vector2(420f, 2f), new Color(0.42f, 0.96f, 1f, 0.24f));
 
-            CreateControlButton(controlCanvasRoot.transform, "MoveVideoButton", "\u89c6\u9891\u4f4d\u7f6e", new Vector2(-306f, 12f), new Vector2(142f, 54f), SelectVideoTarget);
-            CreateControlButton(controlCanvasRoot.transform, "MoveSpaceButton", "\u7a7a\u95f4\u4f4d\u7f6e", new Vector2(-154f, 12f), new Vector2(142f, 54f), SelectTrainingAreaTarget);
-            CreateControlButton(controlCanvasRoot.transform, "VideoScaleDownButton", "\u89c6\u9891 -", new Vector2(0f, 12f), new Vector2(128f, 54f), ScaleVideoDown);
-            CreateControlButton(controlCanvasRoot.transform, "VideoScaleUpButton", "\u89c6\u9891 +", new Vector2(142f, 12f), new Vector2(128f, 54f), ScaleVideoUp);
-            CreateControlButton(controlCanvasRoot.transform, "ResetButton", "\u91cd\u7f6e\u663e\u793a", new Vector2(300f, 12f), new Vector2(146f, 54f), ResetVideoPlacement);
+            CreateControlButton(controlCanvasRoot.transform, "MoveSpaceButton", "\u7a7a\u95f4\u4f4d\u7f6e", new Vector2(-228f, 10f), new Vector2(150f, 52f), SelectTrainingAreaTarget);
+            CreateControlButton(controlCanvasRoot.transform, "VideoScaleDownButton", "\u89c6\u9891 -", new Vector2(-64f, 10f), new Vector2(132f, 52f), ScaleVideoDown);
+            CreateControlButton(controlCanvasRoot.transform, "VideoScaleUpButton", "\u89c6\u9891 +", new Vector2(84f, 10f), new Vector2(132f, 52f), ScaleVideoUp);
+            CreateControlButton(controlCanvasRoot.transform, "ResetButton", "\u91cd\u7f6e\u663e\u793a", new Vector2(246f, 10f), new Vector2(150f, 52f), ResetVideoPlacement);
 
-            statusText = CreateText(controlCanvasRoot.transform, "Status", "\u9009\u62e9\u76ee\u6807\u540e\uff0c\u6263\u52a8\u4efb\u610f\u624b\u67c4\u6263\u673a\u8fdb\u884c\u79fb\u52a8", 22f, TextAlignmentOptions.Center, new Vector2(0f, -40f), new Vector2(760f, 34f));
+            statusText = CreateText(controlCanvasRoot.transform, "Status", "\u6309\u4f4f\u89c6\u9891\u753b\u9762\u62d6\u52a8\uff0c\u677e\u5f00\u540e\u56fa\u5b9a\uff1b\u7a7a\u95f4\u5708\u9700\u70b9\u51fb\u6309\u94ae\u540e\u79fb\u52a8", 20f, TextAlignmentOptions.Center, new Vector2(0f, -38f), new Vector2(640f, 34f));
             statusText.color = new Color(0.74f, 0.98f, 1f, 0.78f);
+        }
+
+        private bool TryHitVideoPanel(Ray ray, out Vector3 hitPoint)
+        {
+            hitPoint = Vector3.zero;
+
+            if (Physics.Raycast(ray, out var hit, Mathf.Max(0.1f, maxRayDistanceMeters), ~0, QueryTriggerInteraction.Collide) &&
+                IsVideoPanelCollider(hit.collider))
+            {
+                hitPoint = hit.point;
+                return true;
+            }
+
+            if (videoLayoutController == null || videoLayoutController.videoQuad == null) return false;
+
+            var plane = new Plane(GetVideoDragPlaneNormal(), videoLayoutController.videoQuad.position);
+            if (!plane.Raycast(ray, out var distance)) return false;
+            if (distance < 0f || distance > Mathf.Max(0.1f, maxRayDistanceMeters)) return false;
+
+            var point = ray.GetPoint(distance);
+            if (!IsPointWithinVideoQuad(point))
+            {
+                return false;
+            }
+
+            hitPoint = point;
+            return true;
+        }
+
+        private bool IsVideoPanelCollider(Collider candidate)
+        {
+            if (candidate == null || videoLayoutController == null || videoLayoutController.panelRoot == null)
+            {
+                return false;
+            }
+
+            if (_videoRayCollider != null && candidate == _videoRayCollider)
+            {
+                return true;
+            }
+
+            var candidateTransform = candidate.transform;
+            return candidateTransform == videoLayoutController.videoQuad ||
+                   candidateTransform.IsChildOf(videoLayoutController.videoQuad) ||
+                   candidateTransform == videoLayoutController.panelRoot ||
+                   candidateTransform.IsChildOf(videoLayoutController.panelRoot);
+        }
+
+        private bool IsPointWithinVideoQuad(Vector3 worldPoint)
+        {
+            if (videoLayoutController == null || videoLayoutController.videoQuad == null) return false;
+
+            var local = videoLayoutController.videoQuad.InverseTransformPoint(worldPoint);
+            return Mathf.Abs(local.x) <= 0.55f && Mathf.Abs(local.y) <= 0.55f;
+        }
+
+        private Vector3 GetVideoDragPlaneNormal()
+        {
+            if (videoLayoutController != null && videoLayoutController.panelRoot != null)
+            {
+                var forward = Vector3.ProjectOnPlane(videoLayoutController.panelRoot.forward, Vector3.up);
+                if (forward.sqrMagnitude > 0.0001f)
+                {
+                    return forward.normalized;
+                }
+            }
+
+            return -GetHeadYawForward();
+        }
+
+        private void RemoveLegacyVideoMoveButton(Transform root)
+        {
+            if (root == null) return;
+
+            var legacy = root.Find("MoveVideoButton");
+            if (legacy == null) return;
+
+            if (Application.isPlaying)
+            {
+                Destroy(legacy.gameObject);
+            }
+            else
+            {
+                DestroyImmediate(legacy.gameObject);
+            }
         }
 
         private bool TryGetPressedControllerRay(out Ray ray)
@@ -417,7 +607,9 @@ namespace PicoElderCare.Rehab
 
             if (!_placementArmed)
             {
-                statusText.text = "\u663e\u793a\u4e0e\u8bad\u7ec3\u5708\u5df2\u5206\u79bb\uff0c\u9009\u62e9\u76ee\u6807\u540e\u53ef\u7528\u5c04\u7ebf\u79fb\u52a8";
+                statusText.text = _directVideoDragging
+                    ? "\u6b63\u5728\u62d6\u52a8\u89c6\u9891\uff1a\u677e\u5f00\u5c04\u7ebf\u952e\u5373\u56fa\u5b9a\u5728\u5f53\u524d\u4f4d\u7f6e"
+                    : "\u663e\u793a\u4e0e\u8bad\u7ec3\u5708\u5df2\u5206\u79bb\uff1a\u6309\u4f4f\u89c6\u9891\u753b\u9762\u62d6\u52a8\uff0c\u7a7a\u95f4\u5708\u4f7f\u7528\u6309\u94ae\u79fb\u52a8";
                 return;
             }
 

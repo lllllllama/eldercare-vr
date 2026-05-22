@@ -48,14 +48,22 @@ namespace PicoElderCare.Rehab
         public bool requireActiveSession = true;
         public bool muteAudio;
         public float volume = 0.7f;
-        public bool loopVideo = true;
+        public bool loopVideo = false;
         public bool showDebugFrame = false;
+        public bool autoCreateVideoFrame = true;
+        public Color videoFrameColor = new Color(0.06f, 0.18f, 0.2f, 0.96f);
+        public Color videoFrameAccentColor = new Color(0.2f, 0.92f, 1f, 0.72f);
+        public float videoFramePadding = 0.045f;
+        public float videoFrameThickness = 0.035f;
         public GameObject debugBackground;
         public GameObject debugBorder;
         public RehabMovementVideoBinding[] bindings;
 
         private bool _playWhenPrepared;
         private string _currentMovementKey;
+        private Transform _videoFrameRoot;
+        private Material _videoFrameMaterial;
+        private Material _videoFrameAccentMaterial;
 
         private void Awake()
         {
@@ -119,7 +127,8 @@ namespace PicoElderCare.Rehab
             UnsubscribePrepareCompleted();
             videoPlayer.Stop();
             videoPlayer.clip = binding.videoClip;
-            videoPlayer.isLooping = loopVideo;
+            loopVideo = false;
+            videoPlayer.isLooping = false;
             _currentMovementKey = movementId + "|" + movementName;
             EnsureRenderTextureBinding();
             ConfigureAudio();
@@ -222,6 +231,46 @@ namespace PicoElderCare.Rehab
             }
 
             return -1f;
+        }
+
+        public bool HasPlayableCurrentVideo()
+        {
+            return videoPlayer != null && videoPlayer.clip != null && videoPlayer.clip.length > 0f;
+        }
+
+        public float GetCurrentVideoDurationSeconds()
+        {
+            if (!HasPlayableCurrentVideo()) return -1f;
+            return (float)videoPlayer.clip.length;
+        }
+
+        public float GetCurrentVideoTimeSeconds()
+        {
+            if (!HasPlayableCurrentVideo()) return 0f;
+            var time = videoPlayer.time;
+            if (double.IsNaN(time) || double.IsInfinity(time))
+            {
+                return 0f;
+            }
+
+            return Mathf.Clamp((float)time, 0f, GetCurrentVideoDurationSeconds());
+        }
+
+        public float GetCurrentVideoRemainingSeconds(float fallbackSeconds)
+        {
+            var duration = GetCurrentVideoDurationSeconds();
+            if (duration <= 0f) return Mathf.Max(0f, fallbackSeconds);
+
+            var time = GetCurrentVideoTimeSeconds();
+            return Mathf.Max(0f, duration - time);
+        }
+
+        public bool CurrentVideoReachedEnd(float epsilonSeconds = 0.08f)
+        {
+            var duration = GetCurrentVideoDurationSeconds();
+            if (duration <= 0f) return false;
+
+            return GetCurrentVideoTimeSeconds() >= duration - Mathf.Max(0f, epsilonSeconds);
         }
 
         public void SetSessionManager(RehabSessionManager manager)
@@ -461,11 +510,14 @@ namespace PicoElderCare.Rehab
                 videoQuad.SetActive(true);
             }
 
+            EnsureVideoPanelVisuals();
+
             if (videoPlayer != null)
             {
                 videoPlayer.enabled = true;
                 videoPlayer.playOnAwake = false;
                 videoPlayer.renderMode = VideoRenderMode.RenderTexture;
+                videoPlayer.isLooping = false;
             }
 
             if (audioSource != null)
@@ -661,6 +713,16 @@ namespace PicoElderCare.Rehab
                 }
 
                 layoutController.followTrainingAreaRoot = false;
+                layoutController.preferPromptCanvasLayout = false;
+                if (layoutController.panelDistance < 2.05f)
+                {
+                    layoutController.panelDistance = 2.15f;
+                }
+
+                if (layoutController.heightOffset < 0.02f)
+                {
+                    layoutController.heightOffset = 0.08f;
+                }
             }
 
             if (sessionManager == null)
@@ -700,11 +762,118 @@ namespace PicoElderCare.Rehab
             }
 
             EnsureRenderTextureBinding();
+            EnsureVideoPanelVisuals();
 
             if (layoutController != null)
             {
                 RehabSpatialRayControl.EnsureRuntime(sessionManager, layoutController);
             }
+        }
+
+        private void EnsureVideoPanelVisuals()
+        {
+            if (!autoCreateVideoFrame || videoQuad == null) return;
+
+            var root = videoQuad.transform.Find("VideoFrameRoot");
+            if (root == null)
+            {
+                var rootObject = new GameObject("VideoFrameRoot");
+                rootObject.transform.SetParent(videoQuad.transform, false);
+                root = rootObject.transform;
+            }
+
+            _videoFrameRoot = root;
+            _videoFrameRoot.localPosition = new Vector3(0f, 0f, -0.012f);
+            _videoFrameRoot.localRotation = Quaternion.identity;
+            _videoFrameRoot.localScale = Vector3.one;
+
+            var padding = Mathf.Clamp(videoFramePadding, 0.01f, 0.14f);
+            var thickness = Mathf.Clamp(videoFrameThickness, 0.012f, 0.09f);
+            var width = 1f + padding * 2f;
+            var height = 1f + padding * 2f;
+            var depth = 0.018f;
+
+            ConfigureFrameBar("FrameTop", new Vector3(0f, 0.5f + padding + thickness * 0.5f, 0f), new Vector3(width + thickness * 2f, thickness, depth), true);
+            ConfigureFrameBar("FrameBottom", new Vector3(0f, -0.5f - padding - thickness * 0.5f, 0f), new Vector3(width + thickness * 2f, thickness, depth), false);
+            ConfigureFrameBar("FrameLeft", new Vector3(-0.5f - padding - thickness * 0.5f, 0f, 0f), new Vector3(thickness, height, depth), false);
+            ConfigureFrameBar("FrameRight", new Vector3(0.5f + padding + thickness * 0.5f, 0f, 0f), new Vector3(thickness, height, depth), false);
+        }
+
+        private void ConfigureFrameBar(string name, Vector3 localPosition, Vector3 localScale, bool accent)
+        {
+            if (_videoFrameRoot == null) return;
+
+            var child = _videoFrameRoot.Find(name);
+            GameObject bar;
+            if (child == null)
+            {
+                bar = GameObject.CreatePrimitive(PrimitiveType.Cube);
+                bar.name = name;
+                bar.transform.SetParent(_videoFrameRoot, false);
+                var collider = bar.GetComponent<Collider>();
+                if (collider != null)
+                {
+                    if (Application.isPlaying)
+                    {
+                        Destroy(collider);
+                    }
+                    else
+                    {
+                        DestroyImmediate(collider);
+                    }
+                }
+            }
+            else
+            {
+                bar = child.gameObject;
+            }
+
+            bar.transform.localPosition = localPosition;
+            bar.transform.localRotation = Quaternion.identity;
+            bar.transform.localScale = localScale;
+
+            var renderer = bar.GetComponent<Renderer>();
+            if (renderer != null)
+            {
+                renderer.sharedMaterial = accent ? GetVideoFrameAccentMaterial() : GetVideoFrameMaterial();
+            }
+        }
+
+        private Material GetVideoFrameMaterial()
+        {
+            if (_videoFrameMaterial == null)
+            {
+                _videoFrameMaterial = CreateVideoFrameMaterial(videoFrameColor);
+            }
+
+            return _videoFrameMaterial;
+        }
+
+        private Material GetVideoFrameAccentMaterial()
+        {
+            if (_videoFrameAccentMaterial == null)
+            {
+                _videoFrameAccentMaterial = CreateVideoFrameMaterial(videoFrameAccentColor);
+            }
+
+            return _videoFrameAccentMaterial;
+        }
+
+        private static Material CreateVideoFrameMaterial(Color color)
+        {
+            var shader = Shader.Find("Universal Render Pipeline/Unlit") ??
+                         Shader.Find("Unlit/Color") ??
+                         Shader.Find("Standard");
+            if (shader == null) return null;
+
+            var material = new Material(shader);
+            material.color = color;
+            if (material.HasProperty("_BaseColor"))
+            {
+                material.SetColor("_BaseColor", color);
+            }
+
+            return material;
         }
     }
 }

@@ -213,8 +213,7 @@ public static class PingPongDemoSceneBuilder
             target.transform,
             tableBlocker != null ? tableBlocker.transform : null,
             mixedRealityMode,
-            net != null ? net.transform : null,
-            uiCanvas);
+            net != null ? net.transform : null);
         SetupPlayerTableSafety(tableBlocker, table.transform, spawner, dragHandle, playerBodyProxy);
         SetupInitialViewAligner(managers.transform, mixedRealityMode);
         BuildElderCareHomeMenu(
@@ -1458,6 +1457,7 @@ public static class PingPongDemoSceneBuilder
         }
 
         EnsureWorldCanvasRaycasters(canvasGo);
+        ConfigureWorldCanvasInteraction(canvasGo);
 
         CreateScoreHudBackdrop(canvasGo.transform);
         score.hitText = CreateScoreText(canvasGo.transform, "HitText", new Vector2(0f, 170f));
@@ -1468,6 +1468,28 @@ public static class PingPongDemoSceneBuilder
         score.lastSpinText = CreateScoreText(canvasGo.transform, "LastSpinText", new Vector2(0f, -170f));
 
         BuildDifficultyUi(canvasGo.transform, spawner);
+    }
+
+    private static void ConfigureWorldCanvasInteraction(GameObject canvasGo)
+    {
+        if (canvasGo == null) return;
+
+        var comfortPlacer = EnsureComponent<ComfortWorldSpaceUIPlacer>(canvasGo);
+        if (comfortPlacer == null) return;
+
+        comfortPlacer.headTransform = Camera.main != null ? Camera.main.transform : null;
+        comfortPlacer.uiRoot = canvasGo.transform;
+        comfortPlacer.distanceMeters = 2.35f;
+        comfortPlacer.hmdHeightOffsetMeters = 0.12f;
+        comfortPlacer.placeOnStart = false;
+        comfortPlacer.placeOnEnable = false;
+        comfortPlacer.recenterDuringStartup = false;
+        comfortPlacer.enableRayDrag = true;
+        comfortPlacer.enableThumbstickNavigation = true;
+        comfortPlacer.invertThumbstickHorizontal = false;
+        comfortPlacer.comfortFollowEnabled = false;
+        comfortPlacer.EnsureWorldSpaceInteractionHelpers();
+        EditorUtility.SetDirty(canvasGo);
     }
 
     private static PingPongDifficultyController BuildDifficultyUi(Transform canvasTransform, BallSpawner spawner)
@@ -2239,6 +2261,11 @@ public static class PingPongDemoSceneBuilder
             {
                 if (syncedTransform != null)
                 {
+                    if (TableDragHandle.IsDetachedWorldUiTransform(syncedTransform))
+                    {
+                        continue;
+                    }
+
                     transforms.Add(syncedTransform);
                 }
             }

@@ -89,6 +89,7 @@ public class TableDragHandle : MonoBehaviour
         foreach (var syncedTransform in syncedTransforms)
         {
             if (syncedTransform == null || syncedTransform == tableRoot || syncedTransform.IsChildOf(tableRoot)) continue;
+            if (IsDetachedWorldUiTransform(syncedTransform)) continue;
             syncedTransform.position += delta;
         }
     }
@@ -176,6 +177,16 @@ public class TableDragHandle : MonoBehaviour
     private float GetTableTopY()
     {
         return tableRoot.position.y + PingPongGeometry.TableThickness * 0.5f;
+    }
+
+    public static bool IsDetachedWorldUiTransform(Transform candidate)
+    {
+        if (candidate == null) return false;
+        if (candidate.GetComponentInParent<ComfortWorldSpaceUIPlacer>(true) != null) return true;
+        if (candidate.GetComponentInParent<Canvas>(true) != null) return true;
+        return candidate.name == "WorldSpaceCanvas" ||
+               candidate.name == "ElderCareHomeCanvas" ||
+               candidate.name.Contains("Canvas");
     }
 
     private void AcceptTableTransform()

@@ -143,12 +143,12 @@ public class PingPongRoomPlaneAligner : MonoBehaviour
         }
 
         MoveIfDetached(FindObjectByNameIncludingInactive("Net"), delta, moved);
-        MoveIfDetached(FindObjectByNameIncludingInactive("WorldSpaceCanvas"), delta, moved);
     }
 
     private void MoveIfDetached(Transform target, Vector3 delta, HashSet<Transform> moved)
     {
         if (target == null || target == tableRoot || target.IsChildOf(tableRoot) || moved.Contains(target)) return;
+        if (TableDragHandle.IsDetachedWorldUiTransform(target)) return;
 
         target.position += delta;
         moved.Add(target);

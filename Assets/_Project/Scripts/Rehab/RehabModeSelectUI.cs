@@ -23,6 +23,9 @@ namespace PicoElderCare.Rehab
         public bool showTrainingSelectOnStart = true;
         public bool placeUiOnStart = true;
         public bool placeUiOnMainMenuOpen = true;
+        public bool placeUiOnTrainingSelectOpen = true;
+        public float trainingSelectDistanceMeters = 2.45f;
+        public float trainingSelectHeightOffsetMeters = 0.08f;
 
         private void Awake()
         {
@@ -70,6 +73,11 @@ namespace PicoElderCare.Rehab
             SetPanelActive(rehabTrainingSelectPanel, true);
             SetPanelActive(rehabTrainingPanel, false);
             SetPanelActive(trainingResultPanel, false);
+
+            if (placeUiOnTrainingSelectOpen)
+            {
+                PlaceUiInFrontOfUser();
+            }
         }
 
         public void StartBaduanjinTraining()
@@ -175,8 +183,23 @@ namespace PicoElderCare.Rehab
 
             if (uiPlacer != null)
             {
+                ApplyTrainingSelectPlacementDefaults();
+                uiPlacer.EnsureWorldSpaceInteractionHelpers();
                 uiPlacer.PlaceInFrontOfUser();
             }
+        }
+
+        private void ApplyTrainingSelectPlacementDefaults()
+        {
+            if (uiPlacer == null) return;
+
+            uiPlacer.distanceMeters = Mathf.Max(uiPlacer.distanceMeters, trainingSelectDistanceMeters);
+            uiPlacer.hmdHeightOffsetMeters = Mathf.Max(uiPlacer.hmdHeightOffsetMeters, trainingSelectHeightOffsetMeters);
+            uiPlacer.enableRayDrag = true;
+            uiPlacer.enableThumbstickNavigation = true;
+            uiPlacer.recenterDuringStartup = true;
+            uiPlacer.startupRecenterSeconds = Mathf.Max(uiPlacer.startupRecenterSeconds, 1.25f);
+            uiPlacer.startupRecenterFrames = Mathf.Max(uiPlacer.startupRecenterFrames, 18);
         }
 
         private void BindButtonEvents()
