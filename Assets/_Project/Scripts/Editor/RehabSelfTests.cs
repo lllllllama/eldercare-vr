@@ -38,6 +38,7 @@ public static class RehabSelfTests
         VideoPanelScalingClampsAndKeepsPanelUpright();
         SpatialRayControlCanPlaceTrainingAreaExplicitly();
         VideoSpatialControlsStayHiddenUntilVideoGuideShows();
+        VideoGuidePauseKeepsDisplayVisible();
         SpatialRayControlDragsVideoOnlyWhileTriggerHeld();
         TrainingSelectPanelUsesComfortRayPlacement();
         Debug.Log("Rehab self tests passed.");
@@ -885,6 +886,44 @@ public static class RehabSelfTests
 
             guide.StopAndHide();
             AssertTrue(!control.controlCanvasRoot.activeSelf, "Video spatial controls should hide again when the video guide stops.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(controlObject);
+            Object.DestroyImmediate(quadObject);
+            Object.DestroyImmediate(panelObject);
+        }
+    }
+
+    private static void VideoGuidePauseKeepsDisplayVisible()
+    {
+        var panelObject = new GameObject("RehabVideoPanel");
+        var quadObject = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        var controlObject = new GameObject("RehabSpatialRayControl");
+        try
+        {
+            quadObject.name = "VideoQuad";
+            quadObject.transform.SetParent(panelObject.transform, false);
+            quadObject.SetActive(false);
+
+            var layout = panelObject.AddComponent<RehabVideoPanelLayoutController>();
+            layout.panelRoot = panelObject.transform;
+            layout.videoQuad = quadObject.transform;
+
+            var control = controlObject.AddComponent<RehabSpatialRayControl>();
+            control.videoLayoutController = layout;
+            control.EnsureControlCanvas();
+            control.SetControlCanvasVisible(false);
+
+            var guide = panelObject.AddComponent<RehabVideoGuideController>();
+            guide.videoPanel = panelObject;
+            guide.videoQuad = quadObject;
+            guide.layoutController = layout;
+
+            guide.EnsureDisplayVisibleWhilePaused();
+
+            AssertTrue(quadObject.activeSelf, "Pausing a rehab movement should keep the video display visible while time remains.");
+            AssertTrue(control.controlCanvasRoot != null && control.controlCanvasRoot.activeSelf, "Paused video display should keep the spatial controls visible.");
         }
         finally
         {
