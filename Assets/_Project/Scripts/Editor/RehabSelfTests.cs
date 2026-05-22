@@ -32,6 +32,7 @@ public static class RehabSelfTests
         ComfortUiPlacementUsesCurrentHeadYaw();
         ComfortUiStartupRecenterFollowsSettledHeadPose();
         ComfortUiCreatesRayDragAndThumbstickHelpers();
+        ComfortUiRayDragKeepsStableHeightWhenDraggedFar();
         ThumbstickNavigatorMovesLeftToLeftCard();
         VideoPanelLayoutIsDecoupledFromTrainingAreaByDefault();
         VideoPanelScalingClampsAndKeepsPanelUpright();
@@ -585,6 +586,45 @@ public static class RehabSelfTests
         }
         finally
         {
+            Object.DestroyImmediate(uiObject);
+            Object.DestroyImmediate(headObject);
+        }
+    }
+
+    private static void ComfortUiRayDragKeepsStableHeightWhenDraggedFar()
+    {
+        var headObject = new GameObject("Head");
+        var uiObject = new GameObject("ComfortUiStableHeight", typeof(RectTransform));
+        var handleObject = new GameObject("RayDragHandle", typeof(RectTransform), typeof(Image), typeof(WorldSpaceUiRayDragHandle));
+        try
+        {
+            headObject.transform.position = new Vector3(0f, 1.6f, 0f);
+            headObject.transform.rotation = Quaternion.identity;
+            uiObject.transform.position = new Vector3(0f, 1.5f, 2f);
+            uiObject.transform.rotation = Quaternion.identity;
+
+            var placer = uiObject.AddComponent<ComfortWorldSpaceUIPlacer>();
+            placer.headTransform = headObject.transform;
+            placer.uiRoot = uiObject.transform;
+            placer.hmdHeightOffsetMeters = -0.1f;
+
+            handleObject.transform.SetParent(uiObject.transform, false);
+            var handle = handleObject.GetComponent<WorldSpaceUiRayDragHandle>();
+            handle.placer = placer;
+            handle.targetRoot = uiObject.transform;
+            handle.headTransform = headObject.transform;
+            handle.lockHeightToComfortOffset = true;
+            handle.lockedHeightToleranceMeters = 0.08f;
+
+            handle.MoveTargetToWorldPoint(new Vector3(0f, 3.4f, 8f));
+
+            AssertTrue(uiObject.transform.position.z <= headObject.transform.position.z + handle.maxDistanceMeters + 0.001f, "Far ray drag should still respect the maximum panel distance.");
+            AssertTrue(uiObject.transform.position.y <= 1.58f, "Far ray drag should not lift the panel above the comfort height band.");
+            AssertTrue(uiObject.transform.position.y >= 1.42f, "Far ray drag should keep the panel near its starting comfort height.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(handleObject);
             Object.DestroyImmediate(uiObject);
             Object.DestroyImmediate(headObject);
         }

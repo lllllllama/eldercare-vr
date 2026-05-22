@@ -14,11 +14,15 @@ public class WorldSpaceUiRayDragHandle : MonoBehaviour, IBeginDragHandler, IDrag
     public float maxDistanceMeters = 3.4f;
     public float minHeightFromHead = -0.45f;
     public float maxHeightFromHead = 0.55f;
+    public bool lockHeightToComfortOffset = true;
+    public float lockedHeightToleranceMeters = 0.08f;
 
     private Plane _dragPlane;
     private Vector3 _dragOffset;
     private Transform _activeRayTransform;
     private bool _dragging;
+    private float _dragStartHeight;
+    private bool _hasDragStartHeight;
 
     private void Awake()
     {
@@ -56,6 +60,8 @@ public class WorldSpaceUiRayDragHandle : MonoBehaviour, IBeginDragHandler, IDrag
         _dragPlane = new Plane(GetDragPlaneNormal(), targetRoot.position);
         _activeRayTransform = FindBestControllerRay(hitPoint);
         _dragOffset = targetRoot.position - hitPoint;
+        _dragStartHeight = targetRoot.position.y;
+        _hasDragStartHeight = true;
         _dragging = true;
         if (placer != null)
         {
@@ -82,13 +88,14 @@ public class WorldSpaceUiRayDragHandle : MonoBehaviour, IBeginDragHandler, IDrag
         }
 
         var hitPoint = ResolvePointerWorldPoint(eventData, targetRoot != null ? targetRoot.position : transform.position);
-        MoveToWorldPoint(hitPoint + _dragOffset);
+        MoveTargetToWorldPoint(hitPoint + _dragOffset);
     }
 
     public void OnEndDrag(PointerEventData eventData)
     {
         _dragging = false;
         _activeRayTransform = null;
+        _hasDragStartHeight = false;
         ApplyVisual(false);
     }
 
@@ -98,10 +105,10 @@ public class WorldSpaceUiRayDragHandle : MonoBehaviour, IBeginDragHandler, IDrag
         if (!_dragPlane.Raycast(ray, out var distance)) return;
         if (distance < 0f || distance > 8f) return;
 
-        MoveToWorldPoint(ray.GetPoint(distance) + _dragOffset);
+        MoveTargetToWorldPoint(ray.GetPoint(distance) + _dragOffset);
     }
 
-    private void MoveToWorldPoint(Vector3 position)
+    public void MoveTargetToWorldPoint(Vector3 position)
     {
         if (targetRoot == null) return;
 
@@ -118,7 +125,7 @@ public class WorldSpaceUiRayDragHandle : MonoBehaviour, IBeginDragHandler, IDrag
 
         position.x = headPosition.x + horizontal.x;
         position.z = headPosition.z + horizontal.z;
-        position.y = Mathf.Clamp(position.y, headPosition.y + minHeightFromHead, headPosition.y + maxHeightFromHead);
+        position.y = ConstrainHeight(position.y, headPosition);
 
         targetRoot.position = position;
         var toPanel = targetRoot.position - headPosition;
@@ -129,6 +136,31 @@ public class WorldSpaceUiRayDragHandle : MonoBehaviour, IBeginDragHandler, IDrag
         }
 
         targetRoot.rotation = Quaternion.LookRotation(toPanel.normalized, Vector3.up);
+    }
+
+    private float ConstrainHeight(float requestedY, Vector3 headPosition)
+    {
+        var absoluteMin = headPosition.y + minHeightFromHead;
+        var absoluteMax = headPosition.y + maxHeightFromHead;
+        if (!lockHeightToComfortOffset)
+        {
+            return Mathf.Clamp(requestedY, absoluteMin, absoluteMax);
+        }
+
+        var preferredY = _hasDragStartHeight
+            ? _dragStartHeight
+            : headPosition.y + (placer != null ? placer.hmdHeightOffsetMeters : 0f);
+        preferredY = Mathf.Clamp(preferredY, absoluteMin, absoluteMax);
+
+        var tolerance = Mathf.Max(0f, lockedHeightToleranceMeters);
+        var minY = Mathf.Max(absoluteMin, preferredY - tolerance);
+        var maxY = Mathf.Min(absoluteMax, preferredY + tolerance);
+        if (minY > maxY)
+        {
+            return preferredY;
+        }
+
+        return Mathf.Clamp(requestedY, minY, maxY);
     }
 
     private Vector3 ResolvePointerWorldPoint(PointerEventData eventData, Vector3 fallback)
