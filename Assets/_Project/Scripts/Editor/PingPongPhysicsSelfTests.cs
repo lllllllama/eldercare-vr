@@ -9,6 +9,8 @@ public static class PingPongPhysicsSelfTests
         HeldServeHitUsesPaddleVelocity();
         SideSwipeDoesNotLaunchHeldBall();
         TableBounceReflectsUpward();
+        TableBounceKeepsPlayableLiftForSlowImpact();
+        TableSurfaceUsesPlayableElasticity();
         SolverClampsMaximumSpeed();
         ContactPlacementChangesLateralDirection();
         ServeProfilesCreateOppositeSpin();
@@ -61,13 +63,43 @@ public static class PingPongPhysicsSelfTests
     private static void TableBounceReflectsUpward()
     {
         var input = PingPongHitSolver.CreateDefault(Vector3.down * 3f, Vector3.zero, Vector3.up, Vector3.zero);
-        input.normalRestitution = 0.86f;
-        input.tangentialFriction = 0.08f;
+        input.normalRestitution = 0.93f;
+        input.tangentialFriction = 0.05f;
         input.maximumSpeed = 9f;
 
         var result = PingPongHitSolver.Solve(input);
         AssertTrue(result.accepted, "Table bounce should be accepted for downward velocity.");
-        AssertTrue(result.velocity.y > 2.4f, "Table bounce should reflect upward with restitution.");
+        AssertTrue(result.velocity.y > 2.7f, "Table bounce should reflect upward with playable restitution.");
+    }
+
+    private static void TableBounceKeepsPlayableLiftForSlowImpact()
+    {
+        var adjusted = PingPongBall.EnsureMinimumTableBounceVelocity(
+            new Vector3(0.2f, 0.32f, -0.7f),
+            new Vector3(0.2f, -0.42f, -0.7f),
+            1.35f,
+            0.12f,
+            9f);
+
+        AssertTrue(adjusted.y >= 1.35f, "A slow tabletop bounce should still lift enough to remain playable.");
+        AssertTrue(adjusted.magnitude <= 9.001f, "Minimum tabletop lift should still respect the ball speed cap.");
+    }
+
+    private static void TableSurfaceUsesPlayableElasticity()
+    {
+        var surfaceObject = new GameObject("TableSurfaceDefaults");
+        try
+        {
+            var surface = surfaceObject.AddComponent<PingPongSurface>();
+            surface.Configure(PingPongSurfaceType.Table);
+
+            AssertTrue(surface.normalRestitution >= 0.92f, "Table surface restitution should be high enough for normal play.");
+            AssertTrue(surface.tangentialFriction <= 0.06f, "Table tangential friction should not over-damp the bounce.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(surfaceObject);
+        }
     }
 
     private static void SolverClampsMaximumSpeed()
