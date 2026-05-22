@@ -2345,7 +2345,7 @@ public static class PingPongDemoSceneBuilder
             tablePlacer.tableCenterHeightAboveFloor = PingPongGeometry.TableTopHeight - PingPongGeometry.TableThickness * 0.5f;
             tablePlacer.searchDurationSeconds = 8f;
             tablePlacer.searchIntervalSeconds = 0.5f;
-            tablePlacer.enableRemoteDrag = false;
+            tablePlacer.enableRemoteDrag = true;
             tablePlacer.remoteDragControllerNode = XRNode.LeftHand;
             tablePlacer.remoteGrabSelectableRadiusMeters = 2.35f;
             tablePlacer.remoteGrabMaxDistanceMeters = 8f;
@@ -2378,8 +2378,8 @@ public static class PingPongDemoSceneBuilder
         var remoteDrag = EnsureComponent<RemoteTableDragController>(remoteObject);
         if (remoteDrag == null) return null;
 
-        remoteDrag.enableRemoteDrag = false;
-        remoteDrag.disableRemoteTableDragForNow = true;
+        remoteDrag.enableRemoteDrag = true;
+        remoteDrag.disableRemoteTableDragForNow = false;
         remoteDrag.tableRoot = table;
         remoteDrag.tableDragHandle = dragHandle;
         remoteDrag.controllerTransform = dragHandle != null ? dragHandle.controllerTransform : null;

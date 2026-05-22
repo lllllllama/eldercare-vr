@@ -24,7 +24,7 @@ public static class PingPongPhysicsSelfTests
         TableSurfaceCorrectionRaisesEmbeddedBall();
         TableDragHandleDoesNotSyncWorldUiCanvas();
         ScoreCanvasInstallsRayDragHandle();
-        SpatialTablePlacementIsDisabledByDefaultForNow();
+        SpatialTablePlacementIsDisabledButManualDragStaysEnabled();
         OpenSpacePlacementWaitsForRoomSensingColliders();
         OpenSpacePlacementAvoidsTableObstacle();
         OpenSpaceTablePlacementMovesServeReferences();
@@ -350,7 +350,7 @@ public static class PingPongPhysicsSelfTests
         }
     }
 
-    private static void SpatialTablePlacementIsDisabledByDefaultForNow()
+    private static void SpatialTablePlacementIsDisabledButManualDragStaysEnabled()
     {
         var placerObject = new GameObject("TableOpenSpacePlacer");
         var remoteDragObject = new GameObject("RemoteTableDragController");
@@ -361,7 +361,8 @@ public static class PingPongPhysicsSelfTests
             var remoteDrag = remoteDragObject.AddComponent<RemoteTableDragController>();
 
             AssertTrue(placer.disableSpatialTablePlacementForNow, "Open-space table placement should be disabled until placement calibration is re-enabled intentionally.");
-            AssertTrue(remoteDrag.disableRemoteTableDragForNow, "Remote table drag should be disabled until table placement calibration is re-enabled intentionally.");
+            AssertTrue(remoteDrag.enableRemoteDrag, "Manual remote table drag should stay available even while automatic spatial placement is disabled.");
+            AssertTrue(!remoteDrag.disableRemoteTableDragForNow, "Manual remote table drag should not be tied to automatic table calibration.");
         }
         finally
         {

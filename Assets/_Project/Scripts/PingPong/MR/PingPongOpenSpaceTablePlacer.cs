@@ -84,6 +84,7 @@ public class PingPongOpenSpaceTablePlacer : MonoBehaviour
         if (disableSpatialTablePlacementForNow)
         {
             DisableSpatialTableControls();
+            EnsureRemoteTableDragController();
             return;
         }
 
@@ -104,6 +105,7 @@ public class PingPongOpenSpaceTablePlacer : MonoBehaviour
         if (disableSpatialTablePlacementForNow)
         {
             DisableSpatialTableControls();
+            EnsureRemoteTableDragController();
             return;
         }
 
@@ -401,7 +403,7 @@ public class PingPongOpenSpaceTablePlacer : MonoBehaviour
 
     private void EnsureRemoteTableDragController()
     {
-        if (disableSpatialTablePlacementForNow || !enableRemoteDrag)
+        if (!enableRemoteDrag)
         {
             if (remoteTableDragController != null)
             {
@@ -466,8 +468,9 @@ public class PingPongOpenSpaceTablePlacer : MonoBehaviour
 
         if (remoteTableDragController != null)
         {
-            remoteTableDragController.enableRemoteDrag = false;
-            remoteTableDragController.enabled = false;
+            remoteTableDragController.enableRemoteDrag = enableRemoteDrag;
+            remoteTableDragController.disableRemoteTableDragForNow = !enableRemoteDrag;
+            remoteTableDragController.enabled = enableRemoteDrag;
         }
     }
 
