@@ -7,7 +7,7 @@ public class WorldSpaceUiRayDragHandle : MonoBehaviour, IBeginDragHandler, IDrag
     public ComfortWorldSpaceUIPlacer placer;
     public Transform targetRoot;
     public Transform headTransform;
-    public Image handleGraphic;
+    public Graphic handleGraphic;
     public Color normalColor = new Color(0.35f, 0.95f, 1f, 0.34f);
     public Color activeColor = new Color(0.68f, 1f, 1f, 0.76f);
     public float minDistanceMeters = 0.9f;
@@ -136,6 +136,42 @@ public class WorldSpaceUiRayDragHandle : MonoBehaviour, IBeginDragHandler, IDrag
         }
 
         targetRoot.rotation = Quaternion.LookRotation(toPanel.normalized, Vector3.up);
+    }
+
+    public static WorldSpaceUiRayDragHandle EnsureOnSurface(Graphic surface, Transform targetRoot, ComfortWorldSpaceUIPlacer placer = null)
+    {
+        if (surface == null || targetRoot == null) return null;
+
+        var baseColor = surface.color;
+        surface.raycastTarget = true;
+
+        var handle = surface.GetComponent<WorldSpaceUiRayDragHandle>();
+        if (handle == null)
+        {
+            handle = surface.gameObject.AddComponent<WorldSpaceUiRayDragHandle>();
+        }
+
+        handle.placer = placer;
+        handle.targetRoot = targetRoot;
+        handle.headTransform = placer != null ? placer.headTransform : handle.headTransform;
+        if (handle.headTransform == null && Camera.main != null)
+        {
+            handle.headTransform = Camera.main.transform;
+        }
+
+        handle.handleGraphic = surface;
+        handle.normalColor = baseColor;
+        handle.activeColor = new Color(
+            Mathf.Min(1f, baseColor.r + 0.12f),
+            Mathf.Min(1f, baseColor.g + 0.16f),
+            Mathf.Min(1f, baseColor.b + 0.18f),
+            Mathf.Min(1f, Mathf.Max(baseColor.a, 0.72f)));
+        handle.minDistanceMeters = 0.9f;
+        handle.maxDistanceMeters = 3.8f;
+        handle.lockHeightToComfortOffset = true;
+        handle.lockedHeightToleranceMeters = 0.08f;
+        surface.color = baseColor;
+        return handle;
     }
 
     private float ConstrainHeight(float requestedY, Vector3 headPosition)
@@ -275,7 +311,7 @@ public class WorldSpaceUiRayDragHandle : MonoBehaviour, IBeginDragHandler, IDrag
 
         if (handleGraphic == null)
         {
-            handleGraphic = GetComponent<Image>();
+            handleGraphic = GetComponent<Graphic>();
         }
     }
 

@@ -1558,6 +1558,7 @@ public static class PingPongDemoSceneBuilder
             title.raycastTarget = false;
         }
 
+        WorldSpaceUiRayDragHandle.EnsureOnSurface(background, canvasTransform, canvasTransform.GetComponent<ComfortWorldSpaceUIPlacer>());
         EditorUtility.SetDirty(root);
         return controller;
     }
@@ -1967,7 +1968,8 @@ public static class PingPongDemoSceneBuilder
         if (image != null)
         {
             image.color = new Color(0.015f, 0.03f, 0.045f, 0.78f);
-            image.raycastTarget = false;
+            image.raycastTarget = true;
+            WorldSpaceUiRayDragHandle.EnsureOnSurface(image, canvasTransform, canvasTransform.GetComponent<ComfortWorldSpaceUIPlacer>());
         }
 
         go.transform.SetAsFirstSibling();

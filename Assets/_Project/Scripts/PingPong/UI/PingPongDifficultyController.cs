@@ -136,6 +136,7 @@ public class PingPongDifficultyController : MonoBehaviour
             title.raycastTarget = false;
         }
 
+        EnsurePanelRayDrag(background, canvasTransform);
         return controller;
     }
 
@@ -243,6 +244,8 @@ public class PingPongDifficultyController : MonoBehaviour
             motion.pressedColor = new Color(0.01f, 0.035f, 0.06f, 0.98f);
             motion.glowColor = new Color(0.25f, 0.9f, 1f, 0.2f);
         }
+
+        EnsurePanelRayDrag(background);
     }
 
     public static string GetLabel(PingPongDifficulty difficulty)
@@ -451,6 +454,21 @@ public class PingPongDifficultyController : MonoBehaviour
         image.color = color;
         image.raycastTarget = false;
         return image;
+    }
+
+    private void EnsurePanelRayDrag(Image background)
+    {
+        var canvas = GetComponentInParent<Canvas>(true);
+        var canvasTransform = canvas != null ? canvas.transform : transform.parent;
+        EnsurePanelRayDrag(background, canvasTransform);
+    }
+
+    private static void EnsurePanelRayDrag(Image background, Transform canvasTransform)
+    {
+        if (background == null || canvasTransform == null) return;
+
+        var placer = canvasTransform.GetComponent<ComfortWorldSpaceUIPlacer>();
+        WorldSpaceUiRayDragHandle.EnsureOnSurface(background, canvasTransform, placer);
     }
 
     private static TMP_Text ConfigureText(GameObject go, string value, TMP_FontAsset fontAsset, Vector2 size, Vector2 anchoredPosition, float fontSize, FontStyles style, Color color)

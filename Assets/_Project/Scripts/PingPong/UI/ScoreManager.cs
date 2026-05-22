@@ -163,7 +163,7 @@ public class ScoreManager : MonoBehaviour
         backdropRect.localRotation = Quaternion.identity;
         backdropRect.localScale = Vector3.one;
         _hudBackdrop.color = hudPanelColor;
-        _hudBackdrop.raycastTarget = false;
+        _hudBackdrop.raycastTarget = true;
         _hudBackdrop.transform.SetSiblingIndex(Mathf.Max(0, firstSiblingIndex - 1));
     }
 
@@ -230,6 +230,7 @@ public class ScoreManager : MonoBehaviour
         placer.enableThumbstickNavigation = true;
         placer.comfortFollowEnabled = false;
         placer.EnsureWorldSpaceInteractionHelpers();
+        WorldSpaceUiRayDragHandle.EnsureOnSurface(_hudBackdrop, canvasTransform, placer);
     }
 
     private Transform ResolveCanvasTransform()
