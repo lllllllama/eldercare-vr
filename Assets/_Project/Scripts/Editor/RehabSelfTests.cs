@@ -37,6 +37,7 @@ public static class RehabSelfTests
         VideoPanelLayoutIsDecoupledFromTrainingAreaByDefault();
         VideoPanelScalingClampsAndKeepsPanelUpright();
         SpatialRayControlCanPlaceTrainingAreaExplicitly();
+        VideoSpatialControlsStayHiddenUntilVideoGuideShows();
         SpatialRayControlDragsVideoOnlyWhileTriggerHeld();
         TrainingSelectPanelUsesComfortRayPlacement();
         Debug.Log("Rehab self tests passed.");
@@ -820,6 +821,7 @@ public static class RehabSelfTests
             control.maxRayDistanceMeters = 5f;
             control.EnsureControlCanvas();
             control.EnsureVideoRayTarget();
+            control.SetControlCanvasVisible(true);
 
             AssertTrue(panelObject.transform.Find("RehabSpatialControls/MoveVideoButton") == null, "Video move button should be removed because the video surface is dragged directly.");
 
@@ -844,6 +846,51 @@ public static class RehabSelfTests
             Object.DestroyImmediate(quadObject);
             Object.DestroyImmediate(panelObject);
             Object.DestroyImmediate(headObject);
+        }
+    }
+
+    private static void VideoSpatialControlsStayHiddenUntilVideoGuideShows()
+    {
+        var panelObject = new GameObject("RehabVideoPanel");
+        var quadObject = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        var controlObject = new GameObject("RehabSpatialRayControl");
+        try
+        {
+            quadObject.name = "VideoQuad";
+            quadObject.transform.SetParent(panelObject.transform, false);
+
+            var layout = panelObject.AddComponent<RehabVideoPanelLayoutController>();
+            layout.panelRoot = panelObject.transform;
+            layout.videoQuad = quadObject.transform;
+
+            var control = controlObject.AddComponent<RehabSpatialRayControl>();
+            control.videoLayoutController = layout;
+            control.EnsureControlCanvas();
+
+            var guide = panelObject.AddComponent<RehabVideoGuideController>();
+            guide.videoPanel = panelObject;
+            guide.videoQuad = quadObject;
+            guide.layoutController = layout;
+
+            AssertTrue(control.controlCanvasRoot != null, "Video spatial control canvas should be created for video mode.");
+            AssertTrue(!control.controlCanvasRoot.activeSelf, "Video spatial controls should stay hidden before the video guide is shown.");
+
+            var applyVisible = typeof(RehabVideoGuideController).GetMethod(
+                "ApplyDisplayVisible",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            AssertTrue(applyVisible != null, "Video guide should expose an internal display visibility gate.");
+
+            applyVisible.Invoke(guide, new object[] { true });
+            AssertTrue(control.controlCanvasRoot.activeSelf, "Video spatial controls should appear when the video guide display is visible.");
+
+            guide.StopAndHide();
+            AssertTrue(!control.controlCanvasRoot.activeSelf, "Video spatial controls should hide again when the video guide stops.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(controlObject);
+            Object.DestroyImmediate(quadObject);
+            Object.DestroyImmediate(panelObject);
         }
     }
 

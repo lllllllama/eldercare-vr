@@ -29,6 +29,7 @@ namespace PicoElderCare.Rehab
         public bool enableDirectVideoRayDrag = true;
         public bool createVideoRayCollider = true;
         public bool autoCreateControlCanvas = true;
+        public bool hideControlCanvasUntilVideoVisible = true;
         public GameObject controlCanvasRoot;
         public TMP_Text statusText;
         public LineRenderer rayPreview;
@@ -45,6 +46,7 @@ namespace PicoElderCare.Rehab
         private Plane _directVideoDragPlane;
         private Vector3 _directVideoDragOffset;
         private Collider _videoRayCollider;
+        private bool _controlCanvasVisible;
 
         public bool PlacementArmed
         {
@@ -54,6 +56,11 @@ namespace PicoElderCare.Rehab
         public bool DirectVideoDragActive
         {
             get { return _directVideoDragging; }
+        }
+
+        public bool ControlCanvasVisible
+        {
+            get { return _controlCanvasVisible; }
         }
 
         public static RehabSpatialRayControl EnsureRuntime(
@@ -93,6 +100,7 @@ namespace PicoElderCare.Rehab
             ResolveReferences();
             EnsureControlCanvas();
             EnsureVideoRayTarget();
+            ApplyControlCanvasVisibility();
         }
 
         private void Start()
@@ -104,6 +112,7 @@ namespace PicoElderCare.Rehab
                 videoLayoutController.PlaceInRightFrontOfUserOnce();
             }
 
+            ApplyControlCanvasVisibility();
             RefreshStatus();
         }
 
@@ -116,6 +125,11 @@ namespace PicoElderCare.Rehab
             }
 
             EnsureVideoRayTarget();
+            if (hideControlCanvasUntilVideoVisible && !_controlCanvasVisible)
+            {
+                SetRayPreviewVisible(false, new Ray(Vector3.zero, Vector3.forward));
+                return;
+            }
 
             var triggerPressed = TryGetPressedControllerRay(out var ray);
             if (_waitForTriggerRelease)
@@ -226,6 +240,29 @@ namespace PicoElderCare.Rehab
             RefreshStatus();
         }
 
+        public void SetControlCanvasVisible(bool visible)
+        {
+            _controlCanvasVisible = visible;
+            if (!visible)
+            {
+                _placementArmed = false;
+                _waitForTriggerRelease = false;
+                _directVideoDragging = false;
+                SetRayPreviewVisible(false, new Ray(Vector3.zero, Vector3.forward));
+            }
+
+            if (controlCanvasRoot == null && visible)
+            {
+                EnsureControlCanvas();
+            }
+            else
+            {
+                ApplyControlCanvasVisibility();
+            }
+
+            RefreshStatus();
+        }
+
         public Collider EnsureVideoRayTarget()
         {
             if (!createVideoRayCollider) return null;
@@ -249,6 +286,7 @@ namespace PicoElderCare.Rehab
         public bool TryBeginDirectVideoPanelDrag(Ray ray)
         {
             if (!enableVideoPanelControl || !enableDirectVideoRayDrag) return false;
+            if (hideControlCanvasUntilVideoVisible && !_controlCanvasVisible) return false;
             if (videoLayoutController == null) ResolveReferences();
             if (videoLayoutController == null || videoLayoutController.panelRoot == null) return false;
 
@@ -396,6 +434,7 @@ namespace PicoElderCare.Rehab
             {
                 RemoveLegacyVideoMoveButton(controlCanvasRoot.transform);
                 RefreshStatus();
+                ApplyControlCanvasVisibility();
                 return;
             }
 
@@ -417,6 +456,7 @@ namespace PicoElderCare.Rehab
                     : controlCanvasRoot.GetComponentInChildren<TMP_Text>(true);
                 RemoveLegacyVideoMoveButton(controlCanvasRoot.transform);
                 RefreshStatus();
+                ApplyControlCanvasVisibility();
                 return;
             }
 
@@ -458,6 +498,24 @@ namespace PicoElderCare.Rehab
 
             statusText = CreateText(controlCanvasRoot.transform, "Status", "\u6309\u4f4f\u89c6\u9891\u753b\u9762\u62d6\u52a8\uff0c\u677e\u5f00\u540e\u56fa\u5b9a\uff1b\u7a7a\u95f4\u5708\u9700\u70b9\u51fb\u6309\u94ae\u540e\u79fb\u52a8", 20f, TextAlignmentOptions.Center, new Vector2(0f, -38f), new Vector2(640f, 34f));
             statusText.color = new Color(0.74f, 0.98f, 1f, 0.78f);
+            RefreshStatus();
+            ApplyControlCanvasVisibility();
+        }
+
+        private void ApplyControlCanvasVisibility()
+        {
+            if (controlCanvasRoot == null) return;
+
+            var shouldBeVisible = !hideControlCanvasUntilVideoVisible || _controlCanvasVisible;
+            if (controlCanvasRoot.activeSelf != shouldBeVisible)
+            {
+                controlCanvasRoot.SetActive(shouldBeVisible);
+            }
+
+            if (!shouldBeVisible)
+            {
+                SetRayPreviewVisible(false, new Ray(Vector3.zero, Vector3.forward));
+            }
         }
 
         private bool TryHitVideoPanel(Ray ray, out Vector3 hitPoint)

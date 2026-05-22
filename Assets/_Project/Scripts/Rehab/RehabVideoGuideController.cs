@@ -64,6 +64,7 @@ namespace PicoElderCare.Rehab
         private Transform _videoFrameRoot;
         private Material _videoFrameMaterial;
         private Material _videoFrameAccentMaterial;
+        private RehabSpatialRayControl _spatialRayControl;
 
         private void Awake()
         {
@@ -459,6 +460,7 @@ namespace PicoElderCare.Rehab
                     displayRoot.SetActive(false);
                 }
 
+                SetSpatialControlsVisible(visible);
                 return;
             }
 
@@ -471,6 +473,8 @@ namespace PicoElderCare.Rehab
             {
                 videoQuad.SetActive(false);
             }
+
+            SetSpatialControlsVisible(visible);
         }
 
         private void HideAllDisplays()
@@ -485,6 +489,7 @@ namespace PicoElderCare.Rehab
                 displayRoot.SetActive(false);
             }
 
+            SetSpatialControlsVisible(false);
             ApplyDebugFrameVisible();
         }
 
@@ -766,7 +771,24 @@ namespace PicoElderCare.Rehab
 
             if (layoutController != null)
             {
-                RehabSpatialRayControl.EnsureRuntime(sessionManager, layoutController);
+                _spatialRayControl = RehabSpatialRayControl.EnsureRuntime(sessionManager, layoutController);
+            }
+        }
+
+        private void SetSpatialControlsVisible(bool visible)
+        {
+            if (layoutController == null)
+            {
+                return;
+            }
+
+            _spatialRayControl = _spatialRayControl != null
+                ? _spatialRayControl
+                : RehabSpatialRayControl.EnsureRuntime(sessionManager, layoutController);
+
+            if (_spatialRayControl != null)
+            {
+                _spatialRayControl.SetControlCanvasVisible(visible);
             }
         }
 
