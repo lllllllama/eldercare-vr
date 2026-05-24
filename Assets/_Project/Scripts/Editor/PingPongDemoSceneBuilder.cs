@@ -48,6 +48,18 @@ public static class PingPongDemoSceneBuilder
         CustomModelRoot + "/GrabHand.fbx",
         CustomModelRoot + "/GrabHand.obj"
     };
+    private static readonly string[] CustomTableModelPaths =
+    {
+        CustomModelRoot + "/PingPongTable.prefab",
+        CustomModelRoot + "/PingPongTable.fbx",
+        CustomModelRoot + "/PingPongTable.obj",
+        CustomModelRoot + "/Table.prefab",
+        CustomModelRoot + "/Table.fbx",
+        CustomModelRoot + "/Table.obj",
+        CustomModelRoot + "/TennisTable.prefab",
+        CustomModelRoot + "/TennisTable.fbx",
+        CustomModelRoot + "/TennisTable.obj"
+    };
     private static readonly string[] CustomBallModelPaths =
     {
         CustomModelRoot + "/PingPongBall.prefab",
@@ -70,6 +82,9 @@ public static class PingPongDemoSceneBuilder
     private static readonly Vector3 DefaultHandVisualOffsetPosition = Vector3.zero;
     private static readonly Vector3 DefaultHandVisualOffsetRotation = new Vector3(0f, 90f, 0f);
     private static readonly Vector3 DefaultHandVisualOffsetScale = Vector3.one;
+    private static readonly Vector3 DefaultTableVisualOffsetPosition = Vector3.zero;
+    private static readonly Vector3 DefaultTableVisualOffsetRotation = Vector3.zero;
+    private static readonly Vector3 DefaultTableVisualOffsetScale = Vector3.one;
 
     [MenuItem("Tools/PICO ElderCare/Build VRTableTennis Adapted Assets")]
     public static void BuildVrTableTennisAdaptedAssets()
@@ -154,6 +169,35 @@ public static class PingPongDemoSceneBuilder
         EditorUtility.SetDirty(hand);
         UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(UnityEngine.SceneManagement.SceneManager.GetActiveScene());
         Debug.Log("Left hand visual replaced only. Controller following and gameplay logic were preserved.");
+    }
+
+    [MenuItem("Tools/PICO ElderCare/Replace Table Visual Only")]
+    public static void ReplaceTableVisualOnly()
+    {
+        if (!EnsureEditMode()) return;
+
+        var sourceModel = LoadPreferredTableModel();
+        if (sourceModel == null)
+        {
+            const string message = "No custom table model found. Put Table.prefab or PingPongTable.prefab under Assets/_Project/External/CustomPingPong/Models/";
+            EditorUtility.DisplayDialog("PingPong", message, "OK");
+            Debug.LogError(message);
+            return;
+        }
+
+        var table = FindTableInOpenScene();
+        if (table == null)
+        {
+            const string message = "Table not found. Please open or build the ping pong scene first.";
+            EditorUtility.DisplayDialog("PingPong", message, "OK");
+            Debug.LogError(message);
+            return;
+        }
+
+        ReplaceTableVisualOnly(table, sourceModel);
+        EditorUtility.SetDirty(table);
+        UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(UnityEngine.SceneManagement.SceneManager.GetActiveScene());
+        Debug.Log("Table visual replaced only. Table physics, net collider, and gameplay logic were preserved.");
     }
 
     [MenuItem("Tools/PICO ElderCare/Reset Paddle Visual Pose Offset")]
@@ -648,6 +692,111 @@ public static class PingPongDemoSceneBuilder
                 childName.StartsWith("LeftHandVisual"));
     }
 
+    private static GameObject FindTableInOpenScene()
+    {
+        var pingPong = GameObject.Find("PingPong");
+        var child = pingPong != null ? pingPong.transform.Find("Table") : null;
+        return child != null
+            ? child.gameObject
+            : GameObject.Find("Table") ?? GameObject.Find("PingPong/Table");
+    }
+
+    private static void ReplaceTableVisualOnly(GameObject table, GameObject sourceModel)
+    {
+        if (table == null || sourceModel == null) return;
+
+        RemoveOldDirectTableVisualChildren(table.transform);
+        var offset = GetOrCreateVisualOffset(
+            table.transform,
+            "TableVisualOffset",
+            DefaultTableVisualOffsetPosition,
+            DefaultTableVisualOffsetRotation,
+            DefaultTableVisualOffsetScale,
+            false);
+        RemoveOldTableVisualChildren(offset);
+
+        var visual = PrefabUtility.InstantiatePrefab(sourceModel) as GameObject;
+        if (visual == null)
+        {
+            visual = Object.Instantiate(sourceModel);
+        }
+
+        if (visual == null)
+        {
+            Debug.LogError($"Could not instantiate custom table model at '{AssetDatabase.GetAssetPath(sourceModel)}'.");
+            return;
+        }
+
+        visual.name = "Visual_CustomTable";
+        visual.transform.SetParent(offset, false);
+        visual.transform.localPosition = Vector3.zero;
+        visual.transform.localRotation = Quaternion.identity;
+        visual.transform.localScale = Vector3.one;
+
+        StripVisualGameplayComponents(visual);
+        FitVisualToTarget(visual, Vector3.zero, TableColliderWorldSize, 0.98f, true);
+
+        EditorUtility.SetDirty(visual);
+        EditorUtility.SetDirty(offset.gameObject);
+    }
+
+    private static void RemoveOldDirectTableVisualChildren(Transform table)
+    {
+        if (table == null) return;
+
+        var childrenToRemove = new List<GameObject>();
+        foreach (Transform child in table)
+        {
+            if (child == null || child.name == "NetCollider" || child.name == "TableVisualOffset") continue;
+            if (IsTableVisualChildName(child.name))
+            {
+                childrenToRemove.Add(child.gameObject);
+            }
+        }
+
+        foreach (var child in childrenToRemove)
+        {
+            Object.DestroyImmediate(child);
+        }
+    }
+
+    private static void RemoveOldTableVisualChildren(Transform visualOffset)
+    {
+        if (visualOffset == null) return;
+
+        var childrenToRemove = new List<GameObject>();
+        foreach (Transform child in visualOffset)
+        {
+            if (child == null) continue;
+            if (child.name == "Visual_CustomTable" || IsTableVisualChildName(child.name))
+            {
+                childrenToRemove.Add(child.gameObject);
+            }
+        }
+
+        foreach (var child in childrenToRemove)
+        {
+            Object.DestroyImmediate(child);
+        }
+    }
+
+    private static bool IsTableVisualChildName(string childName)
+    {
+        return !string.IsNullOrEmpty(childName) &&
+               (childName == "TableTopVisual" ||
+                childName == "NetVisual" ||
+                childName == "LegFrontLeft" ||
+                childName == "LegFrontRight" ||
+                childName == "LegBackLeft" ||
+                childName == "LegBackRight" ||
+                childName == "NetPostLeft" ||
+                childName == "NetPostRight" ||
+                childName == "CustomTableVisual" ||
+                childName == "TableVisual" ||
+                childName == "Visual_CustomTable" ||
+                childName == "TableVisualOffset");
+    }
+
     private static Transform GetOrCreateVisualOffset(
         Transform parent,
         string childName,
@@ -841,6 +990,11 @@ public static class PingPongDemoSceneBuilder
     private static GameObject LoadPreferredHandModel()
     {
         return LoadFirstModel(CustomHandModelPaths);
+    }
+
+    private static GameObject LoadPreferredTableModel()
+    {
+        return LoadFirstModel(CustomTableModelPaths);
     }
 
     private static GameObject LoadPreferredBallModel()
