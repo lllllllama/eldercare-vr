@@ -97,15 +97,31 @@ public class VisualHandGripAnimator : MonoBehaviour
 
     private Transform ResolveHandVisual()
     {
-        if (handVisual != null) return handVisual;
+        if (handVisual != null)
+        {
+            return ResolveAnimatedVisualRoot(handVisual);
+        }
 
         var namedVisual = transform.Find("HandVisual");
+        if (namedVisual == null)
+        {
+            namedVisual = transform.Find("HandVisualOffset/HandVisual") ?? transform.Find("HandVisualOffset");
+        }
+
         if (namedVisual != null)
         {
             handVisual = namedVisual;
         }
 
-        return handVisual;
+        return ResolveAnimatedVisualRoot(handVisual);
+    }
+
+    private static Transform ResolveAnimatedVisualRoot(Transform candidate)
+    {
+        if (candidate == null) return null;
+
+        var nestedHand = candidate.Find("HandVisual");
+        return nestedHand != null ? nestedHand : candidate;
     }
 
     private static bool TryGetFingerCurlMultiplier(string transformName, out Vector3 curlEulerMultiplier)
