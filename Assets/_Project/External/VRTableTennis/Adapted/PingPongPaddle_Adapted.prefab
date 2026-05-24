@@ -76,6 +76,9 @@ MonoBehaviour:
   tangentialFriction: 0.45
   useSweptFallback: 1
   useTypeDefaults: 1
+  tuneNetVisualsForMr: 1
+  netVisualAlpha: 0.88
+  netVisualColor: {r: 0.9, g: 1, b: 0.98, a: 0.88}
 --- !u!54 &540020
 Rigidbody:
   m_ObjectHideFlags: 0
@@ -209,6 +212,9 @@ MonoBehaviour:
   tangentialFriction: 0.58
   useSweptFallback: 1
   useTypeDefaults: 1
+  tuneNetVisualsForMr: 1
+  netVisualAlpha: 0.88
+  netVisualColor: {r: 0.9, g: 1, b: 0.98, a: 0.88}
 --- !u!1001 &5384030245344384178
 PrefabInstance:
   m_ObjectHideFlags: 0

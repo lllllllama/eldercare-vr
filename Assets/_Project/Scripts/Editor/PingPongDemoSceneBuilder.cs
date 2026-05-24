@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.IO;
+using PicoElderCare.UI;
 using TMPro;
 using UnityEditor;
 using UnityEngine;
@@ -1443,8 +1444,9 @@ public static class PingPongDemoSceneBuilder
         if (canvas == null) return;
         canvas.renderMode = RenderMode.WorldSpace;
         canvas.worldCamera = Camera.main;
-        canvas.sortingOrder = 10;
-        canvasGo.transform.position = new Vector3(-0.7f, 1.5f, 3.15f);
+        canvas.overrideSorting = true;
+        canvas.sortingOrder = 100;
+        canvasGo.transform.position = new Vector3(-0.92f, 1.48f, 1.18f);
         canvasGo.transform.rotation = Quaternion.identity;
         canvasGo.transform.localScale = Vector3.one * 0.002f;
 
@@ -1459,13 +1461,23 @@ public static class PingPongDemoSceneBuilder
         EnsureWorldCanvasRaycasters(canvasGo);
         ConfigureWorldCanvasInteraction(canvasGo);
 
+        score.hudPanelSize = ElderCareUiTheme.PingPongHudSize;
+        score.hudPanelColor = WithAlpha(ElderCareUiTheme.PanelStrong, 0.96f);
+
         CreateScoreHudBackdrop(canvasGo.transform);
-        score.hitText = CreateScoreText(canvasGo.transform, "HitText", new Vector2(0f, 170f));
-        score.servedText = CreateScoreText(canvasGo.transform, "ServedText", new Vector2(0f, 102f));
-        score.missedText = CreateScoreText(canvasGo.transform, "MissedText", new Vector2(0f, 34f));
-        score.accuracyText = CreateScoreText(canvasGo.transform, "AccuracyText", new Vector2(0f, -34f));
-        score.lastSpeedText = CreateScoreText(canvasGo.transform, "LastSpeedText", new Vector2(0f, -102f));
-        score.lastSpinText = CreateScoreText(canvasGo.transform, "LastSpinText", new Vector2(0f, -170f));
+        CreateScoreMetricCard(canvasGo.transform, "AccuracyMetricCard", new Vector2(292f, 142f), new Vector2(-722f, 293f), ElderCareUiTheme.Cyan, 0.16f, 24f);
+        CreateScoreMetricCard(canvasGo.transform, "SpeedMetricCard", new Vector2(292f, 142f), new Vector2(-418f, 293f), ElderCareUiTheme.Blue, 0.14f, 24f);
+        CreateScoreMetricCard(canvasGo.transform, "HitMetricCard", new Vector2(186f, 82f), new Vector2(-780f, 145f), ElderCareUiTheme.Green, 0.09f, 18f);
+        CreateScoreMetricCard(canvasGo.transform, "ServedMetricCard", new Vector2(186f, 82f), new Vector2(-570f, 145f), ElderCareUiTheme.Cyan, 0.08f, 18f);
+        CreateScoreMetricCard(canvasGo.transform, "MissedMetricCard", new Vector2(186f, 82f), new Vector2(-360f, 145f), ElderCareUiTheme.Orange, 0.08f, 18f);
+        CreateScoreMetricCard(canvasGo.transform, "SpinMetricCard", new Vector2(606f, 58f), new Vector2(-570f, 51f), ElderCareUiTheme.Violet, 0.08f, 18f);
+
+        score.accuracyText = CreateScoreText(canvasGo.transform, "AccuracyText", "<size=28>命中率</size>\n<size=72><b>0.0</b></size><size=28>%</size>", new Vector2(-722f, 293f), new Vector2(292f, 142f), ElderCareUiTheme.HudPrimary + 18f, FontStyles.Bold, TextAlignmentOptions.Center, ElderCareUiTheme.Cyan);
+        score.lastSpeedText = CreateScoreText(canvasGo.transform, "LastSpeedText", "<size=28>回球速度</size>\n<size=72><b>0.0</b></size> <size=28>m/s</size>", new Vector2(-418f, 293f), new Vector2(292f, 142f), ElderCareUiTheme.HudPrimary + 10f, FontStyles.Bold, TextAlignmentOptions.Center, Color.Lerp(ElderCareUiTheme.TextPrimary, ElderCareUiTheme.Blue, 0.24f));
+        score.hitText = CreateScoreText(canvasGo.transform, "HitText", "<size=22>命中</size>\n<size=40><b>0</b></size>", new Vector2(-780f, 145f), new Vector2(186f, 82f), ElderCareUiTheme.HudSecondary + 8f, FontStyles.Bold, TextAlignmentOptions.Center, ElderCareUiTheme.TextPrimary);
+        score.servedText = CreateScoreText(canvasGo.transform, "ServedText", "<size=22>发球</size>\n<size=40><b>0</b></size>", new Vector2(-570f, 145f), new Vector2(186f, 82f), ElderCareUiTheme.HudSecondary + 8f, FontStyles.Bold, TextAlignmentOptions.Center, ElderCareUiTheme.TextSecondary);
+        score.missedText = CreateScoreText(canvasGo.transform, "MissedText", "<size=22>漏球</size>\n<size=40><b>0</b></size>", new Vector2(-360f, 145f), new Vector2(186f, 82f), ElderCareUiTheme.HudSecondary + 8f, FontStyles.Bold, TextAlignmentOptions.Center, ElderCareUiTheme.TextSecondary);
+        score.lastSpinText = CreateScoreText(canvasGo.transform, "LastSpinText", "<size=22>旋转</size>  <size=32><b>0</b></size> <size=20>rad/s</size>", new Vector2(-570f, 51f), new Vector2(606f, 58f), ElderCareUiTheme.HudSecondary, FontStyles.Normal, TextAlignmentOptions.Center, ElderCareUiTheme.TextMuted);
 
         BuildDifficultyUi(canvasGo.transform, spawner);
     }
@@ -1479,7 +1491,7 @@ public static class PingPongDemoSceneBuilder
 
         comfortPlacer.headTransform = Camera.main != null ? Camera.main.transform : null;
         comfortPlacer.uiRoot = canvasGo.transform;
-        comfortPlacer.distanceMeters = 2.35f;
+        comfortPlacer.distanceMeters = ElderCareUiTheme.HudDistanceMeters;
         comfortPlacer.hmdHeightOffsetMeters = 0.12f;
         comfortPlacer.placeOnStart = false;
         comfortPlacer.placeOnEnable = false;
@@ -1493,6 +1505,80 @@ public static class PingPongDemoSceneBuilder
     }
 
     private static PingPongDifficultyController BuildDifficultyUi(Transform canvasTransform, BallSpawner spawner)
+    {
+        var root = GetOrCreate("DifficultyPanel", canvasTransform);
+        var rootRect = ConfigureRect(root, new Vector2(560f, 260f), new Vector2(520f, 174f));
+        RemoveChildIfExists(root.transform, "TopScanLine");
+
+        var controller = EnsureComponent<PingPongDifficultyController>(root);
+        if (controller == null) return null;
+
+        var background = CreateRoundedPanel(rootRect, "Background", new Vector2(560f, 260f), Vector2.zero, WithAlpha(Color.Lerp(ElderCareUiTheme.PanelStrong, ElderCareUiTheme.Blue, 0.22f), 1f), 26f);
+        background.raycastTarget = false;
+
+        var glow = CreateRoundedPanel(rootRect, "Glow", new Vector2(584f, 286f), Vector2.zero, WithAlpha(ElderCareUiTheme.Cyan, 0.05f), 32f);
+        glow.raycastTarget = false;
+        glow.transform.SetAsFirstSibling();
+
+        CreateRoundedPanel(rootRect, "TopTrace", new Vector2(420f, 3f), new Vector2(0f, 104f), WithAlpha(ElderCareUiTheme.Cyan, 0.22f), 2f);
+        CreateRoundedPanel(rootRect, "BottomTrace", new Vector2(320f, 2f), new Vector2(0f, -106f), WithAlpha(ElderCareUiTheme.Blue, 0.16f), 2f);
+
+        var title = CreateDifficultyText(rootRect, "Title", "发球速度", new Vector2(0f, 72f), new Vector2(480f, 44f), ElderCareUiTheme.Subtitle, FontStyles.Bold, ElderCareUiTheme.TextPrimary, TextAlignmentOptions.Center);
+        var difficulty = CreateDifficultyText(rootRect, "DifficultyText", "当前难度：标准", new Vector2(0f, 24f), new Vector2(480f, 42f), ElderCareUiTheme.Body, FontStyles.Bold, ElderCareUiTheme.Cyan, TextAlignmentOptions.Center);
+        var speed = CreateDifficultyText(rootRect, "SpeedText", "发球速度 3.0 m/s", new Vector2(0f, -20f), new Vector2(480f, 44f), ElderCareUiTheme.Body, FontStyles.Bold, ElderCareUiTheme.TextPrimary, TextAlignmentOptions.Center);
+        var hint = CreateDifficultyText(rootRect, "HintText", "A 加速 / B 减速 · 下次发球生效", new Vector2(0f, -82f), new Vector2(500f, 40f), ElderCareUiTheme.BodySmall, FontStyles.Normal, ElderCareUiTheme.TextSecondary, TextAlignmentOptions.Center);
+
+        var decrease = CreateDifficultyButton(rootRect, "DecreaseButton", "-", new Vector2(-166f, -66f), new Vector2(104f, 68f));
+        var reset = CreateDifficultyButton(rootRect, "ResetButton", "标准", new Vector2(0f, -66f), new Vector2(150f, 68f));
+        var increase = CreateDifficultyButton(rootRect, "IncreaseButton", "+", new Vector2(166f, -66f), new Vector2(104f, 68f));
+        if (decrease != null) decrease.gameObject.SetActive(false);
+        if (reset != null) reset.gameObject.SetActive(false);
+        if (increase != null) increase.gameObject.SetActive(false);
+
+        ConfigureDifficultyText(title, "发球速度", new Vector2(0f, 72f), new Vector2(480f, 44f), ElderCareUiTheme.Subtitle, FontStyles.Bold, ElderCareUiTheme.TextPrimary);
+        ConfigureDifficultyText(difficulty, "当前难度：标准", new Vector2(0f, 24f), new Vector2(480f, 42f), ElderCareUiTheme.Body, FontStyles.Bold, ElderCareUiTheme.Cyan);
+        ConfigureDifficultyText(speed, "发球速度 3.0 m/s", new Vector2(0f, -20f), new Vector2(480f, 44f), ElderCareUiTheme.Body, FontStyles.Bold, ElderCareUiTheme.TextPrimary);
+        ConfigureDifficultyText(hint, "A 加速 / B 减速 · 下次发球生效", new Vector2(0f, -82f), new Vector2(500f, 40f), ElderCareUiTheme.BodySmall, FontStyles.Normal, ElderCareUiTheme.TextSecondary);
+
+        controller.ballSpawner = spawner;
+        controller.difficultyText = difficulty;
+        controller.speedText = speed;
+        controller.hintText = hint;
+        controller.decreaseButton = null;
+        controller.increaseButton = null;
+        controller.resetButton = null;
+        controller.startingDifficulty = PingPongDifficulty.Normal;
+        controller.controlServeInterval = true;
+        controller.showScreenButtons = false;
+        controller.enableControllerSpeedButtons = true;
+
+        var motion = EnsureComponent<TechModuleCardMotion>(root);
+        if (motion != null)
+        {
+            motion.cardTransform = rootRect;
+            motion.canvasGroup = EnsureComponent<CanvasGroup>(root);
+            motion.cardGraphic = background;
+            motion.glowGraphic = glow;
+            motion.normalColor = WithAlpha(Color.Lerp(ElderCareUiTheme.PanelStrong, ElderCareUiTheme.Blue, 0.16f), 0.88f);
+            motion.hoverColor = WithAlpha(Color.Lerp(ElderCareUiTheme.PanelStrong, ElderCareUiTheme.Cyan, 0.18f), 0.92f);
+            motion.pressedColor = WithAlpha(ElderCareUiTheme.PanelStrong, 0.94f);
+            motion.glowColor = WithAlpha(ElderCareUiTheme.Cyan, 0.14f);
+            motion.hoverScale = 1.012f;
+            motion.pressedScale = 0.99f;
+            motion.entranceDelay = 0.18f;
+        }
+
+        if (title != null)
+        {
+            title.raycastTarget = false;
+        }
+
+        WorldSpaceUiRayDragHandle.EnsureOnSurface(background, canvasTransform, canvasTransform.GetComponent<ComfortWorldSpaceUIPlacer>());
+        EditorUtility.SetDirty(root);
+        return controller;
+    }
+
+    private static PingPongDifficultyController BuildDifficultyUiLegacy(Transform canvasTransform, BallSpawner spawner)
     {
         var root = GetOrCreate("DifficultyPanel", canvasTransform);
         var rootRect = ConfigureRect(root, new Vector2(560f, 280f), new Vector2(630f, 148f));
@@ -1831,9 +1917,24 @@ public static class PingPongDemoSceneBuilder
         return panel;
     }
 
+    private static Color WithAlpha(Color color, float alpha)
+    {
+        color.a = alpha;
+        return color;
+    }
+
     private static ElderCareRoundedPanel EnsureSingleRoundedPanel(GameObject go)
     {
         if (go == null) return null;
+
+        var images = go.GetComponents<Image>();
+        foreach (var image in images)
+        {
+            if (image != null)
+            {
+                Object.DestroyImmediate(image);
+            }
+        }
 
         var panels = go.GetComponents<ElderCareRoundedPanel>();
         for (var i = 1; i < panels.Length; i++)
@@ -1932,24 +2033,35 @@ public static class PingPongDemoSceneBuilder
         return existing != null ? existing : target.AddComponent(type);
     }
 
-    private static TMP_Text CreateScoreText(Transform canvasTransform, string name, Vector2 position)
+    private static TMP_Text CreateScoreText(
+        Transform canvasTransform,
+        string name,
+        string value,
+        Vector2 position,
+        Vector2 size,
+        float fontSize,
+        FontStyles style,
+        TextAlignmentOptions alignment,
+        Color color)
     {
         var go = GetOrCreate(name, canvasTransform);
         var text = EnsureComponent<TextMeshProUGUI>(go);
         if (text == null) return null;
 
         var rect = go.GetComponent<RectTransform>();
-        rect.sizeDelta = new Vector2(620f, 64f);
+        rect.sizeDelta = size;
         rect.anchoredPosition3D = new Vector3(position.x, position.y, 0f);
         rect.localRotation = Quaternion.identity;
         rect.localScale = Vector3.one;
-        text.fontSize = 52;
-        text.fontStyle = FontStyles.Bold;
-        text.alignment = TextAlignmentOptions.Left;
-        text.color = new Color(1f, 1f, 1f, 0.98f);
+        text.text = value;
+        text.fontSize = fontSize;
+        text.fontStyle = style;
+        text.alignment = alignment;
+        text.color = color;
         text.outlineColor = new Color(0f, 0f, 0f, 0.95f);
-        text.outlineWidth = 0.18f;
+        text.outlineWidth = 0.12f;
         text.enableWordWrapping = false;
+        text.richText = true;
         var fontAsset = LoadPingPongTmpFont();
         if (fontAsset != null)
         {
@@ -1963,16 +2075,48 @@ public static class PingPongDemoSceneBuilder
     private static void CreateScoreHudBackdrop(Transform canvasTransform)
     {
         var go = GetOrCreate("ScoreHudBackdrop", canvasTransform);
-        ConfigureRect(go, new Vector2(680f, 432f), Vector2.zero);
-        var image = EnsureComponent<Image>(go);
-        if (image != null)
+        ConfigureRect(go, ElderCareUiTheme.PingPongHudSize, new Vector2(-570f, 215f));
+        var panel = EnsureSingleRoundedPanel(go);
+        if (panel != null)
         {
-            image.color = new Color(0.015f, 0.03f, 0.045f, 0.78f);
-            image.raycastTarget = true;
-            WorldSpaceUiRayDragHandle.EnsureOnSurface(image, canvasTransform, canvasTransform.GetComponent<ComfortWorldSpaceUIPlacer>());
+            panel.color = WithAlpha(ElderCareUiTheme.PanelStrong, 1f);
+            panel.cornerRadius = 30f;
+            panel.raycastTarget = true;
+            WorldSpaceUiRayDragHandle.EnsureOnSurface(panel, canvasTransform, canvasTransform.GetComponent<ComfortWorldSpaceUIPlacer>());
+        }
+
+        var outline = EnsureComponent<Outline>(go);
+        if (outline != null)
+        {
+            outline.effectColor = WithAlpha(ElderCareUiTheme.PanelStroke, 0.58f);
+            outline.effectDistance = new Vector2(2.5f, -2.5f);
         }
 
         go.transform.SetAsFirstSibling();
+    }
+
+    private static void CreateScoreMetricCard(Transform canvasTransform, string name, Vector2 size, Vector2 position, Color accent, float alpha, float radius)
+    {
+        var root = GetOrCreate(name, canvasTransform);
+        var rect = ConfigureRect(root, size, position);
+        RemoveChildIfExists(root.transform, "TopTrace");
+        RemoveChildIfExists(root.transform, name + "_TopTrace");
+        var panel = EnsureSingleRoundedPanel(root);
+        if (panel != null)
+        {
+            panel.color = WithAlpha(Color.Lerp(ElderCareUiTheme.PanelStrong, accent, 0.28f), alpha + 0.56f);
+            panel.cornerRadius = radius;
+            panel.raycastTarget = false;
+        }
+
+        var outline = EnsureComponent<Outline>(root);
+        if (outline != null)
+        {
+            outline.effectColor = WithAlpha(accent, alpha + 0.32f);
+            outline.effectDistance = new Vector2(2f, -2f);
+        }
+
+        root.transform.SetSiblingIndex(1);
     }
 
     private static TMP_Text CreateDifficultyText(
@@ -2002,6 +2146,8 @@ public static class PingPongDemoSceneBuilder
         text.fontStyle = style;
         text.alignment = alignment;
         text.color = color;
+        text.outlineColor = new Color(0f, 0f, 0f, 0.9f);
+        text.outlineWidth = Mathf.Max(text.outlineWidth, 0.08f);
         text.enableWordWrapping = true;
         text.raycastTarget = false;
         return text;
@@ -2017,20 +2163,37 @@ public static class PingPongDemoSceneBuilder
         text.raycastTarget = false;
     }
 
+    private static void ConfigureDifficultyText(TMP_Text text, string value, Vector2 position, Vector2 size, float fontSize, FontStyles style, Color color)
+    {
+        if (text == null) return;
+
+        ConfigureRect(text.gameObject, size, position);
+        text.text = value;
+        text.fontSize = fontSize;
+        text.fontStyle = style;
+        text.color = color;
+        text.outlineColor = new Color(0f, 0f, 0f, 0.9f);
+        text.outlineWidth = Mathf.Max(text.outlineWidth, 0.08f);
+        text.enableWordWrapping = true;
+        text.raycastTarget = false;
+    }
+
     private static Button CreateDifficultyButton(RectTransform parent, string name, string label, Vector2 position, Vector2 size)
     {
         var go = GetOrCreateChild(name, parent);
         var rect = ConfigureRect(go, size, position);
-        var image = EnsureComponent<Image>(go);
-        if (image != null)
+        var panel = EnsureSingleRoundedPanel(go);
+        if (panel != null)
         {
-            image.color = new Color(0.06f, 0.18f, 0.28f, 0.96f);
+            panel.color = WithAlpha(Color.Lerp(ElderCareUiTheme.PanelStrong, ElderCareUiTheme.Cyan, 0.22f), 0.9f);
+            panel.cornerRadius = 20f;
+            panel.raycastTarget = true;
         }
 
         var outline = EnsureComponent<Outline>(go);
         if (outline != null)
         {
-            outline.effectColor = new Color(0.48f, 0.92f, 1f, 0.38f);
+            outline.effectColor = WithAlpha(ElderCareUiTheme.Cyan, 0.28f);
             outline.effectDistance = new Vector2(2f, -2f);
         }
 
@@ -2038,10 +2201,10 @@ public static class PingPongDemoSceneBuilder
         if (button != null)
         {
             button.transition = Selectable.Transition.None;
-            button.targetGraphic = image;
+            button.targetGraphic = panel;
         }
 
-        var text = CreateDifficultyText(rect, "Label", label, Vector2.zero, size, label.Length > 1 ? 24f : 36f, FontStyles.Bold, Color.white, TextAlignmentOptions.Center);
+        var text = CreateDifficultyText(rect, "Label", label, Vector2.zero, size, label.Length > 1 ? ElderCareUiTheme.BodySmall : ElderCareUiTheme.Subtitle, FontStyles.Bold, ElderCareUiTheme.TextPrimary, TextAlignmentOptions.Center);
         if (text != null)
         {
             text.raycastTarget = false;
@@ -2052,13 +2215,13 @@ public static class PingPongDemoSceneBuilder
         {
             motion.cardTransform = rect;
             motion.canvasGroup = EnsureComponent<CanvasGroup>(go);
-            motion.cardGraphic = image;
-            motion.normalColor = new Color(0.06f, 0.18f, 0.28f, 0.96f);
-            motion.hoverColor = new Color(0.11f, 0.31f, 0.45f, 0.98f);
-            motion.pressedColor = new Color(0.04f, 0.13f, 0.22f, 0.98f);
-            motion.glowColor = new Color(0.35f, 0.9f, 1f, 0.12f);
-            motion.hoverScale = 1.055f;
-            motion.pressedScale = 0.94f;
+            motion.cardGraphic = panel;
+            motion.normalColor = WithAlpha(Color.Lerp(ElderCareUiTheme.PanelStrong, ElderCareUiTheme.Cyan, 0.22f), 0.9f);
+            motion.hoverColor = WithAlpha(Color.Lerp(ElderCareUiTheme.PanelStrong, ElderCareUiTheme.Cyan, 0.34f), 0.94f);
+            motion.pressedColor = WithAlpha(ElderCareUiTheme.PanelStrong, 0.96f);
+            motion.glowColor = WithAlpha(ElderCareUiTheme.Cyan, 0.12f);
+            motion.hoverScale = ElderCareUiTheme.HoverScale;
+            motion.pressedScale = ElderCareUiTheme.PressedScale;
             motion.playEntrance = false;
         }
 
@@ -2145,8 +2308,31 @@ public static class PingPongDemoSceneBuilder
         grabber.grabLayers = ~0;
         grabber.holdOffset = new Vector3(0f, 0f, 0.08f);
         grabber.interactionState = gripState;
+        grabber.gripInputSourceBehaviour = SetupControllerGripInputSource(leftController, XRNode.LeftHand);
+        grabber.autoCreatePicoGripInputSource = true;
         EditorUtility.SetDirty(grabberObject);
         return grabber;
+    }
+
+    private static MonoBehaviour SetupControllerGripInputSource(Transform controller, XRNode node)
+    {
+        if (controller == null) return null;
+
+        var behaviours = controller.GetComponents<MonoBehaviour>();
+        for (var i = 0; i < behaviours.Length; i++)
+        {
+            if (behaviours[i] is IGripInputSource)
+            {
+                return behaviours[i];
+            }
+        }
+
+        var picoGrip = EnsureComponent<PicoGripInputSource>(controller.gameObject);
+        if (picoGrip == null) return null;
+
+        picoGrip.controllerNode = node;
+        EditorUtility.SetDirty(controller.gameObject);
+        return picoGrip;
     }
 
     private static PingPongPlayerBodyProxy SetupPlayerBodyProxy(Transform parent)
@@ -2386,6 +2572,8 @@ public static class PingPongDemoSceneBuilder
         remoteDrag.tableDragHandle = dragHandle;
         remoteDrag.controllerTransform = dragHandle != null ? dragHandle.controllerTransform : null;
         remoteDrag.controllerNode = XRNode.LeftHand;
+        remoteDrag.gripInputSourceBehaviour = leftBallGrabber != null ? leftBallGrabber.gripInputSourceBehaviour : null;
+        remoteDrag.autoCreatePicoGripInputSource = true;
         remoteDrag.hmdTransform = Camera.main != null ? Camera.main.transform : null;
         remoteDrag.ballGrabber = leftBallGrabber != null ? leftBallGrabber : (dragHandle != null ? dragHandle.ballGrabber : Object.FindObjectOfType<ControllerBallGrabber>(true));
         remoteDrag.interactionState = gripState != null ? gripState : Object.FindObjectOfType<SimpleGripInteractionState>(true);

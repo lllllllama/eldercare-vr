@@ -1,0 +1,870 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PICO ElderCare VR/MR UI 设计分析</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #0b1016;
+      --panel: #111923;
+      --panel-2: #162130;
+      --ink: #edf6ff;
+      --muted: #aebdcc;
+      --faint: #6e7b8a;
+      --line: rgba(174, 199, 222, 0.2);
+      --cyan: #63d7ff;
+      --blue: #326fe6;
+      --green: #25b967;
+      --orange: #f0833c;
+      --violet: #8656e8;
+      --red: #ef5757;
+      --gold: #f2c15b;
+      --shadow: rgba(0, 0, 0, 0.32);
+      --radius-sm: 8px;
+      --radius-md: 16px;
+      --radius-lg: 28px;
+      --glass: linear-gradient(145deg, rgba(16, 27, 39, 0.78), rgba(7, 13, 22, 0.58));
+      --glass-strong: linear-gradient(145deg, rgba(24, 42, 57, 0.9), rgba(8, 15, 25, 0.76));
+      --glow-cyan: 0 0 22px rgba(99, 215, 255, 0.26), 0 0 64px rgba(99, 215, 255, 0.12);
+      --glow-green: 0 0 22px rgba(37, 185, 103, 0.24), 0 0 60px rgba(37, 185, 103, 0.12);
+      --glow-violet: 0 0 22px rgba(134, 86, 232, 0.24), 0 0 62px rgba(134, 86, 232, 0.12);
+      --text-gradient: linear-gradient(92deg, #ffffff 0%, #a9efff 38%, #c8ffdb 70%, #d8ccff 100%);
+      --section-border: linear-gradient(135deg, rgba(99, 215, 255, 0.48), rgba(134, 86, 232, 0.32) 48%, rgba(37, 185, 103, 0.42));
+      --grid-line: rgba(99, 215, 255, 0.075);
+      font-family: "Microsoft YaHei", "Noto Sans SC", "Source Han Sans SC", Arial, sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+
+    html { background: var(--bg); }
+
+    body {
+      position: relative;
+      min-height: 100vh;
+      margin: 0;
+      overflow-x: hidden;
+      background:
+        radial-gradient(circle at 14% -8%, rgba(99, 215, 255, 0.22), transparent 31rem),
+        radial-gradient(circle at 88% 9%, rgba(134, 86, 232, 0.2), transparent 29rem),
+        radial-gradient(circle at 76% 78%, rgba(37, 185, 103, 0.14), transparent 34rem),
+        radial-gradient(circle at 8% 82%, rgba(50, 111, 230, 0.13), transparent 26rem),
+        linear-gradient(180deg, #05070d 0%, #0a111a 40%, #070b12 100%);
+      color: var(--ink);
+      line-height: 1.62;
+      text-rendering: optimizeLegibility;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+    }
+
+    body::before {
+      z-index: 0;
+      background:
+        linear-gradient(var(--grid-line) 1px, transparent 1px),
+        linear-gradient(90deg, var(--grid-line) 1px, transparent 1px),
+        linear-gradient(135deg, transparent 0 46%, rgba(99, 215, 255, 0.055) 50%, transparent 54%),
+        radial-gradient(circle at 50% 18%, rgba(255, 255, 255, 0.08), transparent 34rem);
+      background-size: 48px 48px, 48px 48px, 240px 240px, 100% 100%;
+      -webkit-mask-image: radial-gradient(ellipse at center, black 0%, black 58%, transparent 100%);
+      mask-image: radial-gradient(ellipse at center, black 0%, black 58%, transparent 100%);
+      opacity: 0.7;
+    }
+
+    body::after {
+      z-index: 0;
+      background: repeating-linear-gradient(180deg, rgba(255,255,255,0.045) 0, rgba(255,255,255,0.045) 1px, transparent 1px, transparent 7px);
+      mix-blend-mode: screen;
+      opacity: 0.11;
+    }
+
+    a {
+      color: var(--cyan);
+      text-decoration: none;
+      text-shadow: 0 0 18px rgba(99, 215, 255, 0.24);
+    }
+
+    a:hover { text-decoration: underline; }
+
+    header,
+    main {
+      position: relative;
+      z-index: 1;
+    }
+
+    header {
+      padding: 64px 32px 32px;
+      border-bottom: 1px solid rgba(99, 215, 255, 0.18);
+      background:
+        linear-gradient(180deg, rgba(9, 16, 25, 0.76), rgba(9, 16, 25, 0.26)),
+        radial-gradient(circle at 22% 8%, rgba(99, 215, 255, 0.13), transparent 28rem);
+      box-shadow: inset 0 -1px 0 rgba(255, 255, 255, 0.05);
+    }
+
+    main {
+      max-width: 1220px;
+      margin: 0 auto;
+      padding: 30px 32px 76px;
+    }
+
+    .hero {
+      max-width: 1220px;
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 1.03fr 0.97fr;
+      gap: 30px;
+      align-items: center;
+    }
+
+    h1, h2, h3 { line-height: 1.16; margin: 0; }
+
+    h1 {
+      font-size: 46px;
+      letter-spacing: 0;
+      color: var(--ink);
+    }
+
+    @supports (-webkit-background-clip: text) or (background-clip: text) {
+      h1 {
+        background: var(--text-gradient);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+        text-shadow: 0 0 34px rgba(99, 215, 255, 0.16);
+      }
+    }
+
+    h2 {
+      font-size: 28px;
+      margin: 0 0 18px;
+      color: #f7fbff;
+      text-shadow: 0 0 22px rgba(99, 215, 255, 0.14);
+    }
+
+    h3 {
+      font-size: 18px;
+      margin: 0 0 10px;
+      color: #f4f9ff;
+    }
+
+    .subtitle {
+      margin: 18px 0 0;
+      color: var(--muted);
+      font-size: 17px;
+      max-width: 760px;
+    }
+
+    .meta {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 24px;
+    }
+
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+      min-height: 32px;
+      padding: 6px 12px;
+      border: 1px solid rgba(99, 215, 255, 0.25);
+      border-radius: 999px;
+      color: #d8e8f5;
+      background:
+        linear-gradient(135deg, rgba(99, 215, 255, 0.1), rgba(134, 86, 232, 0.08)),
+        rgba(255, 255, 255, 0.035);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.1), 0 0 18px rgba(99, 215, 255, 0.08);
+      font-size: 13px;
+      white-space: nowrap;
+      -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: blur(12px);
+    }
+
+    .pill::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--cyan);
+      box-shadow: 0 0 12px rgba(99, 215, 255, 0.72);
+      flex: 0 0 auto;
+    }
+
+    img {
+      max-width: 100%;
+      height: auto;
+    }
+
+    .hero img {
+      width: 100%;
+      display: block;
+      border: 1px solid rgba(99, 215, 255, 0.24);
+      border-radius: var(--radius-lg);
+      box-shadow: 0 28px 82px rgba(0, 0, 0, 0.46), var(--glow-violet);
+      background: #000;
+    }
+
+    section {
+      position: relative;
+      isolation: isolate;
+      overflow: hidden;
+      margin-top: 34px;
+      padding: 28px;
+      border: 1px solid transparent;
+      border-radius: var(--radius-lg);
+      background:
+        var(--glass) padding-box,
+        var(--section-border) border-box;
+      box-shadow:
+        0 24px 70px rgba(0, 0, 0, 0.34),
+        inset 0 1px 0 rgba(255, 255, 255, 0.1),
+        inset 0 0 42px rgba(99, 215, 255, 0.035);
+      -webkit-backdrop-filter: blur(22px) saturate(1.18);
+      backdrop-filter: blur(22px) saturate(1.18);
+      transition: border-color 180ms ease, box-shadow 180ms ease, transform 180ms ease;
+    }
+
+    section::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      z-index: 0;
+      background:
+        radial-gradient(circle at 12% 0%, rgba(99, 215, 255, 0.14), transparent 19rem),
+        radial-gradient(circle at 94% 18%, rgba(134, 86, 232, 0.11), transparent 17rem),
+        linear-gradient(180deg, rgba(255, 255, 255, 0.08), transparent 110px);
+      pointer-events: none;
+    }
+
+    section:hover {
+      box-shadow:
+        0 28px 84px rgba(0, 0, 0, 0.4),
+        var(--glow-cyan),
+        inset 0 1px 0 rgba(255, 255, 255, 0.14),
+        inset 0 0 54px rgba(99, 215, 255, 0.055);
+      transform: translateY(-1px);
+    }
+
+    section > * {
+      position: relative;
+      z-index: 1;
+    }
+
+    .grid {
+      display: grid;
+      gap: 18px;
+    }
+
+    .cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .cols-3 { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+    .cols-4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+
+    .note {
+      position: relative;
+      overflow: hidden;
+      padding: 17px;
+      border: 1px solid transparent;
+      border-radius: var(--radius-md);
+      background:
+        linear-gradient(145deg, rgba(255, 255, 255, 0.075), rgba(255, 255, 255, 0.03)) padding-box,
+        linear-gradient(135deg, rgba(99, 215, 255, 0.25), rgba(255, 255, 255, 0.06), rgba(37, 185, 103, 0.18)) border-box;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 16px 38px rgba(0, 0, 0, 0.16);
+      -webkit-backdrop-filter: blur(14px);
+      backdrop-filter: blur(14px);
+    }
+
+    .note::before {
+      content: "";
+      position: absolute;
+      inset: 0 0 auto;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(99, 215, 255, 0.65), transparent);
+      opacity: 0.7;
+    }
+
+    .note strong { color: #fff; }
+    .note p { margin: 8px 0 0; color: var(--muted); }
+
+    .stat {
+      --stat-accent: var(--cyan);
+      position: relative;
+      overflow: hidden;
+      padding: 15px 16px;
+      border: 1px solid transparent;
+      border-radius: var(--radius-md);
+      background:
+        linear-gradient(145deg, rgba(12, 24, 36, 0.84), rgba(8, 14, 23, 0.62)) padding-box,
+        linear-gradient(135deg, rgba(99, 215, 255, 0.36), rgba(255, 255, 255, 0.06)) border-box;
+      box-shadow: 0 16px 38px rgba(0, 0, 0, 0.22), inset 0 1px 0 rgba(255, 255, 255, 0.09);
+      -webkit-backdrop-filter: blur(14px);
+      backdrop-filter: blur(14px);
+    }
+
+    .stat:nth-child(2) { --stat-accent: var(--green); }
+    .stat:nth-child(3) { --stat-accent: var(--violet); }
+    .stat:nth-child(4) { --stat-accent: var(--gold); }
+
+    .stat::before {
+      content: "";
+      position: absolute;
+      inset: 0 auto 0 0;
+      width: 3px;
+      background: var(--stat-accent);
+      box-shadow: 0 0 18px var(--stat-accent);
+    }
+
+    .stat b {
+      display: block;
+      color: #fff;
+      font-size: 24px;
+      text-shadow: 0 0 20px rgba(99, 215, 255, 0.22);
+    }
+
+    .stat span { color: var(--muted); font-size: 13px; }
+
+    .flow {
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 12px;
+      align-items: stretch;
+    }
+
+    .step {
+      position: relative;
+      min-height: 116px;
+      padding: 15px;
+      border: 1px solid rgba(99, 215, 255, 0.2);
+      border-radius: var(--radius-md);
+      background: var(--glass-strong);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 16px 34px rgba(0, 0, 0, 0.18);
+      transition: box-shadow 180ms ease, transform 180ms ease;
+    }
+
+    .step:hover {
+      transform: translateY(-1px);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), var(--glow-cyan);
+    }
+
+    .step:after {
+      content: "";
+      position: absolute;
+      top: 50%;
+      right: -12px;
+      width: 12px;
+      height: 1px;
+      background: linear-gradient(90deg, rgba(99, 215, 255, 0.2), rgba(99, 215, 255, 0.8));
+      box-shadow: 0 0 12px rgba(99, 215, 255, 0.45);
+    }
+
+    .step:last-child:after { display: none; }
+    .step small { color: var(--cyan); font-weight: 700; letter-spacing: 0.02em; }
+    .step p { margin: 8px 0 0; color: var(--muted); font-size: 14px; }
+
+    .canvas-wire {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 22px;
+      align-items: start;
+    }
+
+    svg {
+      width: 100%;
+      max-width: 100%;
+      height: auto;
+      display: block;
+      background:
+        radial-gradient(circle at 20% 10%, rgba(99, 215, 255, 0.12), transparent 16rem),
+        linear-gradient(145deg, rgba(5, 12, 20, 0.86), rgba(10, 17, 28, 0.66));
+      border: 1px solid rgba(99, 215, 255, 0.22);
+      border-radius: var(--radius-md);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 18px 46px rgba(0, 0, 0, 0.24), var(--glow-cyan);
+    }
+
+    .legend {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      display: inline-block;
+      border-radius: 50%;
+      margin-right: 6px;
+      vertical-align: -1px;
+      box-shadow: 0 0 12px currentColor;
+    }
+
+    table {
+      width: 100%;
+      max-width: 100%;
+      table-layout: fixed;
+      border-collapse: separate;
+      border-spacing: 0;
+      overflow: hidden;
+      border: 1px solid transparent;
+      border-radius: var(--radius-md);
+      background:
+        linear-gradient(145deg, rgba(7, 14, 22, 0.78), rgba(6, 11, 18, 0.58)) padding-box,
+        var(--section-border) border-box;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 18px 46px rgba(0, 0, 0, 0.2);
+    }
+
+    th, td {
+      padding: 12px 13px;
+      border-bottom: 1px solid rgba(174, 199, 222, 0.16);
+      text-align: left;
+      vertical-align: top;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    th + th,
+    td + td {
+      border-left: 1px solid rgba(174, 199, 222, 0.08);
+    }
+
+    th {
+      color: #f7fbff;
+      background:
+        linear-gradient(180deg, rgba(99, 215, 255, 0.16), rgba(255,255,255,0.055)),
+        rgba(255,255,255,0.055);
+      box-shadow: inset 0 -1px 0 rgba(99, 215, 255, 0.14);
+      font-size: 13px;
+      letter-spacing: 0;
+    }
+
+    td { color: var(--muted); transition: background 160ms ease, color 160ms ease; }
+    tbody tr:hover td { background: rgba(99, 215, 255, 0.045); color: #dcecff; }
+    tr:last-child td { border-bottom: 0; }
+
+    code {
+      color: #dff8ff;
+      background:
+        linear-gradient(135deg, rgba(99, 215, 255, 0.14), rgba(134, 86, 232, 0.11)),
+        rgba(255,255,255,0.055);
+      border: 1px solid rgba(99, 215, 255, 0.24);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.09), 0 0 14px rgba(99, 215, 255, 0.09);
+      padding: 2px 6px;
+      border-radius: var(--radius-sm);
+      font-family: Consolas, "Cascadia Mono", monospace;
+      font-size: 0.92em;
+      overflow-wrap: anywhere;
+      word-break: break-word;
+    }
+
+    .swatches {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 12px;
+    }
+
+    .swatch {
+      overflow: hidden;
+      border: 1px solid rgba(99, 215, 255, 0.18);
+      border-radius: var(--radius-md);
+      background: rgba(255,255,255,0.045);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.08), 0 16px 34px rgba(0,0,0,0.18);
+      -webkit-backdrop-filter: blur(12px);
+      backdrop-filter: blur(12px);
+    }
+
+    .swatch div:first-child {
+      height: 56px;
+      box-shadow: inset 0 0 24px rgba(255,255,255,0.14);
+    }
+
+    .swatch div:last-child { padding: 10px; color: var(--muted); font-size: 12px; }
+
+    .severity {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-width: 56px;
+      padding: 3px 9px;
+      border: 1px solid rgba(99, 215, 255, 0.22);
+      border-radius: 999px;
+      background: rgba(99, 215, 255, 0.08);
+      color: #dff8ff;
+      box-shadow: inset 0 1px 0 rgba(255,255,255,0.1);
+      font-size: 12px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+
+    .severity::before {
+      content: "";
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 10px currentColor;
+    }
+
+    .severity.high {
+      color: #ffd8d5;
+      border-color: rgba(239, 87, 87, 0.38);
+      background: linear-gradient(135deg, rgba(239, 87, 87, 0.2), rgba(239, 87, 87, 0.08));
+    }
+
+    .severity.mid {
+      color: #ffe7a8;
+      border-color: rgba(242, 193, 91, 0.38);
+      background: linear-gradient(135deg, rgba(242, 193, 91, 0.2), rgba(242, 193, 91, 0.08));
+    }
+
+    .severity.low {
+      color: #c9ffdb;
+      border-color: rgba(37, 185, 103, 0.38);
+      background: linear-gradient(135deg, rgba(37, 185, 103, 0.18), rgba(37, 185, 103, 0.07));
+    }
+
+    .source-list {
+      columns: 2;
+      column-gap: 28px;
+      color: var(--muted);
+      font-size: 14px;
+    }
+
+    .source-list li { break-inside: avoid; margin: 0 0 9px; }
+
+    @supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+      section,
+      .note,
+      .stat,
+      .pill,
+      .swatch {
+        background-color: rgba(12, 21, 31, 0.92);
+      }
+    }
+
+    @media (max-width: 900px) {
+      .hero, .cols-2, .cols-3, .cols-4, .canvas-wire, .flow, .swatches {
+        grid-template-columns: 1fr;
+      }
+      header, main { padding-left: 18px; padding-right: 18px; }
+      header { padding-top: 44px; }
+      h1 { font-size: 32px; }
+      section { padding: 20px; border-radius: 22px; }
+      table {
+        display: block;
+        overflow-x: auto;
+        table-layout: auto;
+      }
+      th, td {
+        min-width: 150px;
+        padding: 11px 12px;
+      }
+      svg { border-radius: 14px; }
+      .source-list { columns: 1; }
+      .step:after { display: none; }
+    }
+
+    @media (max-width: 560px) {
+      h1 { font-size: 28px; }
+      h2 { font-size: 23px; }
+      .subtitle { font-size: 15px; }
+      .pill { white-space: normal; }
+      section { padding: 16px; }
+      th, td { min-width: 132px; font-size: 13px; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="hero">
+      <div>
+        <h1>PICO ElderCare VR/MR UI 设计分析</h1>
+        <p class="subtitle">基于当前 Unity 项目源码、场景构建器、运行时 UI 控制脚本和已有首页截图整理。重点回答：项目现在有哪些 UI、它们如何流转、视觉风格是否适合老年康养 VR/MR，以及下一步怎么优化。</p>
+        <div class="meta">
+          <span class="pill">Unity 2022.3.62f3</span>
+          <span class="pill">PICO XR SDK release_3.4.0</span>
+          <span class="pill">uGUI + TextMeshPro + XRI UI</span>
+          <span class="pill">World Space Canvas</span>
+          <span class="pill">生成日期 2026-05-24</span>
+        </div>
+      </div>
+      <img src="../../Screenshots/main-entry-four-card-preview.png" alt="当前四卡片首页预览">
+    </div>
+  </header>
+
+  <main>
+    <section>
+      <h2>结论概览</h2>
+      <div class="grid cols-4">
+        <div class="stat"><b>4</b><span>首页模块：健康游戏、康复运动、VR旅游、场景视频</span></div>
+        <div class="stat"><b>3</b><span>核心 UI 层：全局入口、乒乓训练、康复训练</span></div>
+        <div class="stat"><b>2.0-2.45m</b><span>主要 UI 舒适观看距离，由空间放置脚本控制</span></div>
+        <div class="stat"><b>MR-first</b><span>入口和康复场景默认开启视频透视和空间感知</span></div>
+      </div>
+      <div class="grid cols-2" style="margin-top:18px">
+        <div class="note">
+          <strong>当前设计方向是成立的。</strong>
+          <p>大字号、高对比、四模块入口、按钮面积较大，符合老年 VR/MR 的低认知负担需求。首页已有清晰的功能分区，乒乓和康复都可以从同一入口进入。</p>
+        </div>
+        <div class="note">
+          <strong>最大问题是风格和组件不统一。</strong>
+          <p>全局入口、乒乓内置首页、康复面板分别由不同构建逻辑生成，尺寸、圆角、按钮状态、字体系统和文字层级并不完全一致，后续扩展容易变散。</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>信息架构与用户流</h2>
+      <div class="flow">
+        <div class="step"><small>启动</small><h3>00_MainEntry</h3><p>MR 透视背景上显示全局四模块入口。</p></div>
+        <div class="step"><small>选择</small><h3>健康游戏</h3><p>加载 01_PingPongDemo，进入乒乓训练。</p></div>
+        <div class="step"><small>训练</small><h3>乒乓 HUD</h3><p>显示命中、发球、漏球、命中率、速度和旋转。</p></div>
+        <div class="step"><small>选择</small><h3>康复运动</h3><p>加载 MR_Rehab_Main，选择八段锦或太极。</p></div>
+        <div class="step"><small>训练</small><h3>康复面板</h3><p>提示动作、倒计时、安全提醒，并配合右侧视频。</p></div>
+      </div>
+      <div class="canvas-wire" style="margin-top:20px">
+        <svg viewBox="0 0 980 520" role="img" aria-label="场景导航流">
+          <defs>
+            <marker id="arrow" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+              <path d="M 0 0 L 10 5 L 0 10 z" fill="#63d7ff"/>
+            </marker>
+          </defs>
+          <rect x="38" y="42" width="260" height="116" rx="8" fill="#162130" stroke="#63d7ff"/>
+          <text x="168" y="84" text-anchor="middle" fill="#fff" font-size="22" font-weight="700">00_MainEntry</text>
+          <text x="168" y="122" text-anchor="middle" fill="#aebdcc" font-size="17">全局四卡片入口</text>
+
+          <rect x="385" y="28" width="246" height="104" rx="8" fill="#14306b" stroke="#326fe6"/>
+          <text x="508" y="68" text-anchor="middle" fill="#fff" font-size="21" font-weight="700">01_PingPongDemo</text>
+          <text x="508" y="104" text-anchor="middle" fill="#d6e8ff" font-size="16">健康游戏 / 乒乓</text>
+
+          <rect x="385" y="190" width="246" height="104" rx="8" fill="#123c23" stroke="#25b967"/>
+          <text x="508" y="230" text-anchor="middle" fill="#fff" font-size="21" font-weight="700">MR_Rehab_Main</text>
+          <text x="508" y="266" text-anchor="middle" fill="#d8ffe6" font-size="16">康复运动</text>
+
+          <rect x="716" y="28" width="220" height="104" rx="8" fill="#151e29" stroke="#6e7b8a"/>
+          <text x="826" y="68" text-anchor="middle" fill="#fff" font-size="20" font-weight="700">乒乓训练 UI</text>
+          <text x="826" y="104" text-anchor="middle" fill="#aebdcc" font-size="16">HUD + 发球速度</text>
+
+          <rect x="716" y="190" width="220" height="104" rx="8" fill="#151e29" stroke="#6e7b8a"/>
+          <text x="826" y="230" text-anchor="middle" fill="#fff" font-size="20" font-weight="700">康复训练 UI</text>
+          <text x="826" y="266" text-anchor="middle" fill="#aebdcc" font-size="16">选择 + 动作反馈 + 视频</text>
+
+          <rect x="385" y="360" width="246" height="86" rx="8" fill="#2b174f" stroke="#8656e8" opacity="0.78"/>
+          <text x="508" y="395" text-anchor="middle" fill="#fff" font-size="20" font-weight="700">VR旅游 / 场景视频</text>
+          <text x="508" y="426" text-anchor="middle" fill="#cfc1f2" font-size="15">首页占位：待接入</text>
+
+          <path d="M298 96 C332 86, 346 78, 385 78" fill="none" stroke="#63d7ff" stroke-width="3" marker-end="url(#arrow)"/>
+          <path d="M298 112 C335 150, 350 224, 385 238" fill="none" stroke="#63d7ff" stroke-width="3" marker-end="url(#arrow)"/>
+          <path d="M631 80 L716 80" fill="none" stroke="#63d7ff" stroke-width="3" marker-end="url(#arrow)"/>
+          <path d="M631 242 L716 242" fill="none" stroke="#63d7ff" stroke-width="3" marker-end="url(#arrow)"/>
+          <path d="M298 128 C348 254, 350 400, 385 404" fill="none" stroke="#8656e8" stroke-width="2" stroke-dasharray="8 8" marker-end="url(#arrow)"/>
+        </svg>
+        <div>
+          <h3>导航判断</h3>
+          <p>全局入口目前承担“产品总菜单”职责，两个可用模块直接加载独立场景，两个未完成模块以弱化色和“待接入”状态展示。这个设计对演示很友好，也能避免用户误入空功能。</p>
+          <p>乒乓场景内部还有一套更大尺寸的 `ElderCareHomeCanvas`，它可以在训练内返回首页或隐藏玩法根对象。康复场景使用 `ModuleHomeMenu` 返回全局入口，路径更直接。</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>主要 UI 线框</h2>
+      <div class="canvas-wire">
+        <div>
+          <h3>全局入口：MainEntryCanvas</h3>
+          <svg viewBox="0 0 820 560" role="img" aria-label="全局入口线框">
+            <rect x="80" y="52" width="660" height="456" fill="#0e1420" stroke="#3b5068"/>
+            <text x="410" y="112" text-anchor="middle" fill="#fff" font-size="32" font-weight="700">VR康养服务</text>
+            <rect x="320" y="135" width="180" height="4" fill="#fff" opacity=".55"/>
+            <rect x="133" y="185" width="250" height="122" fill="#244fd2"/>
+            <rect x="437" y="185" width="250" height="122" fill="#087528"/>
+            <rect x="133" y="340" width="250" height="122" fill="#35158b" opacity=".78"/>
+            <rect x="437" y="340" width="250" height="122" fill="#942215" opacity=".78"/>
+            <text x="258" y="238" text-anchor="middle" fill="#fff" font-size="26" font-weight="700">健康游戏</text>
+            <text x="562" y="238" text-anchor="middle" fill="#fff" font-size="26" font-weight="700">康复运动</text>
+            <text x="258" y="395" text-anchor="middle" fill="#ddd" font-size="26" font-weight="700">VR旅游</text>
+            <text x="562" y="395" text-anchor="middle" fill="#ddd" font-size="26" font-weight="700">场景视频</text>
+            <text x="410" y="492" text-anchor="middle" fill="#aebdcc" font-size="18">使用手柄或手势选择功能</text>
+          </svg>
+          <div class="legend">
+            <span><i class="dot" style="background:var(--blue)"></i>已接入：乒乓</span>
+            <span><i class="dot" style="background:var(--green)"></i>已接入：康复</span>
+            <span><i class="dot" style="background:var(--violet)"></i>待接入</span>
+            <span><i class="dot" style="background:var(--orange)"></i>待接入</span>
+          </div>
+        </div>
+        <div>
+          <h3>乒乓训练：WorldSpaceCanvas</h3>
+          <svg viewBox="0 0 820 560" role="img" aria-label="乒乓训练 UI 线框">
+            <rect x="72" y="62" width="330" height="420" fill="#07111a" stroke="#3b5068"/>
+            <text x="104" y="120" fill="#fff" font-size="24" font-weight="700">命中：0</text>
+            <text x="104" y="178" fill="#fff" font-size="24" font-weight="700">发球：0</text>
+            <text x="104" y="236" fill="#fff" font-size="24" font-weight="700">漏球：0</text>
+            <text x="104" y="294" fill="#fff" font-size="24" font-weight="700">命中率：0.0%</text>
+            <text x="104" y="352" fill="#fff" font-size="24" font-weight="700">回球速度：0.0 m/s</text>
+            <text x="104" y="410" fill="#fff" font-size="24" font-weight="700">旋转：0 rad/s</text>
+            <rect x="474" y="115" width="280" height="164" rx="10" fill="#07111a" stroke="#63d7ff"/>
+            <rect x="511" y="132" width="206" height="3" fill="#63d7ff"/>
+            <text x="614" y="172" text-anchor="middle" fill="#fff" font-size="22" font-weight="700">发球速度</text>
+            <text x="614" y="210" text-anchor="middle" fill="#9ff5ff" font-size="19" font-weight="700">难度：标准</text>
+            <text x="614" y="246" text-anchor="middle" fill="#fff" font-size="18">A 加速 / B 减速</text>
+            <rect x="92" y="76" width="220" height="20" fill="#63d7ff" opacity=".35"/>
+            <rect x="515" y="285" width="196" height="20" fill="#63d7ff" opacity=".35"/>
+            <text x="202" y="94" text-anchor="middle" fill="#c8f6ff" font-size="12">RayDragHandle</text>
+            <text x="613" y="303" text-anchor="middle" fill="#c8f6ff" font-size="12">面板可拖动</text>
+          </svg>
+          <p style="color:var(--muted)">训练 HUD 以数据读数为核心，发球速度面板改为手柄 A/B 控制，屏幕上的 +/- 按钮默认隐藏，减少小按钮瞄准负担。</p>
+        </div>
+      </div>
+
+      <div class="canvas-wire" style="margin-top:24px">
+        <div>
+          <h3>康复选择与训练面板：RehabPromptCanvas</h3>
+          <svg viewBox="0 0 820 560" role="img" aria-label="康复 UI 线框">
+            <rect x="95" y="68" width="630" height="338" fill="#0b1718" stroke="#4b6870"/>
+            <text x="410" y="126" text-anchor="middle" fill="#fff" font-size="28" font-weight="700">请选择康复训练类型</text>
+            <rect x="275" y="176" width="270" height="58" fill="#1470b8"/>
+            <rect x="275" y="250" width="270" height="58" fill="#1470b8"/>
+            <rect x="312" y="324" width="196" height="52" fill="#1470b8"/>
+            <text x="410" y="213" text-anchor="middle" fill="#fff" font-size="22" font-weight="700">八段锦训练</text>
+            <text x="410" y="287" text-anchor="middle" fill="#fff" font-size="22" font-weight="700">太极训练</text>
+            <text x="410" y="358" text-anchor="middle" fill="#fff" font-size="20" font-weight="700">返回</text>
+            <rect x="95" y="430" width="630" height="78" fill="#10242b" stroke="#63d7ff" opacity=".9"/>
+            <text x="410" y="462" text-anchor="middle" fill="#fff" font-size="20" font-weight="700">训练中面板：动作标题 / 状态 / 倒计时 / 完成度 / 安全提醒 / Debug</text>
+            <text x="410" y="492" text-anchor="middle" fill="#aebdcc" font-size="16">训练返回按钮回到训练类型选择</text>
+          </svg>
+        </div>
+        <div>
+          <h3>康复视频与空间控制</h3>
+          <svg viewBox="0 0 820 560" role="img" aria-label="康复视频空间布局">
+            <circle cx="180" cy="420" r="48" fill="#1d2a36" stroke="#fff"/>
+            <text x="180" y="428" text-anchor="middle" fill="#fff" font-size="20">用户</text>
+            <path d="M180 372 C250 260, 350 190, 455 156" fill="none" stroke="#63d7ff" stroke-width="3" stroke-dasharray="8 8"/>
+            <rect x="320" y="122" width="240" height="112" fill="#0b1718" stroke="#25b967"/>
+            <text x="440" y="170" text-anchor="middle" fill="#fff" font-size="22" font-weight="700">提示面板</text>
+            <rect x="590" y="135" width="160" height="90" fill="#10242b" stroke="#63d7ff"/>
+            <text x="670" y="175" text-anchor="middle" fill="#fff" font-size="20" font-weight="700">视频</text>
+            <rect x="520" y="252" width="255" height="58" fill="#092833" stroke="#63d7ff"/>
+            <text x="647" y="286" text-anchor="middle" fill="#d9fbff" font-size="17">空间位置 / 视频 - / 视频 + / 重置显示</text>
+            <circle cx="440" cy="390" r="70" fill="none" stroke="#25b967" stroke-width="5"/>
+            <text x="440" y="398" text-anchor="middle" fill="#ccffe1" font-size="18">训练圈</text>
+            <text x="260" y="340" fill="#aebdcc" font-size="16">距离 2.45m 附近</text>
+            <text x="590" y="112" fill="#aebdcc" font-size="16">视频偏右 0.9m</text>
+          </svg>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>视觉系统</h2>
+      <div class="swatches">
+        <div class="swatch"><div style="background:#0b1016"></div><div>主背景<br><code>#0b1016</code></div></div>
+        <div class="swatch"><div style="background:#326fe6"></div><div>健康游戏蓝<br><code>0.18,0.46,0.91</code></div></div>
+        <div class="swatch"><div style="background:#25b967"></div><div>康复绿色<br><code>0.15,0.66,0.34</code></div></div>
+        <div class="swatch"><div style="background:#8656e8"></div><div>旅游紫色<br><code>0.55,0.29,0.89</code></div></div>
+        <div class="swatch"><div style="background:#f0833c"></div><div>视频橙色<br><code>0.91,0.42,0.12</code></div></div>
+        <div class="swatch"><div style="background:#63d7ff"></div><div>科技描边/拖拽<br><code>0.38,0.92,1</code></div></div>
+      </div>
+      <table style="margin-top:18px">
+        <thead><tr><th>设计项</th><th>当前实现</th><th>评价</th></tr></thead>
+        <tbody>
+          <tr><td>字体</td><td>入口使用动态中文系统字体；康复 TMP 使用 <code>NotoSansSC-VF.ttf</code> 生成 <code>RehabChineseTMP</code>。</td><td>方向正确。建议统一到 TMP 字体资产，避免 uGUI Text 与 TMP 混用造成字重、描边和编码表现不一致。</td></tr>
+          <tr><td>字号</td><td>入口标题 74/92，卡片标题 42/52，乒乓 HUD 52，康复标题 36-44。</td><td>对 VR 可读性友好。入口和康复之间字号体系略分裂，应抽成规范。</td></tr>
+          <tr><td>卡片</td><td>入口卡片 460x220 或 570x260，乒乓内置首页卡片更大，并有 hover lift、glow、scanline。</td><td>视觉反馈丰富，但两套首页不完全一致，容易让用户误以为是不同产品。</td></tr>
+          <tr><td>状态</td><td>未接入模块变暗并显示“待接入”；可用模块高饱和。</td><td>状态传达清晰。建议加更明确的禁用说明或灰阶 icon，降低误点后的困惑。</td></tr>
+          <tr><td>空间感</td><td>所有主要 UI 是 World Space Canvas，支持拖拽手柄条和摇杆导航。</td><td>符合 VR/MR。需要继续实机验证不同身高、坐姿、房间光照下的可读性。</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>空间与交互分析</h2>
+      <div class="grid cols-3">
+        <div class="note"><strong>入口 UI</strong><p>默认放在用户前方约 2m，高度相对 HMD -0.1m，并在启动 1.25 秒或 18 帧内持续重定位，减少刚进场时偏移。</p></div>
+        <div class="note"><strong>训练 UI</strong><p>乒乓 HUD 固定在世界空间，额外安装拖拽和摇杆导航。数据读数在面板背景上显示，适合边训练边扫视。</p></div>
+        <div class="note"><strong>康复 UI</strong><p>训练选择距离至少 2.45m，高度相对 HMD +0.08m；视频默认在用户右前方，支持拖动、缩放和重置。</p></div>
+      </div>
+      <table style="margin-top:18px">
+        <thead><tr><th>控件/方式</th><th>脚本依据</th><th>用户体验判断</th></tr></thead>
+        <tbody>
+          <tr><td>射线点击</td><td><code>TrackedDeviceGraphicRaycaster</code>、<code>XRUIInputModule</code></td><td>适合 PICO 手柄；按钮面积整体够大。</td></tr>
+          <tr><td>拖拽 UI</td><td><code>WorldSpaceUiRayDragHandle</code> 与 <code>ComfortWorldSpaceUIPlacer</code></td><td>高级但必要。建议给拖拽条加更明确的视觉 affordance，例如“可移动”小图标。</td></tr>
+          <tr><td>摇杆导航</td><td><code>WorldSpaceUiThumbstickNavigator</code></td><td>对手抖或射线瞄准困难用户很友好。</td></tr>
+          <tr><td>乒乓调速</td><td>右手 A/B 控制，屏幕 +/- 按钮默认隐藏</td><td>减少视觉噪声，但需要在 HUD 上清晰说明“下一次发球生效”。</td></tr>
+          <tr><td>返回路径</td><td>康复和乒乓都有返回主入口能力</td><td>基础闭环完成。建议所有二级场景的返回按钮位置和文案统一。</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>主要风险与建议</h2>
+      <table>
+        <thead><tr><th>优先级</th><th>问题</th><th>建议</th></tr></thead>
+        <tbody>
+          <tr><td><span class="severity high">高</span></td><td>UI 构建分散在多个 Builder 和运行时控制器里，入口、乒乓、康复各有一套视觉规则。</td><td>沉淀 <code>ElderCareUiTheme</code> 或 ScriptableObject：颜色、字号、圆角、面板距离、按钮尺寸、拖拽条样式统一配置。</td></tr>
+          <tr><td><span class="severity high">高</span></td><td>代码中部分文件在普通读取时出现乱码风险，README 已明显有编码损坏迹象。</td><td>统一仓库文本编码为 UTF-8，检查 README 和 C# 字符串，避免中文 UI 在构建机或编辑器里异常。</td></tr>
+          <tr><td><span class="severity mid">中</span></td><td>入口中健康游戏和康复能进入，另两个模块禁用但仍是大卡片，可能被用户反复尝试。</td><td>禁用卡片保留展示价值，但增加更明确状态：例如“即将开放”，并在点击时只更新底部状态，不触发场景尝试。</td></tr>
+          <tr><td><span class="severity mid">中</span></td><td>康复面板同时包含用户目标、动作状态、Debug 文本，老年用户可能看到过多技术信息。</td><td>把 Debug 改为开发者模式或长按显示；主界面只保留动作、进度、倒计时、安全提示。</td></tr>
+          <tr><td><span class="severity mid">中</span></td><td>乒乓 HUD 数据多且全为同等字重，扫视层级不够。</td><td>把“命中率/当前速度”提升为主读数，发球/漏球/旋转降一级，减少运动中阅读负担。</td></tr>
+          <tr><td><span class="severity low">低</span></td><td>首页有科技星点、扫描线、发光效果，视觉上偏“科技演示”。</td><td>康养产品可以保留科技感，但建议加入更温和的形态：更多留白、低饱和背景、降低闪动幅度。</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>建议的下一版 UI 结构</h2>
+      <div class="canvas-wire">
+        <svg viewBox="0 0 960 420" role="img" aria-label="下一版 UI 组件结构">
+          <rect x="42" y="40" width="230" height="92" rx="8" fill="#162130" stroke="#63d7ff"/>
+          <text x="157" y="78" text-anchor="middle" fill="#fff" font-size="20" font-weight="700">ElderCareUiTheme</text>
+          <text x="157" y="108" text-anchor="middle" fill="#aebdcc" font-size="15">颜色 / 字号 / 距离 / 动效</text>
+          <rect x="366" y="40" width="230" height="92" rx="8" fill="#162130" stroke="#63d7ff"/>
+          <text x="481" y="78" text-anchor="middle" fill="#fff" font-size="20" font-weight="700">Reusable Prefabs</text>
+          <text x="481" y="108" text-anchor="middle" fill="#aebdcc" font-size="15">ModuleCard / Button / HUD</text>
+          <rect x="690" y="40" width="230" height="92" rx="8" fill="#162130" stroke="#63d7ff"/>
+          <text x="805" y="78" text-anchor="middle" fill="#fff" font-size="20" font-weight="700">Scene Binding</text>
+          <text x="805" y="108" text-anchor="middle" fill="#aebdcc" font-size="15">只绑定场景对象与事件</text>
+          <path d="M272 86 L366 86" stroke="#63d7ff" stroke-width="3"/>
+          <path d="M596 86 L690 86" stroke="#63d7ff" stroke-width="3"/>
+          <rect x="115" y="232" width="190" height="82" rx="8" fill="#14306b" stroke="#326fe6"/>
+          <text x="210" y="280" text-anchor="middle" fill="#fff" font-size="18">Main Entry</text>
+          <rect x="385" y="232" width="190" height="82" rx="8" fill="#123c23" stroke="#25b967"/>
+          <text x="480" y="280" text-anchor="middle" fill="#fff" font-size="18">PingPong UI</text>
+          <rect x="655" y="232" width="190" height="82" rx="8" fill="#412314" stroke="#f0833c"/>
+          <text x="750" y="280" text-anchor="middle" fill="#fff" font-size="18">Rehab UI</text>
+          <path d="M481 132 C430 170 315 190 210 232" stroke="#63d7ff" fill="none" stroke-width="2" stroke-dasharray="8 8"/>
+          <path d="M481 132 C480 168 480 196 480 232" stroke="#63d7ff" fill="none" stroke-width="2" stroke-dasharray="8 8"/>
+          <path d="M481 132 C532 170 645 190 750 232" stroke="#63d7ff" fill="none" stroke-width="2" stroke-dasharray="8 8"/>
+        </svg>
+        <div>
+          <h3>落地顺序</h3>
+          <p>先统一主题参数和中文字体，再把入口卡片、返回按钮、面板背景、拖拽条抽成可复用 prefab。Builder 只负责实例化和事件绑定，运行时脚本只负责状态切换。</p>
+          <p>这样后续接入 VR 旅游和场景视频时，不需要复制一套 UI 风格，也能降低 MR 实机调试时的变量数量。</p>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <h2>源码依据</h2>
+      <ul class="source-list">
+        <li><code>Assets/_Project/Scripts/Editor/RehabSceneBuilder.cs</code>：构建全局入口、康复主场景、返回主入口按钮。</li>
+        <li><code>Assets/_Project/Scripts/Editor/PingPongDemoSceneBuilder.cs</code>：构建乒乓训练 HUD、发球速度面板、乒乓内置首页。</li>
+        <li><code>Assets/_Project/Scripts/Rehab/ComfortWorldSpaceUIPlacer.cs</code>：UI 放置、启动重定位、射线拖拽和摇杆导航。</li>
+        <li><code>Assets/_Project/Scripts/Rehab/RehabModeSelectUI.cs</code>：康复选择、训练开始、返回路径和面板切换。</li>
+        <li><code>Assets/_Project/Scripts/PingPong/UI/ScoreManager.cs</code>：训练数据 HUD 文本和可读性增强。</li>
+        <li><code>Assets/_Project/Scripts/PingPong/UI/PingPongDifficultyController.cs</code>：发球速度面板、难度预设和 A/B 控制。</li>
+        <li><code>Screenshots/main-entry-four-card-preview.png</code>：当前首页实际预览。</li>
+        <li><code>Packages/manifest.json</code>：TextMeshPro、uGUI、PICO XR、XR Interaction Toolkit 依赖。</li>
+      </ul>
+    </section>
+  </main>
+</body>
+</html>
