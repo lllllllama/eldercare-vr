@@ -64,6 +64,8 @@ namespace PicoElderCare.Rehab
         private Transform _videoFrameRoot;
         private Material _videoFrameMaterial;
         private Material _videoFrameAccentMaterial;
+        private RehabSpatialRayControl _spatialRayControl;
+        private bool _pauseWhenPrepared;
 
         private void Awake()
         {
@@ -135,6 +137,7 @@ namespace PicoElderCare.Rehab
             ApplyDebugFrameVisible();
 
             _playWhenPrepared = true;
+            _pauseWhenPrepared = false;
             videoPlayer.prepareCompleted += OnVideoPrepared;
             videoPlayer.Prepare();
 
@@ -150,11 +153,27 @@ namespace PicoElderCare.Rehab
         public void Pause()
         {
             ResolveReferences();
+            if (videoPlayer == null || videoPlayer.clip == null)
+            {
+                Debug.Log("Pause rehab video guide skipped because no current video is loaded.", this);
+                return;
+            }
 
-            _playWhenPrepared = false;
-            if (videoPlayer != null && videoPlayer.isPlaying)
+            EnsureDisplayVisibleWhilePaused();
+
+            if (videoPlayer.isPlaying)
             {
                 videoPlayer.Pause();
+                _playWhenPrepared = false;
+                _pauseWhenPrepared = false;
+            }
+            else if (!videoPlayer.isPrepared)
+            {
+                _playWhenPrepared = true;
+                _pauseWhenPrepared = true;
+                UnsubscribePrepareCompleted();
+                videoPlayer.prepareCompleted += OnVideoPrepared;
+                videoPlayer.Prepare();
             }
 
             if (audioSource != null && audioSource.isPlaying)
@@ -168,6 +187,7 @@ namespace PicoElderCare.Rehab
         public void Resume()
         {
             ResolveReferences();
+            _pauseWhenPrepared = false;
 
             if (videoPlayer == null || videoPlayer.clip == null)
             {
@@ -203,6 +223,7 @@ namespace PicoElderCare.Rehab
         public void StopAndHide()
         {
             _playWhenPrepared = false;
+            _pauseWhenPrepared = false;
             UnsubscribePrepareCompleted();
             StopCurrentVideo();
             if (videoPlayer != null)
@@ -285,6 +306,15 @@ namespace PicoElderCare.Rehab
             {
                 layoutController.PlaceInRightFrontOfUserOnce();
             }
+        }
+
+        public void EnsureDisplayVisibleWhilePaused()
+        {
+            ResolveReferences();
+            EnsurePlaybackObjectsReady();
+            ApplyDisplayVisible(true);
+            EnsureRenderTextureBinding();
+            ApplyDebugFrameVisible();
         }
 
         [ContextMenu("Create Default Baduanjin Video Bindings")]
@@ -459,6 +489,7 @@ namespace PicoElderCare.Rehab
                     displayRoot.SetActive(false);
                 }
 
+                SetSpatialControlsVisible(visible);
                 return;
             }
 
@@ -471,6 +502,8 @@ namespace PicoElderCare.Rehab
             {
                 videoQuad.SetActive(false);
             }
+
+            SetSpatialControlsVisible(visible);
         }
 
         private void HideAllDisplays()
@@ -485,6 +518,7 @@ namespace PicoElderCare.Rehab
                 displayRoot.SetActive(false);
             }
 
+            SetSpatialControlsVisible(false);
             ApplyDebugFrameVisible();
         }
 
@@ -530,13 +564,28 @@ namespace PicoElderCare.Rehab
 
         private void OnVideoPrepared(VideoPlayer source)
         {
-            if (!_playWhenPrepared || source != videoPlayer) return;
+            if ((!_playWhenPrepared && !_pauseWhenPrepared) || source != videoPlayer) return;
 
             EnsurePlaybackObjectsReady();
             PlacePanelForCurrentView();
             ApplyDisplayVisible(true);
             EnsureRenderTextureBinding();
             ApplyDebugFrameVisible();
+            if (_pauseWhenPrepared)
+            {
+                source.Play();
+                source.Pause();
+                if (audioSource != null)
+                {
+                    audioSource.Pause();
+                }
+
+                _playWhenPrepared = false;
+                _pauseWhenPrepared = false;
+                LogVideoState("Prepared and paused", source.clip);
+                return;
+            }
+
             source.Play();
             if (audioSource != null)
             {
@@ -766,7 +815,24 @@ namespace PicoElderCare.Rehab
 
             if (layoutController != null)
             {
-                RehabSpatialRayControl.EnsureRuntime(sessionManager, layoutController);
+                _spatialRayControl = RehabSpatialRayControl.EnsureRuntime(sessionManager, layoutController);
+            }
+        }
+
+        private void SetSpatialControlsVisible(bool visible)
+        {
+            if (layoutController == null)
+            {
+                return;
+            }
+
+            _spatialRayControl = _spatialRayControl != null
+                ? _spatialRayControl
+                : RehabSpatialRayControl.EnsureRuntime(sessionManager, layoutController);
+
+            if (_spatialRayControl != null)
+            {
+                _spatialRayControl.SetControlCanvasVisible(visible);
             }
         }
 

@@ -16,6 +16,9 @@ public class PingPongBall : MonoBehaviour
     public float minimumClosingSpeed = 0.15f;
     public float heldBallMinimumSwingSpeed = 0.35f;
     public float maxSpeed = 9f;
+    public float minimumTableBounceUpSpeed = 1.35f;
+    public float tableBounceRestitutionFloor = 0.93f;
+    public float tableBounceUpwardAssist = 0.12f;
     public bool enableSweptSurfaceFallback = true;
     public LayerMask sweptSurfaceLayers = ~0;
     public bool ignoreNonGameplayColliders = true;
@@ -656,8 +659,13 @@ public class PingPongBall : MonoBehaviour
 
         var incomingVelocity = _rb.velocity;
         var input = PingPongHitSolver.CreateDefault(incomingVelocity, _rb.angularVelocity, normal, Vector3.zero);
-        input.normalRestitution = surface.normalRestitution;
-        input.tangentialFriction = surface.tangentialFriction;
+        var isTableBounce = surface.surfaceType == PingPongSurfaceType.Table;
+        input.normalRestitution = isTableBounce
+            ? Mathf.Max(surface.normalRestitution, tableBounceRestitutionFloor)
+            : surface.normalRestitution;
+        input.tangentialFriction = isTableBounce
+            ? Mathf.Min(surface.tangentialFriction, 0.05f)
+            : surface.tangentialFriction;
         input.spinTransfer = 0.35f;
         input.minimumClosingSpeed = 0.02f;
         input.minimumSpeed = 0f;
@@ -673,7 +681,14 @@ public class PingPongBall : MonoBehaviour
         }
 
         var finalAngularVelocity = Vector3.ClampMagnitude(result.angularVelocity, DefaultMaxAngularVelocity);
-        _rb.velocity = result.velocity;
+        _rb.velocity = isTableBounce && normal.y > 0.5f
+            ? EnsureMinimumTableBounceVelocity(
+                result.velocity,
+                incomingVelocity,
+                Mathf.Max(0f, minimumTableBounceUpSpeed),
+                Mathf.Max(0f, tableBounceUpwardAssist),
+                Mathf.Max(0f, maxSpeed))
+            : result.velocity;
         _rb.angularVelocity = finalAngularVelocity;
         CorrectSurfacePenetrationIfNeeded(surface, collider, normal, contactPoint);
         _lastSurfaceCollider = collider;
@@ -764,6 +779,41 @@ public class PingPongBall : MonoBehaviour
         }
 
         return surfacePoint + normal.normalized * (GetWorldRadius() + SurfaceCorrectionSkin);
+    }
+
+    public static Vector3 EnsureMinimumTableBounceVelocity(
+        Vector3 outgoingVelocity,
+        Vector3 incomingVelocity,
+        float minimumUpSpeed,
+        float upwardAssist,
+        float maximumSpeed)
+    {
+        if (incomingVelocity.y >= -0.02f)
+        {
+            return outgoingVelocity;
+        }
+
+        var velocity = outgoingVelocity;
+        velocity.y = Mathf.Max(velocity.y + Mathf.Max(0f, upwardAssist), Mathf.Max(0f, minimumUpSpeed));
+
+        if (maximumSpeed > 0f && velocity.magnitude > maximumSpeed)
+        {
+            velocity = velocity.normalized * maximumSpeed;
+            if (velocity.y < minimumUpSpeed)
+            {
+                velocity.y = minimumUpSpeed;
+                var horizontal = new Vector3(velocity.x, 0f, velocity.z);
+                var maxHorizontal = Mathf.Sqrt(Mathf.Max(0f, maximumSpeed * maximumSpeed - minimumUpSpeed * minimumUpSpeed));
+                if (horizontal.magnitude > maxHorizontal && horizontal.sqrMagnitude > 0.0001f)
+                {
+                    horizontal = horizontal.normalized * maxHorizontal;
+                    velocity.x = horizontal.x;
+                    velocity.z = horizontal.z;
+                }
+            }
+        }
+
+        return velocity;
     }
 
     public bool CorrectSurfacePenetrationIfNeeded(PingPongSurface surface, Collider collider, Vector3 normal, Vector3 contactPoint)

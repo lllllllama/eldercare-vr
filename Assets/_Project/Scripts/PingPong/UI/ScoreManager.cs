@@ -1,15 +1,27 @@
+using PicoElderCare.UI;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
 public class ScoreManager : MonoBehaviour
 {
+    private static readonly Vector2 HudPanelPosition = new Vector2(-570f, 215f);
+    private static readonly Vector2 PrimaryMetricSize = new Vector2(292f, 142f);
+    private static readonly Vector2 AccuracyPosition = new Vector2(-722f, 293f);
+    private static readonly Vector2 SpeedPosition = new Vector2(-418f, 293f);
+    private static readonly Vector2 SecondaryMetricSize = new Vector2(186f, 82f);
+    private static readonly Vector2 HitPosition = new Vector2(-780f, 145f);
+    private static readonly Vector2 ServedPosition = new Vector2(-570f, 145f);
+    private static readonly Vector2 MissedPosition = new Vector2(-360f, 145f);
+    private static readonly Vector2 SpinSize = new Vector2(606f, 58f);
+    private static readonly Vector2 SpinPosition = new Vector2(-570f, 51f);
+
     public TMP_FontAsset uiFont;
     public BallSpawner ballSpawner;
     public bool autoCreateDifficultyControls = true;
     public bool enhanceHudReadability = true;
-    public Vector2 hudPanelSize = new Vector2(680f, 432f);
-    public Color hudPanelColor = new Color(0.015f, 0.03f, 0.045f, 0.78f);
+    public Vector2 hudPanelSize = ElderCareUiTheme.PingPongHudSize;
+    public Color hudPanelColor = WithAlpha(ElderCareUiTheme.PanelStrong, 0.96f);
     public TMP_Text hitText;
     public TMP_Text servedText;
     public TMP_Text missedText;
@@ -17,7 +29,7 @@ public class ScoreManager : MonoBehaviour
     public TMP_Text lastSpeedText;
     public TMP_Text lastSpinText;
 
-    private Image _hudBackdrop;
+    private Graphic _hudBackdrop;
     private int _servedCount;
     private int _hitCount;
     private int _missedCount;
@@ -89,14 +101,30 @@ public class ScoreManager : MonoBehaviour
 
     private void RefreshUI()
     {
-        var acc = _servedCount > 0 ? (float)_hitCount / _servedCount * 100f : 0f;
+        var accuracy = _servedCount > 0 ? (float)_hitCount / _servedCount * 100f : 0f;
 
-        if (hitText != null) hitText.text = $"命中：{_hitCount}";
-        if (servedText != null) servedText.text = $"发球：{_servedCount}";
-        if (missedText != null) missedText.text = $"漏球：{_missedCount}";
-        if (accuracyText != null) accuracyText.text = $"命中率：{acc:0.0}%";
-        if (lastSpeedText != null) lastSpeedText.text = $"回球速度：{_lastHitSpeed:0.0} m/s";
-        if (lastSpinText != null) lastSpinText.text = $"旋转：{_lastSpinSpeed:0} rad/s";
+        if (accuracyText != null) accuracyText.text = FormatPrimaryMetric("命中率", accuracy.ToString("0.0"), "%");
+        if (lastSpeedText != null) lastSpeedText.text = FormatPrimaryMetric("回球速度", _lastHitSpeed.ToString("0.0"), "m/s");
+        if (hitText != null) hitText.text = FormatSecondaryMetric("命中", _hitCount);
+        if (servedText != null) servedText.text = FormatSecondaryMetric("发球", _servedCount);
+        if (missedText != null) missedText.text = FormatSecondaryMetric("漏球", _missedCount);
+        if (lastSpinText != null) lastSpinText.text = FormatAuxiliaryMetric("旋转", _lastSpinSpeed.ToString("0"), "rad/s");
+    }
+
+    private static string FormatPrimaryMetric(string label, string value, string unit)
+    {
+        var separator = unit == "%" ? string.Empty : " ";
+        return $"<size=28>{label}</size>\n<size=72><b>{value}</b></size>{separator}<size=28>{unit}</size>";
+    }
+
+    private static string FormatSecondaryMetric(string label, int value)
+    {
+        return $"<size=22>{label}</size>\n<size=40><b>{value}</b></size>";
+    }
+
+    private static string FormatAuxiliaryMetric(string label, string value, string unit)
+    {
+        return $"<size=22>{label}</size>  <size=32><b>{value}</b></size> <size=20>{unit}</size>";
     }
 
     private void ApplyFont()
@@ -115,76 +143,94 @@ public class ScoreManager : MonoBehaviour
     {
         if (!enhanceHudReadability) return;
 
-        var texts = new[] { hitText, servedText, missedText, accuracyText, lastSpeedText, lastSpinText };
-        Transform canvasTransform = null;
-        var firstSiblingIndex = int.MaxValue;
-        var validTextCount = 0;
-        var center = Vector2.zero;
+        var canvasTransform = ResolveCanvasTransform();
+        if (canvasTransform == null) return;
 
-        foreach (var text in texts)
-        {
-            if (text == null) continue;
+        EnsureHudBackdrop(canvasTransform);
+        EnsureMetricCard(canvasTransform, "AccuracyMetricCard", PrimaryMetricSize, AccuracyPosition, ElderCareUiTheme.Cyan, 0.16f, 24f);
+        EnsureMetricCard(canvasTransform, "SpeedMetricCard", PrimaryMetricSize, SpeedPosition, ElderCareUiTheme.Blue, 0.14f, 24f);
+        EnsureMetricCard(canvasTransform, "HitMetricCard", SecondaryMetricSize, HitPosition, ElderCareUiTheme.Green, 0.09f, 18f);
+        EnsureMetricCard(canvasTransform, "ServedMetricCard", SecondaryMetricSize, ServedPosition, ElderCareUiTheme.Cyan, 0.08f, 18f);
+        EnsureMetricCard(canvasTransform, "MissedMetricCard", SecondaryMetricSize, MissedPosition, ElderCareUiTheme.Orange, 0.08f, 18f);
+        EnsureMetricCard(canvasTransform, "SpinMetricCard", SpinSize, SpinPosition, ElderCareUiTheme.Violet, 0.08f, 18f);
 
-            var rect = text.rectTransform;
-            if (rect == null) continue;
-
-            canvasTransform = canvasTransform != null
-                ? canvasTransform
-                : (text.canvas != null ? text.canvas.transform : rect.parent);
-            firstSiblingIndex = Mathf.Min(firstSiblingIndex, rect.GetSiblingIndex());
-            validTextCount++;
-            center += rect.anchoredPosition;
-
-            ConfigureHudText(text);
-        }
-
-        if (canvasTransform == null || validTextCount == 0) return;
-
-        center /= validTextCount;
-
-        if (_hudBackdrop == null)
-        {
-            var existing = canvasTransform.Find("ScoreHudBackdrop");
-            var backdropObject = existing != null
-                ? existing.gameObject
-                : new GameObject("ScoreHudBackdrop", typeof(RectTransform), typeof(Image));
-            backdropObject.transform.SetParent(canvasTransform, false);
-            _hudBackdrop = backdropObject.GetComponent<Image>();
-        }
-
-        if (_hudBackdrop == null) return;
-
-        var backdropRect = _hudBackdrop.rectTransform;
-        backdropRect.anchorMin = new Vector2(0.5f, 0.5f);
-        backdropRect.anchorMax = new Vector2(0.5f, 0.5f);
-        backdropRect.pivot = new Vector2(0.5f, 0.5f);
-        backdropRect.sizeDelta = hudPanelSize;
-        backdropRect.anchoredPosition = center;
-        backdropRect.localRotation = Quaternion.identity;
-        backdropRect.localScale = Vector3.one;
-        _hudBackdrop.color = hudPanelColor;
-        _hudBackdrop.raycastTarget = false;
-        _hudBackdrop.transform.SetSiblingIndex(Mathf.Max(0, firstSiblingIndex - 1));
+        ConfigureHudText(accuracyText, PrimaryMetricSize, AccuracyPosition, ElderCareUiTheme.HudPrimary + 18f, FontStyles.Bold, TextAlignmentOptions.Center, ElderCareUiTheme.Cyan, 0.16f);
+        ConfigureHudText(lastSpeedText, PrimaryMetricSize, SpeedPosition, ElderCareUiTheme.HudPrimary + 10f, FontStyles.Bold, TextAlignmentOptions.Center, Color.Lerp(ElderCareUiTheme.TextPrimary, ElderCareUiTheme.Blue, 0.24f), 0.14f);
+        ConfigureHudText(hitText, SecondaryMetricSize, HitPosition, ElderCareUiTheme.HudSecondary + 8f, FontStyles.Bold, TextAlignmentOptions.Center, ElderCareUiTheme.TextPrimary, 0.1f);
+        ConfigureHudText(servedText, SecondaryMetricSize, ServedPosition, ElderCareUiTheme.HudSecondary + 8f, FontStyles.Bold, TextAlignmentOptions.Center, ElderCareUiTheme.TextSecondary, 0.1f);
+        ConfigureHudText(missedText, SecondaryMetricSize, MissedPosition, ElderCareUiTheme.HudSecondary + 8f, FontStyles.Bold, TextAlignmentOptions.Center, ElderCareUiTheme.TextSecondary, 0.1f);
+        ConfigureHudText(lastSpinText, SpinSize, SpinPosition, ElderCareUiTheme.HudSecondary, FontStyles.Normal, TextAlignmentOptions.Center, ElderCareUiTheme.TextMuted, 0.08f);
     }
 
-    private static void ConfigureHudText(TMP_Text text)
+    private void EnsureHudBackdrop(Transform canvasTransform)
+    {
+        var existing = canvasTransform.Find("ScoreHudBackdrop");
+        var backdropObject = existing != null
+            ? existing.gameObject
+            : new GameObject("ScoreHudBackdrop", typeof(RectTransform), typeof(ElderCareRoundedPanel));
+        backdropObject.transform.SetParent(canvasTransform, false);
+
+        _hudBackdrop = ConfigureRoundedPanel(backdropObject, hudPanelSize, HudPanelPosition, hudPanelColor, 30f, true);
+        if (_hudBackdrop == null) return;
+
+        var outline = EnsureComponent<Outline>(backdropObject);
+        if (outline != null)
+        {
+            outline.effectColor = WithAlpha(ElderCareUiTheme.PanelStroke, 0.58f);
+            outline.effectDistance = new Vector2(2.5f, -2.5f);
+        }
+
+        _hudBackdrop.transform.SetAsFirstSibling();
+    }
+
+    private static void EnsureMetricCard(Transform parent, string name, Vector2 size, Vector2 position, Color accent, float alpha, float radius)
+    {
+        var child = parent.Find(name);
+        var go = child != null ? child.gameObject : new GameObject(name, typeof(RectTransform), typeof(ElderCareRoundedPanel));
+        go.transform.SetParent(parent, false);
+
+        var panel = ConfigureRoundedPanel(go, size, position, WithAlpha(Color.Lerp(ElderCareUiTheme.PanelStrong, accent, 0.28f), alpha + 0.56f), radius, false);
+        var outline = EnsureComponent<Outline>(go);
+        if (outline != null)
+        {
+            outline.effectColor = WithAlpha(accent, alpha + 0.32f);
+            outline.effectDistance = new Vector2(2f, -2f);
+        }
+
+        const string traceName = "TopTrace";
+        var activeTrace = go.transform.Find(traceName);
+        if (activeTrace != null)
+        {
+            Object.Destroy(activeTrace.gameObject);
+        }
+
+        var legacyTrace = go.transform.Find(name + "_TopTrace");
+        if (legacyTrace != null)
+        {
+            Object.Destroy(legacyTrace.gameObject);
+        }
+
+        if (panel != null)
+        {
+            panel.transform.SetSiblingIndex(Mathf.Min(panel.transform.GetSiblingIndex(), 1));
+        }
+    }
+
+    private static void ConfigureHudText(TMP_Text text, Vector2 size, Vector2 anchoredPosition, float fontSize, FontStyles style, TextAlignmentOptions alignment, Color color, float outlineWidth)
     {
         if (text == null) return;
 
-        var rect = text.rectTransform;
-        if (rect != null)
-        {
-            rect.sizeDelta = new Vector2(Mathf.Max(rect.sizeDelta.x, 620f), Mathf.Max(rect.sizeDelta.y, 64f));
-        }
-
-        text.fontSize = Mathf.Max(text.fontSize, 52f);
-        text.fontStyle = FontStyles.Bold;
-        text.alignment = TextAlignmentOptions.Left;
-        text.color = new Color(1f, 1f, 1f, 0.98f);
-        text.outlineColor = new Color(0f, 0f, 0f, 0.95f);
-        text.outlineWidth = Mathf.Max(text.outlineWidth, 0.18f);
+        ConfigureRect(text.gameObject, size, anchoredPosition);
+        text.fontSize = fontSize;
+        text.fontStyle = style;
+        text.alignment = alignment;
+        text.color = color;
+        text.outlineColor = new Color(0f, 0f, 0f, 0.92f);
+        text.outlineWidth = Mathf.Max(text.outlineWidth, outlineWidth);
         text.enableWordWrapping = false;
+        text.richText = true;
         text.raycastTarget = false;
+        text.transform.SetAsLastSibling();
     }
 
     private void EnsureDifficultyControls()
@@ -209,6 +255,13 @@ public class ScoreManager : MonoBehaviour
         var canvasTransform = ResolveCanvasTransform();
         if (canvasTransform == null) return;
 
+        var canvas = canvasTransform.GetComponent<Canvas>();
+        if (canvas != null)
+        {
+            canvas.overrideSorting = true;
+            canvas.sortingOrder = Mathf.Max(canvas.sortingOrder, 100);
+        }
+
         var placer = canvasTransform.GetComponent<ComfortWorldSpaceUIPlacer>();
         if (placer == null)
         {
@@ -221,7 +274,7 @@ public class ScoreManager : MonoBehaviour
             placer.headTransform = Camera.main.transform;
         }
 
-        placer.distanceMeters = Mathf.Max(placer.distanceMeters, 2.35f);
+        placer.distanceMeters = Mathf.Max(placer.distanceMeters, ElderCareUiTheme.HudDistanceMeters);
         placer.hmdHeightOffsetMeters = Mathf.Max(placer.hmdHeightOffsetMeters, 0.12f);
         placer.placeOnStart = false;
         placer.placeOnEnable = false;
@@ -230,6 +283,7 @@ public class ScoreManager : MonoBehaviour
         placer.enableThumbstickNavigation = true;
         placer.comfortFollowEnabled = false;
         placer.EnsureWorldSpaceInteractionHelpers();
+        WorldSpaceUiRayDragHandle.EnsureOnSurface(_hudBackdrop, canvasTransform, placer);
     }
 
     private Transform ResolveCanvasTransform()
@@ -237,6 +291,11 @@ public class ScoreManager : MonoBehaviour
         if (hitText != null && hitText.canvas != null)
         {
             return hitText.canvas.transform;
+        }
+
+        if (accuracyText != null && accuracyText.canvas != null)
+        {
+            return accuracyText.canvas.transform;
         }
 
         var canvas = GetComponentInChildren<Canvas>(true);
@@ -262,6 +321,72 @@ public class ScoreManager : MonoBehaviour
                 return;
             }
         }
+    }
+
+    private static RectTransform ConfigureRect(GameObject go, Vector2 size, Vector2 anchoredPosition)
+    {
+        var rect = go.GetComponent<RectTransform>();
+        if (rect == null)
+        {
+            rect = go.AddComponent<RectTransform>();
+        }
+
+        rect.anchorMin = new Vector2(0.5f, 0.5f);
+        rect.anchorMax = new Vector2(0.5f, 0.5f);
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.sizeDelta = size;
+        rect.anchoredPosition = anchoredPosition;
+        rect.localRotation = Quaternion.identity;
+        rect.localScale = Vector3.one;
+        return rect;
+    }
+
+    private static Graphic ConfigureRoundedPanel(GameObject go, Vector2 size, Vector2 anchoredPosition, Color color, float radius, bool raycastTarget)
+    {
+        ConfigureRect(go, size, anchoredPosition);
+
+        var image = go.GetComponent<Image>();
+        if (image != null)
+        {
+            DestroyComponent(image);
+        }
+
+        var roundedPanel = go.GetComponent<ElderCareRoundedPanel>();
+        if (roundedPanel == null)
+        {
+            roundedPanel = go.AddComponent<ElderCareRoundedPanel>();
+        }
+
+        roundedPanel.color = color;
+        roundedPanel.cornerRadius = radius;
+        roundedPanel.raycastTarget = raycastTarget;
+        roundedPanel.SetAllDirty();
+        return roundedPanel;
+    }
+
+    private static T EnsureComponent<T>(GameObject go) where T : Component
+    {
+        var component = go.GetComponent<T>();
+        return component != null ? component : go.AddComponent<T>();
+    }
+
+    private static void DestroyComponent(Component component)
+    {
+        if (component == null) return;
+
+        if (Application.isPlaying)
+        {
+            Object.Destroy(component);
+            return;
+        }
+
+        Object.DestroyImmediate(component);
+    }
+
+    private static Color WithAlpha(Color color, float alpha)
+    {
+        color.a = alpha;
+        return color;
     }
 
     private static T FindSceneObject<T>() where T : Component

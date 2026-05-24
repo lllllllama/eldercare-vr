@@ -11,6 +11,8 @@ public class RemoteTableDragController : MonoBehaviour
     public TableDragHandle tableDragHandle;
     public Transform controllerTransform;
     public XRNode controllerNode = XRNode.LeftHand;
+    public MonoBehaviour gripInputSourceBehaviour;
+    public bool autoCreatePicoGripInputSource = true;
     public Transform hmdTransform;
     public ControllerBallGrabber ballGrabber;
     public SimpleGripInteractionState interactionState;
@@ -38,6 +40,8 @@ public class RemoteTableDragController : MonoBehaviour
     private bool _dragging;
     private bool _wasGripPressed;
     private bool _servingSuppressed;
+    private IGripInputSource _gripInputSource;
+    private bool _warnedInvalidGripInputSource;
 
     public bool IsDragging
     {
@@ -351,6 +355,12 @@ public class RemoteTableDragController : MonoBehaviour
 
     private bool IsGripPressed()
     {
+        ResolveGripInputSource();
+        if (_gripInputSource != null)
+        {
+            return _gripInputSource.IsGripPressed;
+        }
+
         InputDevices.GetDevicesAtXRNode(controllerNode, _devices);
         foreach (var device in _devices)
         {
@@ -366,6 +376,58 @@ public class RemoteTableDragController : MonoBehaviour
         }
 
         return false;
+    }
+
+    private void ResolveGripInputSource()
+    {
+        _gripInputSource = gripInputSourceBehaviour as IGripInputSource;
+        if (_gripInputSource != null)
+        {
+            return;
+        }
+
+        if (gripInputSourceBehaviour != null)
+        {
+            if (!_warnedInvalidGripInputSource)
+            {
+                Debug.LogWarning($"{nameof(RemoteTableDragController)} on {name} ignored {gripInputSourceBehaviour.name} because it does not implement {nameof(IGripInputSource)}.");
+                _warnedInvalidGripInputSource = true;
+            }
+
+            return;
+        }
+
+        if (controllerTransform == null) return;
+
+        _gripInputSource = FindGripInputSource(controllerTransform);
+        if (_gripInputSource != null)
+        {
+            gripInputSourceBehaviour = _gripInputSource as MonoBehaviour;
+            return;
+        }
+
+        if (!autoCreatePicoGripInputSource) return;
+
+        var picoGrip = controllerTransform.gameObject.AddComponent<PicoGripInputSource>();
+        picoGrip.controllerNode = controllerNode;
+        gripInputSourceBehaviour = picoGrip;
+        _gripInputSource = picoGrip;
+    }
+
+    private static IGripInputSource FindGripInputSource(Transform controller)
+    {
+        if (controller == null) return null;
+
+        var behaviours = controller.GetComponents<MonoBehaviour>();
+        for (var i = 0; i < behaviours.Length; i++)
+        {
+            if (behaviours[i] is IGripInputSource source)
+            {
+                return source;
+            }
+        }
+
+        return null;
     }
 
     private void NormalizeManualDragSwitches()
@@ -411,6 +473,8 @@ public class RemoteTableDragController : MonoBehaviour
         {
             interactionState = SimpleGripInteractionState.EnsureInstance();
         }
+
+        ResolveGripInputSource();
 
         if (openSpaceTablePlacer == null)
         {

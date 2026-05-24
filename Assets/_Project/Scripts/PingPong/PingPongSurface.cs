@@ -75,8 +75,8 @@ public class PingPongSurface : MonoBehaviour
         switch (surfaceType)
         {
             case PingPongSurfaceType.Table:
-                normalRestitution = 0.86f;
-                tangentialFriction = 0.08f;
+                normalRestitution = 0.93f;
+                tangentialFriction = 0.05f;
                 useSweptFallback = true;
                 break;
             case PingPongSurfaceType.Net:
@@ -240,7 +240,7 @@ public class PingPongSurface : MonoBehaviour
         switch (surfaceType)
         {
             case PingPongSurfaceType.Table:
-                collider.sharedMaterial = _tableMaterial ?? (_tableMaterial = CreateMaterial("PingPongTableRuntime", 0.08f, 0.86f));
+                collider.sharedMaterial = _tableMaterial ?? (_tableMaterial = CreateMaterial("PingPongTableRuntime", 0.05f, 0.93f));
                 break;
             case PingPongSurfaceType.PaddleBody:
             case PingPongSurfaceType.PaddleHitZone:

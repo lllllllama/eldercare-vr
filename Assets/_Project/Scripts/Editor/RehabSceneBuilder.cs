@@ -1,4 +1,5 @@
 using PicoElderCare.Rehab;
+using PicoElderCare.UI;
 using TMPro;
 using Unity.XR.CoreUtils;
 using Unity.XR.PXR;
@@ -122,7 +123,7 @@ public static class RehabSceneBuilder
         var uiRoot = CreateUiRoot("UIRoot", null);
         var entryCanvas = BuildEntryCanvas(menu, null);
         AttachUiToRoot(entryCanvas.transform, uiRoot.transform);
-        ConfigureComfortUiPlacer(uiRoot, mainCamera != null ? mainCamera.transform : null, uiRoot.transform, 2f);
+        ConfigureComfortUiPlacer(uiRoot, mainCamera != null ? mainCamera.transform : null, uiRoot.transform, ElderCareUiTheme.MainEntryDistanceMeters);
 
         EditorUtility.SetDirty(managers);
         EditorUtility.SetDirty(uiRoot);
@@ -297,30 +298,43 @@ public static class RehabSceneBuilder
 
     private static GameObject BuildEntryCanvas(UnifiedEntryMenu menu, Transform cameraTransform)
     {
-        var canvasGo = CreateWorldCanvas("MainEntryCanvas", cameraTransform, new Vector3(0f, 1.45f, 2.2f), new Vector2(1180f, 820f));
+        var canvasGo = CreateWorldCanvas("MainEntryCanvas", cameraTransform, new Vector3(0f, 1.45f, ElderCareUiTheme.MainEntryDistanceMeters), ElderCareUiTheme.MainEntryCanvasSize);
         var panel = CreateUiObject("Panel", canvasGo.transform);
         var panelRect = panel.GetComponent<RectTransform>();
         panelRect.anchorMin = Vector2.zero;
         panelRect.anchorMax = Vector2.one;
         panelRect.offsetMin = Vector2.zero;
         panelRect.offsetMax = Vector2.zero;
-        var panelImage = panel.AddComponent<Image>();
-        panelImage.color = new Color(0.03f, 0.05f, 0.08f, 0.86f);
+        var panelImage = panel.AddComponent<ElderCareRoundedPanel>();
+        panelImage.cornerRadius = 44f;
+        panelImage.cornerSegments = 12;
+        panelImage.color = WithAlpha(Color.Lerp(ElderCareUiTheme.PanelStrong, ElderCareUiTheme.Cyan, 0.08f), 1f);
+        panelImage.raycastTarget = false;
+        var panelOutline = panel.AddComponent<Outline>();
+        panelOutline.effectColor = WithAlpha(ElderCareUiTheme.PanelStroke, 0.72f);
+        panelOutline.effectDistance = new Vector2(3f, -3f);
 
-        CreateEntryDivider(panel.transform, "AmbientLineTop", new Vector2(0f, 302f), new Vector2(910f, 2f), new Color(0.38f, 0.92f, 1f, 0.18f));
-        CreateEntryDivider(panel.transform, "AmbientLineBottom", new Vector2(0f, -330f), new Vector2(820f, 2f), new Color(0.38f, 0.92f, 1f, 0.14f));
-        CreateEntryDivider(panel.transform, "AmbientLineLeft", new Vector2(-530f, -8f), new Vector2(2f, 560f), new Color(0.38f, 0.92f, 1f, 0.12f));
-        CreateEntryDivider(panel.transform, "AmbientLineRight", new Vector2(530f, -8f), new Vector2(2f, 560f), new Color(0.38f, 0.92f, 1f, 0.12f));
+        SendToBack(CreateEntryDivider(panel.transform, "PanelInnerGlow", Vector2.zero, new Vector2(640f, 390f), WithAlpha(ElderCareUiTheme.Cyan, 0.055f), 34f));
+        SendToBack(CreateEntryDivider(panel.transform, "AmbientLineTop", new Vector2(0f, 146f), new Vector2(606f, 3f), WithAlpha(ElderCareUiTheme.Cyan, 0.2f), 2f));
+        SendToBack(CreateEntryDivider(panel.transform, "AmbientLineBottom", new Vector2(0f, -152f), new Vector2(606f, 3f), WithAlpha(ElderCareUiTheme.Cyan, 0.13f), 2f));
+        SendToBack(CreateEntryDivider(panel.transform, "AmbientLineLeft", new Vector2(-322f, -8f), new Vector2(3f, 300f), WithAlpha(ElderCareUiTheme.Cyan, 0.14f), 2f));
+        SendToBack(CreateEntryDivider(panel.transform, "AmbientLineRight", new Vector2(322f, -8f), new Vector2(3f, 300f), WithAlpha(ElderCareUiTheme.Green, 0.13f), 2f));
 
-        CreateEntryStar(panel.transform, "StarA", new Vector2(-430f, 260f), 8f, 0.46f);
-        CreateEntryStar(panel.transform, "StarB", new Vector2(390f, 210f), 7f, 0.38f);
-        CreateEntryStar(panel.transform, "StarC", new Vector2(-370f, -270f), 6f, 0.32f);
-        CreateEntryStar(panel.transform, "StarD", new Vector2(420f, -250f), 9f, 0.42f);
+        CreateEntryStar(panel.transform, "StarA", new Vector2(-260f, 118f), 8f, 0.42f);
+        CreateEntryStar(panel.transform, "StarB", new Vector2(260f, 112f), 7f, 0.34f);
+        CreateEntryStar(panel.transform, "StarC", new Vector2(-246f, -132f), 6f, 0.28f);
+        CreateEntryStar(panel.transform, "StarD", new Vector2(262f, -128f), 8f, 0.36f);
 
-        var title = CreateText(panel.transform, "Title", "VR康养服务", 74, FontStyles.Bold, TextAlignmentOptions.Center, new Vector2(0f, 326f), new Vector2(980f, 96f));
-        title.characterSpacing = 8f;
-        title.color = new Color(1f, 1f, 1f, 0.98f);
-        CreateEntryDivider(panel.transform, "TitleDivider", new Vector2(0f, 264f), new Vector2(260f, 4f), new Color(1f, 1f, 1f, 0.52f));
+        var title = CreateText(panel.transform, "Title", "VR康养服务", 58f, FontStyles.Bold, TextAlignmentOptions.Center, new Vector2(0f, 214f), new Vector2(660f, 72f));
+        title.characterSpacing = 6f;
+        title.color = ElderCareUiTheme.TextPrimary;
+
+        var subtitle = CreateText(panel.transform, "Subtitle", "PICO MR 康养交互系统", 28f, FontStyles.Normal, TextAlignmentOptions.Center, new Vector2(0f, 154f), new Vector2(620f, 40f));
+        subtitle.characterSpacing = 2f;
+        subtitle.color = ElderCareUiTheme.TextSecondary;
+        subtitle.raycastTarget = false;
+
+        CreateEntryDivider(panel.transform, "TitleDivider", new Vector2(0f, 124f), new Vector2(420f, 4f), WithAlpha(ElderCareUiTheme.Cyan, 0.48f), 3f);
 
         CreateEntryModuleCard(
             panel.transform,
@@ -328,9 +342,9 @@ public static class RehabSceneBuilder
             "健康游戏",
             "乒乓球训练 · 速度可调",
             ElderCareIconType.Gamepad,
-            new Vector2(-285f, 82f),
-            new Vector2(460f, 220f),
-            new Color(0.18f, 0.46f, 0.91f, 0.96f),
+            new Vector2(-152f, 40f),
+            new Vector2(292f, 142f),
+            ElderCareUiTheme.Blue,
             true,
             menu.LoadPingPong,
             0.05f);
@@ -341,9 +355,9 @@ public static class RehabSceneBuilder
             "康复运动",
             "太极拳、八段锦养生功法",
             ElderCareIconType.Heart,
-            new Vector2(285f, 82f),
-            new Vector2(460f, 220f),
-            new Color(0.15f, 0.66f, 0.34f, 0.96f),
+            new Vector2(152f, 40f),
+            new Vector2(292f, 142f),
+            ElderCareUiTheme.Green,
             true,
             menu.LoadRehab,
             0.12f);
@@ -354,9 +368,9 @@ public static class RehabSceneBuilder
             "VR旅游",
             "长城、故宫名胜古迹",
             ElderCareIconType.MapPin,
-            new Vector2(-285f, -190f),
-            new Vector2(460f, 220f),
-            new Color(0.55f, 0.29f, 0.89f, 0.72f),
+            new Vector2(-152f, -118f),
+            new Vector2(292f, 142f),
+            ElderCareUiTheme.Violet,
             false,
             null,
             0.19f);
@@ -367,15 +381,15 @@ public static class RehabSceneBuilder
             "场景视频",
             "VR看房、生活场景体验",
             ElderCareIconType.Video,
-            new Vector2(285f, -190f),
-            new Vector2(460f, 220f),
-            new Color(0.91f, 0.42f, 0.12f, 0.72f),
+            new Vector2(152f, -118f),
+            new Vector2(292f, 142f),
+            ElderCareUiTheme.Orange,
             false,
             null,
             0.26f);
 
-        var footer = CreateText(panel.transform, "FooterHint", "使用手柄或手势选择功能", 28, FontStyles.Normal, TextAlignmentOptions.Center, new Vector2(0f, -365f), new Vector2(900f, 50f));
-        footer.color = new Color(1f, 1f, 1f, 0.62f);
+        var footer = CreateText(panel.transform, "FooterHint", "对准卡片并按下扳机键进入功能", ElderCareUiTheme.BodySmall, FontStyles.Normal, TextAlignmentOptions.Center, new Vector2(0f, -218f), new Vector2(606f, 58f));
+        footer.color = ElderCareUiTheme.TextSecondary;
 
         return canvasGo;
     }
@@ -397,20 +411,36 @@ public static class RehabSceneBuilder
         var rect = go.GetComponent<RectTransform>();
         rect.anchoredPosition = anchoredPosition;
         rect.sizeDelta = size;
+        var compact = size.y <= 150f;
+        var iconY = compact ? 36f : 52f;
+        var iconHaloSize = compact ? 62f : 88f;
+        var iconFont = compact ? 42f : 58f;
+        var titleFont = compact ? 30f : 42f;
+        var titleY = compact ? -20f : -30f;
+        var descriptionFont = compact ? 18f : 23f;
+        var descriptionY = compact ? -54f : -80f;
+        var descriptionHeight = compact ? 34f : 50f;
 
         var glow = CreateUiObject("Glow", go.transform);
         var glowRect = glow.GetComponent<RectTransform>();
         glowRect.anchoredPosition = Vector2.zero;
-        glowRect.sizeDelta = size + new Vector2(34f, 34f);
-        var glowImage = glow.AddComponent<Image>();
-        glowImage.color = new Color(baseColor.r, baseColor.g, baseColor.b, enabled ? 0.08f : 0.03f);
+        glowRect.sizeDelta = size + (compact ? new Vector2(28f, 28f) : new Vector2(50f, 50f));
+        var glowImage = glow.AddComponent<ElderCareRoundedPanel>();
+        glowImage.cornerRadius = compact ? 28f : 40f;
+        glowImage.cornerSegments = 10;
+        glowImage.color = WithAlpha(baseColor, enabled ? 0.11f : 0.035f);
         glowImage.raycastTarget = false;
+        glowImage.transform.SetAsFirstSibling();
 
-        var panel = go.AddComponent<Image>();
-        panel.color = enabled ? new Color(baseColor.r * 0.72f, baseColor.g * 0.82f, baseColor.b, 0.94f) : new Color(baseColor.r * 0.55f, baseColor.g * 0.55f, baseColor.b * 0.62f, 0.52f);
+        var panel = go.AddComponent<ElderCareRoundedPanel>();
+        panel.cornerRadius = compact ? 24f : 34f;
+        panel.cornerSegments = 10;
+        panel.color = enabled
+            ? WithAlpha(Color.Lerp(ElderCareUiTheme.PanelStrong, baseColor, 0.42f), 1f)
+            : WithAlpha(Color.Lerp(ElderCareUiTheme.PanelStrong, baseColor, 0.18f), 0.78f);
         var outline = go.AddComponent<Outline>();
-        outline.effectColor = new Color(0.62f, 0.95f, 1f, enabled ? 0.32f : 0.14f);
-        outline.effectDistance = new Vector2(2f, -2f);
+        outline.effectColor = enabled ? WithAlpha(baseColor, 0.66f) : WithAlpha(ElderCareUiTheme.PanelStroke, 0.3f);
+        outline.effectDistance = new Vector2(2.5f, -2.5f);
 
         var button = go.AddComponent<Button>();
         button.targetGraphic = panel;
@@ -422,25 +452,29 @@ public static class RehabSceneBuilder
             UnityEventTools.AddPersistentListener(button.onClick, onClick);
         }
 
-        var edge = CreateEntryDivider(go.transform, "TopHighlight", new Vector2(0f, size.y * 0.5f - 4f), new Vector2(size.x - 24f, 8f), new Color(0.62f, 0.96f, 1f, enabled ? 0.42f : 0.14f));
-        CreateEntryDivider(go.transform, "BottomTrace", new Vector2(0f, -size.y * 0.5f + 18f), new Vector2(size.x - 92f, 3f), new Color(1f, 1f, 1f, enabled ? 0.2f : 0.08f));
+        var edge = CreateEntryDivider(go.transform, "TopHighlight", new Vector2(0f, size.y * 0.5f - 7f), new Vector2(size.x - 42f, 4f), WithAlpha(ElderCareUiTheme.Cyan, enabled ? 0.28f : 0.12f), 3f);
+        CreateEntryDivider(go.transform, "BottomTrace", new Vector2(0f, -size.y * 0.5f + 12f), new Vector2(size.x - 86f, 3f), WithAlpha(baseColor, enabled ? 0.3f : 0.12f), 2f);
+        CreateEntryDivider(go.transform, "SideAccent", new Vector2(-size.x * 0.5f + 10f, 0f), new Vector2(4f, size.y - 48f), WithAlpha(baseColor, enabled ? 0.36f : 0.14f), 4f);
 
-        var icon = CreateText(go.transform, "Icon", GetEntryIconText(iconType), 62, FontStyles.Bold, TextAlignmentOptions.Center, new Vector2(0f, 52f), new Vector2(130f, 82f));
-        icon.color = new Color(0.88f, 0.98f, 1f, enabled ? 0.98f : 0.46f);
+        SendToBack(CreateEntryDivider(go.transform, "IconHalo", new Vector2(0f, iconY), new Vector2(iconHaloSize, iconHaloSize), WithAlpha(baseColor, enabled ? 0.14f : 0.06f), iconHaloSize * 0.5f));
+        var icon = CreateText(go.transform, "Icon", GetEntryIconText(iconType), iconFont, FontStyles.Bold, TextAlignmentOptions.Center, new Vector2(0f, iconY + 1f), new Vector2(iconHaloSize + 20f, iconHaloSize));
+        icon.color = enabled ? ElderCareUiTheme.TextPrimary : WithAlpha(ElderCareUiTheme.TextPrimary, 0.64f);
         icon.raycastTarget = false;
 
-        var cardTitle = CreateText(go.transform, "Title", title, 42, FontStyles.Bold, TextAlignmentOptions.Center, new Vector2(0f, -28f), new Vector2(size.x - 36f, 58f));
-        cardTitle.color = new Color(1f, 1f, 1f, enabled ? 0.98f : 0.62f);
+        var cardTitle = CreateText(go.transform, "Title", title, titleFont, FontStyles.Bold, TextAlignmentOptions.Center, new Vector2(0f, titleY), new Vector2(size.x - 30f, compact ? 40f : 58f));
+        cardTitle.color = enabled ? ElderCareUiTheme.TextPrimary : WithAlpha(ElderCareUiTheme.TextPrimary, 0.72f);
         cardTitle.raycastTarget = false;
 
-        var cardDescription = CreateText(go.transform, "Description", description, 23, FontStyles.Normal, TextAlignmentOptions.Center, new Vector2(0f, -78f), new Vector2(size.x - 44f, 46f));
-        cardDescription.color = new Color(1f, 1f, 1f, enabled ? 0.88f : 0.5f);
+        var cardDescription = CreateText(go.transform, "Description", description, descriptionFont, FontStyles.Normal, TextAlignmentOptions.Center, new Vector2(0f, descriptionY), new Vector2(size.x - 36f, descriptionHeight));
+        cardDescription.color = enabled ? ElderCareUiTheme.TextSecondary : WithAlpha(ElderCareUiTheme.TextPrimary, 0.64f);
+        cardDescription.lineSpacing = 6f;
         cardDescription.raycastTarget = false;
 
         if (!enabled)
         {
-            var badge = CreateText(go.transform, "StatusBadge", "待接入", 20, FontStyles.Bold, TextAlignmentOptions.Center, new Vector2(size.x * 0.5f - 58f, size.y * 0.5f - 28f), new Vector2(86f, 34f));
-            badge.color = new Color(1f, 1f, 1f, 0.58f);
+            CreateEntryDivider(go.transform, "StatusBadgePanel", new Vector2(size.x * 0.5f - 54f, size.y * 0.5f - 24f), new Vector2(84f, 32f), WithAlpha(ElderCareUiTheme.PanelStrong, 0.92f), 16f);
+            var badge = CreateText(go.transform, "StatusBadge", "待接入", ElderCareUiTheme.Debug, FontStyles.Bold, TextAlignmentOptions.Center, new Vector2(size.x * 0.5f - 54f, size.y * 0.5f - 24f), new Vector2(84f, 32f));
+            badge.color = WithAlpha(ElderCareUiTheme.TextPrimary, 0.78f);
             badge.raycastTarget = false;
         }
 
@@ -453,12 +487,12 @@ public static class RehabSceneBuilder
         motion.interactable = enabled;
         motion.entranceDelay = entranceDelay;
         motion.normalColor = panel.color;
-        motion.hoverColor = enabled ? Color.Lerp(panel.color, new Color(0.42f, 0.88f, 1f, 0.96f), 0.22f) : panel.color;
+        motion.hoverColor = enabled ? WithAlpha(Color.Lerp(panel.color, baseColor, 0.32f), 0.98f) : panel.color;
         motion.pressedColor = Color.Lerp(panel.color, Color.black, 0.18f);
-        motion.glowColor = new Color(baseColor.r, baseColor.g, baseColor.b, enabled ? 0.26f : 0.06f);
-        motion.edgeColor = new Color(0.7f, 0.98f, 1f, enabled ? 0.54f : 0.16f);
-        motion.hoverScale = enabled ? 1.035f : 1f;
-        motion.pressedScale = enabled ? 0.97f : 1f;
+        motion.glowColor = WithAlpha(baseColor, enabled ? 0.22f : 0.06f);
+        motion.edgeColor = WithAlpha(ElderCareUiTheme.Cyan, enabled ? 0.36f : 0.14f);
+        motion.hoverScale = enabled ? ElderCareUiTheme.HoverScale : 1f;
+        motion.pressedScale = enabled ? ElderCareUiTheme.PressedScale : 1f;
 
         return button;
     }
@@ -480,16 +514,24 @@ public static class RehabSceneBuilder
         }
     }
 
-    private static Image CreateEntryDivider(Transform parent, string name, Vector2 anchoredPosition, Vector2 size, Color color, float cornerRadius = 2f)
+    private static Color WithAlpha(Color color, float alpha)
+    {
+        color.a = alpha;
+        return color;
+    }
+
+    private static Graphic CreateEntryDivider(Transform parent, string name, Vector2 anchoredPosition, Vector2 size, Color color, float cornerRadius = 2f)
     {
         var go = CreateUiObject(name, parent);
         var rect = go.GetComponent<RectTransform>();
         rect.anchoredPosition = anchoredPosition;
         rect.sizeDelta = size;
-        var image = go.AddComponent<Image>();
-        image.color = color;
-        image.raycastTarget = false;
-        return image;
+        var panel = go.AddComponent<ElderCareRoundedPanel>();
+        panel.cornerRadius = Mathf.Min(cornerRadius, Mathf.Min(size.x, size.y) * 0.5f);
+        panel.cornerSegments = 8;
+        panel.color = color;
+        panel.raycastTarget = false;
+        return panel;
     }
 
     private static void CreateEntryStar(Transform parent, string name, Vector2 anchoredPosition, float size, float alpha)
@@ -498,8 +540,10 @@ public static class RehabSceneBuilder
         var rect = go.GetComponent<RectTransform>();
         rect.anchoredPosition = anchoredPosition;
         rect.sizeDelta = new Vector2(size, size);
-        var image = go.AddComponent<Image>();
-        image.color = new Color(1f, 1f, 1f, alpha);
+        var image = go.AddComponent<ElderCareRoundedPanel>();
+        image.cornerRadius = size * 0.5f;
+        image.cornerSegments = 8;
+        image.color = WithAlpha(ElderCareUiTheme.Cyan, alpha);
         image.raycastTarget = false;
     }
 
@@ -537,7 +581,7 @@ public static class RehabSceneBuilder
         Camera mainCamera,
         ModuleHomeMenu homeMenu)
     {
-        var canvasGo = CreateWorldCanvas("RehabPromptCanvas", null, new Vector3(0f, 1.65f, 2.35f), new Vector2(900f, 460f));
+        var canvasGo = CreateWorldCanvas("RehabPromptCanvas", null, new Vector3(0f, 1.65f, 2.35f), ElderCareUiTheme.RehabCanvasSize);
         canvasGo.transform.SetParent(parent, false);
         canvasGo.transform.localPosition = Vector3.zero;
         canvasGo.transform.localRotation = Quaternion.identity;
@@ -553,25 +597,32 @@ public static class RehabSceneBuilder
             trainingResultPanel = CreatePanel(canvasGo.transform, "TrainingResultPanel")
         };
 
-        CreateText(ui.mainMenuPanel.transform, "Title", "康复运动", 44, FontStyles.Bold, TextAlignmentOptions.Center, new Vector2(0f, 100f), new Vector2(800f, 80f));
-        ui.rehabButton = CreateButton(ui.mainMenuPanel.transform, "RehabButton", "康复运动", new Vector2(0f, -40f), new Vector2(360f, 88f));
+        CreateText(ui.mainMenuPanel.transform, "Title", "康复运动", ElderCareUiTheme.Title, FontStyles.Bold, TextAlignmentOptions.Center, new Vector2(0f, 104f), new Vector2(800f, 80f));
+        ui.rehabButton = CreateButton(ui.mainMenuPanel.transform, "RehabButton", "康复运动", new Vector2(0f, -36f), new Vector2(400f, 88f));
 
-        CreateText(ui.rehabTrainingSelectPanel.transform, "Title", "请选择康复训练类型", 42, FontStyles.Bold, TextAlignmentOptions.Center, new Vector2(0f, 145f), new Vector2(820f, 78f));
-        ui.baduanjinButton = CreateButton(ui.rehabTrainingSelectPanel.transform, "BaduanjinButton", "八段锦训练", new Vector2(0f, 50f), new Vector2(360f, 76f));
-        ui.taiChiButton = CreateButton(ui.rehabTrainingSelectPanel.transform, "TaiChiButton", "太极训练", new Vector2(0f, -45f), new Vector2(360f, 76f));
-        ui.backButton = CreateButton(ui.rehabTrainingSelectPanel.transform, "BackButton", "返回", new Vector2(0f, -140f), new Vector2(260f, 68f));
+        var selectTitle = CreateText(ui.rehabTrainingSelectPanel.transform, "Title", "请选择康复训练类型", ElderCareUiTheme.Title, FontStyles.Bold, TextAlignmentOptions.Center, new Vector2(0f, 154f), new Vector2(820f, 74f));
+        selectTitle.color = ElderCareUiTheme.TextPrimary;
+        CreateEntryDivider(ui.rehabTrainingSelectPanel.transform, "TitleTrace", new Vector2(0f, 112f), new Vector2(420f, 4f), WithAlpha(ElderCareUiTheme.Cyan, 0.38f), 3f);
+        ui.baduanjinButton = CreateButton(ui.rehabTrainingSelectPanel.transform, "BaduanjinButton", "八段锦训练", new Vector2(-152f, 30f), new Vector2(292f, 142f));
+        ui.taiChiButton = CreateButton(ui.rehabTrainingSelectPanel.transform, "TaiChiButton", "太极训练", new Vector2(152f, 30f), new Vector2(292f, 142f));
+        ui.backButton = CreateButton(ui.rehabTrainingSelectPanel.transform, "BackButton", "返回", new Vector2(0f, -146f), new Vector2(606f, 58f));
 
-        ui.title = CreateText(ui.rehabTrainingPanel.transform, "MovementTitle", "八段锦：双手托天理三焦", 36, FontStyles.Bold, TextAlignmentOptions.Center, new Vector2(0f, 150f), new Vector2(800f, 64f));
-        ui.status = CreateText(ui.rehabTrainingPanel.transform, "StatusText", "请准备：双手托天理三焦", 30, FontStyles.Normal, TextAlignmentOptions.Center, new Vector2(0f, 78f), new Vector2(800f, 62f));
-        ui.timer = CreateText(ui.rehabTrainingPanel.transform, "TimerText", "剩余 05:00", 28, FontStyles.Bold, TextAlignmentOptions.Center, new Vector2(-205f, 10f), new Vector2(360f, 50f));
-        ui.completion = CreateText(ui.rehabTrainingPanel.transform, "CompletionText", "完成度 0%", 28, FontStyles.Bold, TextAlignmentOptions.Center, new Vector2(205f, 10f), new Vector2(360f, 50f));
-        ui.safety = CreateText(ui.rehabTrainingPanel.transform, "SafetyPromptText", "保持舒适幅度，准备开始", 24, FontStyles.Normal, TextAlignmentOptions.Center, new Vector2(0f, -56f), new Vector2(800f, 52f));
-        ui.debug = CreateText(ui.rehabTrainingPanel.transform, "DebugText", "动作 1/8 | 步骤 1/1 | 保持 0.0s | 距中心 0.00m", 20, FontStyles.Normal, TextAlignmentOptions.Center, new Vector2(0f, -126f), new Vector2(820f, 50f));
-        ui.trainingBackButton = CreateButton(ui.rehabTrainingPanel.transform, "HomeButton", "返回", new Vector2(330f, -198f), new Vector2(180f, 54f));
+        ui.title = CreateText(ui.rehabTrainingPanel.transform, "MovementTitle", "八段锦：双手托天理三焦", ElderCareUiTheme.Title, FontStyles.Bold, TextAlignmentOptions.Center, new Vector2(0f, 158f), new Vector2(620f, 58f));
+        ui.status = CreateText(ui.rehabTrainingPanel.transform, "StatusText", "请准备：双手托天理三焦", ElderCareUiTheme.Body, FontStyles.Normal, TextAlignmentOptions.Center, new Vector2(0f, 104f), new Vector2(620f, 42f));
+        ui.status.color = ElderCareUiTheme.TextSecondary;
+        ui.timer = CreateRehabDataBlock(ui.rehabTrainingPanel.transform, "TimerBlock", "倒计时", "剩余 05:00", new Vector2(-152f, -4f), new Vector2(292f, 142f), ElderCareUiTheme.Cyan);
+        ui.completion = CreateRehabDataBlock(ui.rehabTrainingPanel.transform, "CompletionBlock", "完成度", "完成度 0%", new Vector2(152f, -4f), new Vector2(292f, 142f), ElderCareUiTheme.Green);
+        SendToBack(CreateEntryDivider(ui.rehabTrainingPanel.transform, "SafetyPanel", new Vector2(0f, -116f), new Vector2(606f, 58f), WithAlpha(ElderCareUiTheme.Gold, 0.22f), 20f));
+        ui.safety = CreateText(ui.rehabTrainingPanel.transform, "SafetyPromptText", "保持舒适幅度，准备开始", ElderCareUiTheme.BodySmall, FontStyles.Bold, TextAlignmentOptions.Center, new Vector2(0f, -116f), new Vector2(586f, 52f));
+        ui.safety.color = WithAlpha(ElderCareUiTheme.Gold, 0.96f);
+        ui.debug = CreateText(ui.rehabTrainingPanel.transform, "DebugText", "动作 1/8 | 步骤 1/1 | 保持 0.0s | 距中心 0.00m", ElderCareUiTheme.Debug, FontStyles.Normal, TextAlignmentOptions.Center, new Vector2(-92f, -174f), new Vector2(500f, 36f));
+        ui.debug.color = WithAlpha(ElderCareUiTheme.TextMuted, 0.42f);
+        ui.trainingBackButton = CreateButton(ui.rehabTrainingPanel.transform, "HomeButton", "返回", new Vector2(232f, -174f), new Vector2(186f, 82f));
 
-        CreateText(ui.trainingResultPanel.transform, "Title", "训练结果", 42, FontStyles.Bold, TextAlignmentOptions.Center, new Vector2(0f, 95f), new Vector2(800f, 76f));
-        CreateText(ui.trainingResultPanel.transform, "Summary", "训练结束后结果会自动保存到本机", 28, FontStyles.Normal, TextAlignmentOptions.Center, new Vector2(0f, 0f), new Vector2(760f, 90f));
-        var resultBackButton = CreateButton(ui.trainingResultPanel.transform, "BackButton", "返回主页", new Vector2(0f, -125f), new Vector2(240f, 66f));
+        CreateText(ui.trainingResultPanel.transform, "Title", "训练结果", ElderCareUiTheme.Title, FontStyles.Bold, TextAlignmentOptions.Center, new Vector2(0f, 128f), new Vector2(800f, 76f));
+        var summary = CreateText(ui.trainingResultPanel.transform, "Summary", "训练结束后结果会自动保存到本机", ElderCareUiTheme.Body, FontStyles.Normal, TextAlignmentOptions.Center, new Vector2(0f, 30f), new Vector2(560f, 100f));
+        summary.color = ElderCareUiTheme.TextSecondary;
+        var resultBackButton = CreateButton(ui.trainingResultPanel.transform, "BackButton", "返回主页", new Vector2(0f, -112f), new Vector2(292f, 82f));
         UnityEventTools.AddPersistentListener(resultBackButton.onClick, homeMenu.LoadMainEntry);
 
         ui.mainMenuPanel.SetActive(false);
@@ -579,6 +630,32 @@ public static class RehabSceneBuilder
         ui.rehabTrainingPanel.SetActive(false);
         ui.trainingResultPanel.SetActive(false);
         return ui;
+    }
+
+    private static TMP_Text CreateRehabDataBlock(Transform parent, string name, string label, string value, Vector2 anchoredPosition, Vector2 size, Color accentColor)
+    {
+        var block = CreateUiObject(name, parent);
+        var rect = block.GetComponent<RectTransform>();
+        rect.anchoredPosition = anchoredPosition;
+        rect.sizeDelta = size;
+
+        var background = block.AddComponent<ElderCareRoundedPanel>();
+        background.cornerRadius = 22f;
+        background.cornerSegments = 10;
+        background.color = WithAlpha(Color.Lerp(ElderCareUiTheme.PanelStrong, accentColor, 0.28f), 1f);
+        background.raycastTarget = false;
+        background.transform.SetAsFirstSibling();
+
+        var outline = block.AddComponent<Outline>();
+        outline.effectColor = WithAlpha(accentColor, 0.36f);
+        outline.effectDistance = new Vector2(2f, -2f);
+
+        CreateEntryDivider(block.transform, "TopTrace", new Vector2(0f, size.y * 0.5f - 7f), new Vector2(size.x - 58f, 3f), WithAlpha(accentColor, 0.28f), 2f);
+        var labelText = CreateText(block.transform, "Label", label, ElderCareUiTheme.BodySmall, FontStyles.Normal, TextAlignmentOptions.Center, new Vector2(0f, 24f), new Vector2(size.x - 34f, 32f));
+        labelText.color = ElderCareUiTheme.TextSecondary;
+        var valueText = CreateText(block.transform, "Value", value, ElderCareUiTheme.HudSecondary + 8f, FontStyles.Bold, TextAlignmentOptions.Center, new Vector2(0f, -18f), new Vector2(size.x - 34f, 52f));
+        valueText.color = ElderCareUiTheme.TextPrimary;
+        return valueText;
     }
 
     private static GameObject CreatePanel(Transform parent, string name)
@@ -589,9 +666,27 @@ public static class RehabSceneBuilder
         panelRect.anchorMax = Vector2.one;
         panelRect.offsetMin = Vector2.zero;
         panelRect.offsetMax = Vector2.zero;
-        var panelImage = panel.AddComponent<Image>();
-        panelImage.color = new Color(0.03f, 0.05f, 0.06f, 0.72f);
+        var panelImage = panel.AddComponent<ElderCareRoundedPanel>();
+        panelImage.cornerRadius = 32f;
+        panelImage.cornerSegments = 12;
+        panelImage.color = WithAlpha(Color.Lerp(ElderCareUiTheme.PanelStrong, ElderCareUiTheme.Green, 0.22f), 1f);
+        panelImage.raycastTarget = false;
+        var outline = panel.AddComponent<Outline>();
+        outline.effectColor = WithAlpha(ElderCareUiTheme.Cyan, 0.42f);
+        outline.effectDistance = new Vector2(2.5f, -2.5f);
+        SendToBack(CreateEntryDivider(panel.transform, "PanelTopTrace", new Vector2(0f, 204f), new Vector2(700f, 3f), WithAlpha(ElderCareUiTheme.Cyan, 0.14f), 2f));
+        SendToBack(CreateEntryDivider(panel.transform, "PanelBottomTrace", new Vector2(0f, -206f), new Vector2(560f, 2f), WithAlpha(ElderCareUiTheme.Green, 0.12f), 2f));
         return panel;
+    }
+
+    private static Graphic SendToBack(Graphic graphic)
+    {
+        if (graphic != null)
+        {
+            graphic.transform.SetAsFirstSibling();
+        }
+
+        return graphic;
     }
 
     private static GameObject CreateXrOrigin()
@@ -740,18 +835,6 @@ public static class RehabSceneBuilder
             DestroySceneObjectIfFound(pingPongScene, "PingPongHomeMenu");
             DestroySceneObjectIfFound(pingPongScene, "PingPongHomeUIRoot");
 
-            var mainCamera = FindMainCameraInScene(pingPongScene);
-            var menuGo = new GameObject("PingPongHomeMenu");
-            var homeMenu = menuGo.AddComponent<ModuleHomeMenu>();
-
-            var uiRoot = CreateUiRoot("PingPongHomeUIRoot", null);
-            var canvasGo = BuildModuleHomeCanvas("PingPongHomeCanvas", homeMenu, null, new Vector3(-0.85f, 1.3f, 0.85f));
-            AttachUiToRoot(canvasGo.transform, uiRoot.transform);
-            ConfigureComfortUiPlacer(uiRoot, mainCamera != null ? mainCamera.transform : null, uiRoot.transform, 2f);
-
-            EditorUtility.SetDirty(menuGo);
-            EditorUtility.SetDirty(uiRoot);
-            EditorUtility.SetDirty(canvasGo);
             EditorSceneManager.SaveScene(pingPongScene);
         }
         finally
@@ -775,7 +858,9 @@ public static class RehabSceneBuilder
         panelRect.offsetMin = Vector2.zero;
         panelRect.offsetMax = Vector2.zero;
 
-        var panelImage = panel.AddComponent<Image>();
+        var panelImage = panel.AddComponent<ElderCareRoundedPanel>();
+        panelImage.cornerRadius = 22f;
+        panelImage.cornerSegments = 10;
         panelImage.color = new Color(0.03f, 0.05f, 0.06f, 0.78f);
 
         var homeButton = CreateButton(panel.transform, "HomeButton", "返回主页", Vector2.zero, new Vector2(240f, 72f));
@@ -846,8 +931,9 @@ public static class RehabSceneBuilder
         label.fontSize = fontSize;
         label.fontStyle = fontStyle;
         label.alignment = alignment;
-        label.color = Color.white;
+        label.color = ElderCareUiTheme.TextPrimary;
         label.enableWordWrapping = true;
+        label.raycastTarget = false;
         return label;
     }
 
@@ -856,12 +942,27 @@ public static class RehabSceneBuilder
         var go = CreateUiObject(name, parent);
         var rect = go.GetComponent<RectTransform>();
         rect.anchoredPosition = anchoredPosition;
-        rect.sizeDelta = size;
-        var image = go.AddComponent<Image>();
-        image.color = new Color(0.08f, 0.44f, 0.72f, 0.95f);
+        rect.sizeDelta = new Vector2(size.x, Mathf.Max(size.y, ElderCareUiTheme.MinButtonHeightForElderly));
+        var image = go.AddComponent<ElderCareRoundedPanel>();
+        image.cornerRadius = 22f;
+        image.cornerSegments = 10;
+        image.color = WithAlpha(Color.Lerp(ElderCareUiTheme.PanelStrong, ElderCareUiTheme.Cyan, 0.36f), 1f);
+        var outline = go.AddComponent<Outline>();
+        outline.effectColor = WithAlpha(ElderCareUiTheme.Cyan, 0.48f);
+        outline.effectDistance = new Vector2(2f, -2f);
         var button = go.AddComponent<Button>();
+        button.targetGraphic = image;
+        var colors = button.colors;
+        colors.normalColor = Color.white;
+        colors.highlightedColor = WithAlpha(Color.Lerp(Color.white, ElderCareUiTheme.Cyan, 0.18f), 1f);
+        colors.pressedColor = WithAlpha(Color.Lerp(Color.white, ElderCareUiTheme.Green, 0.22f), 1f);
+        colors.selectedColor = colors.highlightedColor;
+        colors.disabledColor = WithAlpha(Color.white, ElderCareUiTheme.DisabledAlpha);
+        button.colors = colors;
 
-        var label = CreateText(go.transform, "Label", text, 30, FontStyles.Bold, TextAlignmentOptions.Center, Vector2.zero, size);
+        var label = CreateText(go.transform, "Label", text, ElderCareUiTheme.Button, FontStyles.Bold, TextAlignmentOptions.Center, Vector2.zero, rect.sizeDelta);
+        label.color = ElderCareUiTheme.TextPrimary;
+        label.enableWordWrapping = false;
         label.raycastTarget = false;
         return button;
     }

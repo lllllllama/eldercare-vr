@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using PicoElderCare.UI;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -17,8 +18,9 @@ public class PingPongDifficultyController : MonoBehaviour
 {
     private const string DefaultPrefsKey = "PicoElderCare.PingPong.Difficulty";
     private const string RuntimePanelName = "DifficultyPanel";
-    private static readonly Vector2 ReadablePanelSize = new Vector2(560f, 280f);
-    private static readonly Vector2 ReadablePanelPosition = new Vector2(630f, 148f);
+    private const string ControllerHint = "A 加速 / B 减速 · 下次发球生效";
+    private static readonly Vector2 ReadablePanelSize = new Vector2(560f, 260f);
+    private static readonly Vector2 ReadablePanelPosition = new Vector2(520f, 174f);
 
     public BallSpawner ballSpawner;
     public TMP_Text difficultyText;
@@ -71,23 +73,20 @@ public class PingPongDifficultyController : MonoBehaviour
         }
 
         var rootRect = ConfigureRect(root, ReadablePanelSize, ReadablePanelPosition);
-        var background = ConfigureImage(GetOrCreateChild(root.transform, "Background"), ReadablePanelSize, Vector2.zero, new Color(0.015f, 0.04f, 0.07f, 0.94f));
-        var glow = ConfigureImage(GetOrCreateChild(root.transform, "Glow"), new Vector2(590f, 310f), Vector2.zero, new Color(0.2f, 0.82f, 1f, 0.1f));
+        var background = ConfigurePanel(GetOrCreateChild(root.transform, "Background"), ReadablePanelSize, Vector2.zero, WithAlpha(Color.Lerp(ElderCareUiTheme.PanelStrong, ElderCareUiTheme.Blue, 0.22f), 1f), 26f, false);
+        var glow = ConfigurePanel(GetOrCreateChild(root.transform, "Glow"), new Vector2(584f, 286f), Vector2.zero, WithAlpha(ElderCareUiTheme.Cyan, 0.05f), 30f, false);
         if (glow != null) glow.transform.SetAsFirstSibling();
-        ConfigureImage(GetOrCreateChild(root.transform, "TopScanLine"), new Vector2(486f, 4f), new Vector2(0f, 112f), new Color(0.42f, 0.92f, 1f, 0.72f));
+        ConfigurePanel(GetOrCreateChild(root.transform, "TopTrace"), new Vector2(420f, 3f), new Vector2(0f, 104f), WithAlpha(ElderCareUiTheme.Cyan, 0.22f), 2f, false);
+        ConfigurePanel(GetOrCreateChild(root.transform, "BottomTrace"), new Vector2(320f, 2f), new Vector2(0f, -106f), WithAlpha(ElderCareUiTheme.Blue, 0.16f), 2f, false);
 
-        var title = ConfigureText(GetOrCreateChild(root.transform, "Title"), "发球速度", fontAsset, new Vector2(480f, 54f), new Vector2(0f, 116f), 34f, FontStyles.Bold, new Color(1f, 1f, 1f, 0.98f));
-        var difficulty = ConfigureText(GetOrCreateChild(root.transform, "DifficultyText"), "难度：标准", fontAsset, new Vector2(480f, 48f), new Vector2(0f, 66f), 28f, FontStyles.Bold, new Color(0.62f, 0.96f, 1f, 0.98f));
-        var speed = ConfigureText(GetOrCreateChild(root.transform, "SpeedText"), "速度 3.0 m/s", fontAsset, new Vector2(480f, 46f), new Vector2(0f, 20f), 26f, FontStyles.Bold, new Color(1f, 1f, 1f, 0.94f));
-        var hint = ConfigureText(GetOrCreateChild(root.transform, "HintText"), "使用 +/- 调节下一次发球速度", fontAsset, new Vector2(500f, 44f), new Vector2(0f, -126f), 22f, FontStyles.Normal, new Color(1f, 1f, 1f, 0.78f));
+        var title = ConfigureText(GetOrCreateChild(root.transform, "Title"), "发球速度", fontAsset, new Vector2(480f, 44f), new Vector2(0f, 72f), ElderCareUiTheme.Subtitle, FontStyles.Bold, ElderCareUiTheme.TextPrimary);
+        var difficulty = ConfigureText(GetOrCreateChild(root.transform, "DifficultyText"), "当前难度：标准", fontAsset, new Vector2(480f, 42f), new Vector2(0f, 24f), ElderCareUiTheme.Body, FontStyles.Bold, ElderCareUiTheme.Cyan);
+        var speed = ConfigureText(GetOrCreateChild(root.transform, "SpeedText"), "发球速度 3.0 m/s", fontAsset, new Vector2(480f, 44f), new Vector2(0f, -20f), ElderCareUiTheme.Body, FontStyles.Bold, ElderCareUiTheme.TextPrimary);
+        var hint = ConfigureText(GetOrCreateChild(root.transform, "HintText"), ControllerHint, fontAsset, new Vector2(500f, 40f), new Vector2(0f, -82f), ElderCareUiTheme.BodySmall, FontStyles.Normal, ElderCareUiTheme.TextSecondary);
 
         var decrease = ConfigureButton(GetOrCreateChild(root.transform, "DecreaseButton"), "-", fontAsset, new Vector2(104f, 68f), new Vector2(-166f, -66f));
         var reset = ConfigureButton(GetOrCreateChild(root.transform, "ResetButton"), "标准", fontAsset, new Vector2(150f, 68f), new Vector2(0f, -66f));
         var increase = ConfigureButton(GetOrCreateChild(root.transform, "IncreaseButton"), "+", fontAsset, new Vector2(104f, 68f), new Vector2(166f, -66f));
-        ConfigureText(title.gameObject, "发球速度", fontAsset, new Vector2(480f, 54f), new Vector2(0f, 86f), 34f, FontStyles.Bold, new Color(1f, 1f, 1f, 0.98f));
-        ConfigureText(difficulty.gameObject, "难度：标准", fontAsset, new Vector2(480f, 48f), new Vector2(0f, 36f), 28f, FontStyles.Bold, new Color(0.62f, 0.96f, 1f, 0.98f));
-        ConfigureText(speed.gameObject, "速度 3.0 m/s", fontAsset, new Vector2(480f, 46f), new Vector2(0f, -8f), 26f, FontStyles.Bold, new Color(1f, 1f, 1f, 0.94f));
-        ConfigureText(hint.gameObject, "A 加速 / B 减速", fontAsset, new Vector2(500f, 44f), new Vector2(0f, -86f), 22f, FontStyles.Normal, new Color(1f, 1f, 1f, 0.78f));
         SetButtonVisible(decrease, false, new Vector2(104f, 68f), new Vector2(-166f, -66f));
         SetButtonVisible(reset, false, new Vector2(150f, 68f), new Vector2(0f, -66f));
         SetButtonVisible(increase, false, new Vector2(104f, 68f), new Vector2(166f, -66f));
@@ -123,19 +122,20 @@ public class PingPongDifficultyController : MonoBehaviour
         motion.canvasGroup = EnsureCanvasGroup(root);
         motion.cardGraphic = background;
         motion.glowGraphic = glow;
-        motion.normalColor = new Color(0.025f, 0.055f, 0.095f, 0.88f);
-        motion.hoverColor = new Color(0.035f, 0.085f, 0.14f, 0.94f);
-        motion.pressedColor = new Color(0.02f, 0.045f, 0.08f, 0.94f);
-        motion.glowColor = new Color(0.25f, 0.9f, 1f, 0.18f);
-        motion.hoverScale = 1.015f;
+        motion.normalColor = WithAlpha(Color.Lerp(ElderCareUiTheme.PanelStrong, ElderCareUiTheme.Blue, 0.22f), 1f);
+        motion.hoverColor = WithAlpha(Color.Lerp(ElderCareUiTheme.PanelStrong, ElderCareUiTheme.Cyan, 0.22f), 1f);
+        motion.pressedColor = WithAlpha(ElderCareUiTheme.PanelStrong, 0.94f);
+        motion.glowColor = WithAlpha(ElderCareUiTheme.Cyan, 0.1f);
+        motion.hoverScale = 1.012f;
         motion.pressedScale = 0.99f;
-        motion.entranceDelay = 0.22f;
+        motion.entranceDelay = 0.18f;
 
         if (title != null)
         {
             title.raycastTarget = false;
         }
 
+        EnsurePanelRayDrag(background, canvasTransform);
         return controller;
     }
 
@@ -213,19 +213,20 @@ public class PingPongDifficultyController : MonoBehaviour
         if (rootRect == null) return;
 
         ConfigureRect(gameObject, ReadablePanelSize, ReadablePanelPosition);
-        var background = ConfigureImage(GetOrCreateChild(transform, "Background"), ReadablePanelSize, Vector2.zero, new Color(0.015f, 0.04f, 0.07f, 0.94f));
-        var glow = ConfigureImage(GetOrCreateChild(transform, "Glow"), new Vector2(590f, 310f), Vector2.zero, new Color(0.2f, 0.82f, 1f, 0.1f));
+        var background = ConfigurePanel(GetOrCreateChild(transform, "Background"), ReadablePanelSize, Vector2.zero, WithAlpha(Color.Lerp(ElderCareUiTheme.PanelStrong, ElderCareUiTheme.Blue, 0.22f), 1f), 26f, false);
+        var glow = ConfigurePanel(GetOrCreateChild(transform, "Glow"), new Vector2(584f, 286f), Vector2.zero, WithAlpha(ElderCareUiTheme.Cyan, 0.05f), 30f, false);
         if (glow != null)
         {
             glow.transform.SetAsFirstSibling();
         }
 
-        ConfigureImage(GetOrCreateChild(transform, "TopScanLine"), new Vector2(486f, 4f), new Vector2(0f, 112f), new Color(0.42f, 0.92f, 1f, 0.72f));
+        ConfigurePanel(GetOrCreateChild(transform, "TopTrace"), new Vector2(420f, 3f), new Vector2(0f, 104f), WithAlpha(ElderCareUiTheme.Cyan, 0.22f), 2f, false);
+        ConfigurePanel(GetOrCreateChild(transform, "BottomTrace"), new Vector2(320f, 2f), new Vector2(0f, -106f), WithAlpha(ElderCareUiTheme.Blue, 0.16f), 2f, false);
 
-        ConfigureExistingText(FindPanelText("Title"), new Vector2(480f, 54f), new Vector2(0f, 86f), 34f, FontStyles.Bold, new Color(1f, 1f, 1f, 0.98f));
-        ConfigureExistingText(ResolveText(ref difficultyText, "DifficultyText"), new Vector2(480f, 48f), new Vector2(0f, 36f), 28f, FontStyles.Bold, new Color(0.62f, 0.96f, 1f, 0.98f));
-        ConfigureExistingText(ResolveText(ref speedText, "SpeedText"), new Vector2(480f, 46f), new Vector2(0f, -8f), 26f, FontStyles.Bold, new Color(1f, 1f, 1f, 0.94f));
-        ConfigureExistingText(ResolveText(ref hintText, "HintText"), new Vector2(500f, 44f), new Vector2(0f, -86f), 22f, FontStyles.Normal, new Color(1f, 1f, 1f, 0.78f));
+        ConfigureExistingText(FindPanelText("Title"), "发球速度", new Vector2(480f, 44f), new Vector2(0f, 72f), ElderCareUiTheme.Subtitle, FontStyles.Bold, ElderCareUiTheme.TextPrimary);
+        ConfigureExistingText(ResolveText(ref difficultyText, "DifficultyText"), null, new Vector2(480f, 42f), new Vector2(0f, 24f), ElderCareUiTheme.Body, FontStyles.Bold, ElderCareUiTheme.Cyan);
+        ConfigureExistingText(ResolveText(ref speedText, "SpeedText"), null, new Vector2(480f, 44f), new Vector2(0f, -20f), ElderCareUiTheme.Body, FontStyles.Bold, ElderCareUiTheme.TextPrimary);
+        ConfigureExistingText(ResolveText(ref hintText, "HintText"), null, new Vector2(500f, 40f), new Vector2(0f, -82f), ElderCareUiTheme.BodySmall, FontStyles.Normal, ElderCareUiTheme.TextSecondary);
 
         SetButtonVisible(ResolveButton(ref decreaseButton, "DecreaseButton"), showScreenButtons, new Vector2(104f, 68f), new Vector2(-166f, -66f));
         SetButtonVisible(ResolveButton(ref resetButton, "ResetButton"), showScreenButtons, new Vector2(150f, 68f), new Vector2(0f, -66f));
@@ -238,11 +239,15 @@ public class PingPongDifficultyController : MonoBehaviour
             motion.canvasGroup = EnsureCanvasGroup(gameObject);
             motion.cardGraphic = background;
             motion.glowGraphic = glow;
-            motion.normalColor = new Color(0.015f, 0.04f, 0.07f, 0.94f);
-            motion.hoverColor = new Color(0.03f, 0.08f, 0.13f, 0.98f);
-            motion.pressedColor = new Color(0.01f, 0.035f, 0.06f, 0.98f);
-            motion.glowColor = new Color(0.25f, 0.9f, 1f, 0.2f);
+            motion.normalColor = WithAlpha(Color.Lerp(ElderCareUiTheme.PanelStrong, ElderCareUiTheme.Blue, 0.22f), 1f);
+            motion.hoverColor = WithAlpha(Color.Lerp(ElderCareUiTheme.PanelStrong, ElderCareUiTheme.Cyan, 0.22f), 1f);
+            motion.pressedColor = WithAlpha(ElderCareUiTheme.PanelStrong, 0.94f);
+            motion.glowColor = WithAlpha(ElderCareUiTheme.Cyan, 0.1f);
+            motion.hoverScale = 1.012f;
+            motion.pressedScale = 0.99f;
         }
+
+        EnsurePanelRayDrag(background);
     }
 
     public static string GetLabel(PingPongDifficulty difficulty)
@@ -294,25 +299,20 @@ public class PingPongDifficultyController : MonoBehaviour
             PlayerPrefs.Save();
         }
 
-        RefreshText(preset, persist);
+        RefreshText(preset);
         RefreshControllerHint(preset, persist);
     }
 
-    private void RefreshText(DifficultyPreset preset, bool changed)
+    private void RefreshText(DifficultyPreset preset)
     {
         if (difficultyText != null)
         {
-            difficultyText.text = $"难度：{preset.label}";
+            difficultyText.text = $"当前难度：{preset.label}";
         }
 
         if (speedText != null)
         {
-            speedText.text = $"速度 {preset.speed:0.0} m/s";
-        }
-
-        if (hintText != null)
-        {
-            hintText.text = changed ? $"当前发球速度已切换到 {preset.label}" : "使用 +/- 调节下一次发球速度";
+            speedText.text = $"发球速度 {preset.speed:0.0} m/s";
         }
     }
 
@@ -320,7 +320,7 @@ public class PingPongDifficultyController : MonoBehaviour
     {
         if (hintText != null)
         {
-            hintText.text = changed ? $"当前发球速度：{preset.label}" : "A 加速 / B 减速";
+            hintText.text = changed ? $"已切换到 {preset.label} · 下次发球生效" : ControllerHint;
         }
     }
 
@@ -439,18 +439,42 @@ public class PingPongDifficultyController : MonoBehaviour
         return rect;
     }
 
-    private static Image ConfigureImage(GameObject go, Vector2 size, Vector2 anchoredPosition, Color color)
+    private static Graphic ConfigurePanel(GameObject go, Vector2 size, Vector2 anchoredPosition, Color color, float radius, bool raycastTarget)
     {
         ConfigureRect(go, size, anchoredPosition);
+
         var image = go.GetComponent<Image>();
-        if (image == null)
+        if (image != null)
         {
-            image = go.AddComponent<Image>();
+            DestroyComponent(image);
         }
 
-        image.color = color;
-        image.raycastTarget = false;
-        return image;
+        var roundedPanel = go.GetComponent<ElderCareRoundedPanel>();
+        if (roundedPanel == null)
+        {
+            roundedPanel = go.AddComponent<ElderCareRoundedPanel>();
+        }
+
+        roundedPanel.color = color;
+        roundedPanel.cornerRadius = radius;
+        roundedPanel.raycastTarget = raycastTarget;
+        roundedPanel.SetAllDirty();
+        return roundedPanel;
+    }
+
+    private void EnsurePanelRayDrag(Graphic background)
+    {
+        var canvas = GetComponentInParent<Canvas>(true);
+        var canvasTransform = canvas != null ? canvas.transform : transform.parent;
+        EnsurePanelRayDrag(background, canvasTransform);
+    }
+
+    private static void EnsurePanelRayDrag(Graphic background, Transform canvasTransform)
+    {
+        if (background == null || canvasTransform == null) return;
+
+        var placer = canvasTransform.GetComponent<ComfortWorldSpaceUIPlacer>();
+        WorldSpaceUiRayDragHandle.EnsureOnSurface(background, canvasTransform, placer);
     }
 
     private static TMP_Text ConfigureText(GameObject go, string value, TMP_FontAsset fontAsset, Vector2 size, Vector2 anchoredPosition, float fontSize, FontStyles style, Color color)
@@ -472,6 +496,8 @@ public class PingPongDifficultyController : MonoBehaviour
         text.fontStyle = style;
         text.alignment = TextAlignmentOptions.Center;
         text.color = color;
+        text.outlineColor = new Color(0f, 0f, 0f, 0.9f);
+        text.outlineWidth = Mathf.Max(text.outlineWidth, 0.08f);
         text.enableWordWrapping = true;
         text.raycastTarget = false;
         return text;
@@ -504,17 +530,22 @@ public class PingPongDifficultyController : MonoBehaviour
         return child != null ? child.GetComponent<TMP_Text>() : null;
     }
 
-    private static void ConfigureExistingText(TMP_Text text, Vector2 size, Vector2 anchoredPosition, float fontSize, FontStyles style, Color color)
+    private static void ConfigureExistingText(TMP_Text text, string value, Vector2 size, Vector2 anchoredPosition, float fontSize, FontStyles style, Color color)
     {
         if (text == null) return;
 
         ConfigureRect(text.gameObject, size, anchoredPosition);
+        if (!string.IsNullOrEmpty(value))
+        {
+            text.text = value;
+        }
+
         text.fontSize = fontSize;
         text.fontStyle = style;
         text.color = color;
         text.alignment = TextAlignmentOptions.Center;
-        text.outlineColor = new Color(0f, 0f, 0f, 0.92f);
-        text.outlineWidth = Mathf.Max(text.outlineWidth, 0.12f);
+        text.outlineColor = new Color(0f, 0f, 0f, 0.9f);
+        text.outlineWidth = Mathf.Max(text.outlineWidth, 0.08f);
         text.enableWordWrapping = true;
         text.raycastTarget = false;
     }
@@ -524,12 +555,8 @@ public class PingPongDifficultyController : MonoBehaviour
         if (button == null) return;
 
         ConfigureRect(button.gameObject, size, anchoredPosition);
-        var image = button.GetComponent<Image>();
-        if (image != null)
-        {
-            image.color = new Color(0.05f, 0.18f, 0.3f, 0.98f);
-            image.raycastTarget = true;
-        }
+        var graphic = ConfigurePanel(button.gameObject, size, anchoredPosition, WithAlpha(Color.Lerp(ElderCareUiTheme.PanelStrong, ElderCareUiTheme.Cyan, 0.22f), 0.9f), 20f, true);
+        button.targetGraphic = graphic;
     }
 
     private static void SetButtonVisible(Button button, bool visible, Vector2 size, Vector2 anchoredPosition)
@@ -544,13 +571,7 @@ public class PingPongDifficultyController : MonoBehaviour
     private static Button ConfigureButton(GameObject go, string label, TMP_FontAsset fontAsset, Vector2 size, Vector2 anchoredPosition)
     {
         var rect = ConfigureRect(go, size, anchoredPosition);
-        var image = go.GetComponent<Image>();
-        if (image == null)
-        {
-            image = go.AddComponent<Image>();
-        }
-
-        image.color = new Color(0.06f, 0.18f, 0.28f, 0.96f);
+        var graphic = ConfigurePanel(go, size, anchoredPosition, WithAlpha(Color.Lerp(ElderCareUiTheme.PanelStrong, ElderCareUiTheme.Cyan, 0.22f), 0.9f), 20f, true);
 
         var outline = go.GetComponent<Outline>();
         if (outline == null)
@@ -558,7 +579,7 @@ public class PingPongDifficultyController : MonoBehaviour
             outline = go.AddComponent<Outline>();
         }
 
-        outline.effectColor = new Color(0.48f, 0.92f, 1f, 0.38f);
+        outline.effectColor = WithAlpha(ElderCareUiTheme.Cyan, 0.28f);
         outline.effectDistance = new Vector2(2f, -2f);
 
         var button = go.GetComponent<Button>();
@@ -568,9 +589,9 @@ public class PingPongDifficultyController : MonoBehaviour
         }
 
         button.transition = Selectable.Transition.None;
-        button.targetGraphic = image;
+        button.targetGraphic = graphic;
 
-        ConfigureText(GetOrCreateChild(rect, "Label"), label, fontAsset, size, Vector2.zero, label.Length > 1 ? 24f : 36f, FontStyles.Bold, Color.white);
+        ConfigureText(GetOrCreateChild(rect, "Label"), label, fontAsset, size, Vector2.zero, label.Length > 1 ? ElderCareUiTheme.BodySmall : ElderCareUiTheme.Subtitle, FontStyles.Bold, ElderCareUiTheme.TextPrimary);
 
         var motion = go.GetComponent<TechModuleCardMotion>();
         if (motion == null)
@@ -580,12 +601,13 @@ public class PingPongDifficultyController : MonoBehaviour
 
         motion.cardTransform = rect;
         motion.canvasGroup = EnsureCanvasGroup(go);
-        motion.cardGraphic = image;
-        motion.normalColor = new Color(0.06f, 0.18f, 0.28f, 0.96f);
-        motion.hoverColor = new Color(0.11f, 0.31f, 0.45f, 0.98f);
-        motion.pressedColor = new Color(0.04f, 0.13f, 0.22f, 0.98f);
-        motion.hoverScale = 1.055f;
-        motion.pressedScale = 0.94f;
+        motion.cardGraphic = graphic;
+        motion.normalColor = WithAlpha(Color.Lerp(ElderCareUiTheme.PanelStrong, ElderCareUiTheme.Cyan, 0.22f), 0.9f);
+        motion.hoverColor = WithAlpha(Color.Lerp(ElderCareUiTheme.PanelStrong, ElderCareUiTheme.Cyan, 0.34f), 0.94f);
+        motion.pressedColor = WithAlpha(ElderCareUiTheme.PanelStrong, 0.96f);
+        motion.glowColor = WithAlpha(ElderCareUiTheme.Cyan, 0.12f);
+        motion.hoverScale = ElderCareUiTheme.HoverScale;
+        motion.pressedScale = ElderCareUiTheme.PressedScale;
         motion.playEntrance = false;
         return button;
     }
@@ -594,6 +616,25 @@ public class PingPongDifficultyController : MonoBehaviour
     {
         var canvasGroup = go.GetComponent<CanvasGroup>();
         return canvasGroup != null ? canvasGroup : go.AddComponent<CanvasGroup>();
+    }
+
+    private static Color WithAlpha(Color color, float alpha)
+    {
+        color.a = alpha;
+        return color;
+    }
+
+    private static void DestroyComponent(Component component)
+    {
+        if (component == null) return;
+
+        if (Application.isPlaying)
+        {
+            Object.Destroy(component);
+            return;
+        }
+
+        Object.DestroyImmediate(component);
     }
 
     private static GameObject GetOrCreateChild(Transform parent, string name)

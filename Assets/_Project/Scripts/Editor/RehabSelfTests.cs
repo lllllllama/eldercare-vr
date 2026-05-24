@@ -32,10 +32,13 @@ public static class RehabSelfTests
         ComfortUiPlacementUsesCurrentHeadYaw();
         ComfortUiStartupRecenterFollowsSettledHeadPose();
         ComfortUiCreatesRayDragAndThumbstickHelpers();
+        ComfortUiRayDragKeepsStableHeightWhenDraggedFar();
         ThumbstickNavigatorMovesLeftToLeftCard();
         VideoPanelLayoutIsDecoupledFromTrainingAreaByDefault();
         VideoPanelScalingClampsAndKeepsPanelUpright();
         SpatialRayControlCanPlaceTrainingAreaExplicitly();
+        VideoSpatialControlsStayHiddenUntilVideoGuideShows();
+        VideoGuidePauseKeepsDisplayVisible();
         SpatialRayControlDragsVideoOnlyWhileTriggerHeld();
         TrainingSelectPanelUsesComfortRayPlacement();
         Debug.Log("Rehab self tests passed.");
@@ -590,6 +593,45 @@ public static class RehabSelfTests
         }
     }
 
+    private static void ComfortUiRayDragKeepsStableHeightWhenDraggedFar()
+    {
+        var headObject = new GameObject("Head");
+        var uiObject = new GameObject("ComfortUiStableHeight", typeof(RectTransform));
+        var handleObject = new GameObject("RayDragHandle", typeof(RectTransform), typeof(Image), typeof(WorldSpaceUiRayDragHandle));
+        try
+        {
+            headObject.transform.position = new Vector3(0f, 1.6f, 0f);
+            headObject.transform.rotation = Quaternion.identity;
+            uiObject.transform.position = new Vector3(0f, 1.5f, 2f);
+            uiObject.transform.rotation = Quaternion.identity;
+
+            var placer = uiObject.AddComponent<ComfortWorldSpaceUIPlacer>();
+            placer.headTransform = headObject.transform;
+            placer.uiRoot = uiObject.transform;
+            placer.hmdHeightOffsetMeters = -0.1f;
+
+            handleObject.transform.SetParent(uiObject.transform, false);
+            var handle = handleObject.GetComponent<WorldSpaceUiRayDragHandle>();
+            handle.placer = placer;
+            handle.targetRoot = uiObject.transform;
+            handle.headTransform = headObject.transform;
+            handle.lockHeightToComfortOffset = true;
+            handle.lockedHeightToleranceMeters = 0.08f;
+
+            handle.MoveTargetToWorldPoint(new Vector3(0f, 3.4f, 8f));
+
+            AssertTrue(uiObject.transform.position.z <= headObject.transform.position.z + handle.maxDistanceMeters + 0.001f, "Far ray drag should still respect the maximum panel distance.");
+            AssertTrue(uiObject.transform.position.y <= 1.58f, "Far ray drag should not lift the panel above the comfort height band.");
+            AssertTrue(uiObject.transform.position.y >= 1.42f, "Far ray drag should keep the panel near its starting comfort height.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(handleObject);
+            Object.DestroyImmediate(uiObject);
+            Object.DestroyImmediate(headObject);
+        }
+    }
+
     private static void ThumbstickNavigatorMovesLeftToLeftCard()
     {
         var previousEventSystem = EventSystem.current;
@@ -780,6 +822,7 @@ public static class RehabSelfTests
             control.maxRayDistanceMeters = 5f;
             control.EnsureControlCanvas();
             control.EnsureVideoRayTarget();
+            control.SetControlCanvasVisible(true);
 
             AssertTrue(panelObject.transform.Find("RehabSpatialControls/MoveVideoButton") == null, "Video move button should be removed because the video surface is dragged directly.");
 
@@ -804,6 +847,89 @@ public static class RehabSelfTests
             Object.DestroyImmediate(quadObject);
             Object.DestroyImmediate(panelObject);
             Object.DestroyImmediate(headObject);
+        }
+    }
+
+    private static void VideoSpatialControlsStayHiddenUntilVideoGuideShows()
+    {
+        var panelObject = new GameObject("RehabVideoPanel");
+        var quadObject = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        var controlObject = new GameObject("RehabSpatialRayControl");
+        try
+        {
+            quadObject.name = "VideoQuad";
+            quadObject.transform.SetParent(panelObject.transform, false);
+
+            var layout = panelObject.AddComponent<RehabVideoPanelLayoutController>();
+            layout.panelRoot = panelObject.transform;
+            layout.videoQuad = quadObject.transform;
+
+            var control = controlObject.AddComponent<RehabSpatialRayControl>();
+            control.videoLayoutController = layout;
+            control.EnsureControlCanvas();
+
+            var guide = panelObject.AddComponent<RehabVideoGuideController>();
+            guide.videoPanel = panelObject;
+            guide.videoQuad = quadObject;
+            guide.layoutController = layout;
+
+            AssertTrue(control.controlCanvasRoot != null, "Video spatial control canvas should be created for video mode.");
+            AssertTrue(!control.controlCanvasRoot.activeSelf, "Video spatial controls should stay hidden before the video guide is shown.");
+
+            var applyVisible = typeof(RehabVideoGuideController).GetMethod(
+                "ApplyDisplayVisible",
+                System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance);
+            AssertTrue(applyVisible != null, "Video guide should expose an internal display visibility gate.");
+
+            applyVisible.Invoke(guide, new object[] { true });
+            AssertTrue(control.controlCanvasRoot.activeSelf, "Video spatial controls should appear when the video guide display is visible.");
+
+            guide.StopAndHide();
+            AssertTrue(!control.controlCanvasRoot.activeSelf, "Video spatial controls should hide again when the video guide stops.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(controlObject);
+            Object.DestroyImmediate(quadObject);
+            Object.DestroyImmediate(panelObject);
+        }
+    }
+
+    private static void VideoGuidePauseKeepsDisplayVisible()
+    {
+        var panelObject = new GameObject("RehabVideoPanel");
+        var quadObject = GameObject.CreatePrimitive(PrimitiveType.Quad);
+        var controlObject = new GameObject("RehabSpatialRayControl");
+        try
+        {
+            quadObject.name = "VideoQuad";
+            quadObject.transform.SetParent(panelObject.transform, false);
+            quadObject.SetActive(false);
+
+            var layout = panelObject.AddComponent<RehabVideoPanelLayoutController>();
+            layout.panelRoot = panelObject.transform;
+            layout.videoQuad = quadObject.transform;
+
+            var control = controlObject.AddComponent<RehabSpatialRayControl>();
+            control.videoLayoutController = layout;
+            control.EnsureControlCanvas();
+            control.SetControlCanvasVisible(false);
+
+            var guide = panelObject.AddComponent<RehabVideoGuideController>();
+            guide.videoPanel = panelObject;
+            guide.videoQuad = quadObject;
+            guide.layoutController = layout;
+
+            guide.EnsureDisplayVisibleWhilePaused();
+
+            AssertTrue(quadObject.activeSelf, "Pausing a rehab movement should keep the video display visible while time remains.");
+            AssertTrue(control.controlCanvasRoot != null && control.controlCanvasRoot.activeSelf, "Paused video display should keep the spatial controls visible.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(controlObject);
+            Object.DestroyImmediate(quadObject);
+            Object.DestroyImmediate(panelObject);
         }
     }
 

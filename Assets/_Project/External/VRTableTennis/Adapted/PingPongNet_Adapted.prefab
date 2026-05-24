@@ -123,3 +123,6 @@ MonoBehaviour:
   tangentialFriction: 0.45
   useSweptFallback: 1
   useTypeDefaults: 1
+  tuneNetVisualsForMr: 1
+  netVisualAlpha: 0.88
+  netVisualColor: {r: 0.9, g: 1, b: 0.98, a: 0.88}

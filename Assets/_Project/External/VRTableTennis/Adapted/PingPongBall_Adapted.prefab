@@ -114,7 +114,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0.04, y: 0.04, z: 0.04}
+  m_LocalScale: {x: 0.06, y: 0.06, z: 0.06}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 2695383633644338639}
@@ -149,7 +149,7 @@ Rigidbody:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6316526095329316854}
   serializedVersion: 4
-  m_Mass: 0.0027
+  m_Mass: 0.004
   m_Drag: 0
   m_AngularDrag: 0.05
   m_CenterOfMass: {x: 0, y: 0, z: 0}
@@ -186,14 +186,21 @@ MonoBehaviour:
   minimumPaddleHitSpeed: 2.6
   heldBallHitSpeed: 3.2
   paddleHitCooldown: 0.12
-  surfaceHitCooldown: 0.08
+  surfaceHitCooldown: 0.035
   minimumClosingSpeed: 0.15
   heldBallMinimumSwingSpeed: 0.35
   maxSpeed: 9
+  minimumTableBounceUpSpeed: 1.35
+  tableBounceRestitutionFloor: 0.93
+  tableBounceUpwardAssist: 0.12
   enableSweptSurfaceFallback: 1
   sweptSurfaceLayers:
     serializedVersion: 2
     m_Bits: 4294967295
+  ignoreNonGameplayColliders: 1
+  collisionFilterRefreshInterval: 0.2
+  ballPhysicsLayerName: Ball
+  ignoredRoomSensingLayerName: RoomSensing
   useAerodynamics: 1
   airDensity: 1.27
   dragCoefficient: 0.5
@@ -202,6 +209,10 @@ MonoBehaviour:
   maxAngularVelocity: 180
   rawPaddleVelocityBlend: 0.28
   highAccelerationRawBlend: 0.34
+  enhanceBallVisibility: 1
+  ballCoreColor: {r: 1, g: 0.96, b: 0.76, a: 1}
+  trailStartColor: {r: 0.35, g: 0.95, b: 1, a: 0.82}
+  trailEndColor: {r: 0.35, g: 0.95, b: 1, a: 0}
 --- !u!114 &8893509667314498816
 MonoBehaviour:
   m_ObjectHideFlags: 0

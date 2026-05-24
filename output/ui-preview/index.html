@@ -1,0 +1,1410 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PICO ElderCare VR/MR UI Preview</title>
+  <link rel="icon" href="data:,">
+  <style>
+    @property --ring-angle {
+      syntax: "<angle>";
+      inherits: false;
+      initial-value: 0deg;
+    }
+
+    :root {
+      --bg: #06101A;
+      --panel: #0D2332;
+      --card: #173547;
+      --pingpong-button: #94EFFF;
+      --rehab-button: #ADF7D0;
+      --soft-button: #E8EEF8;
+      --text: #F8FCFF;
+      --muted: #C7D8E2;
+      --button-text-dark: #061826;
+      --stroke: #85EAFF;
+      --status-warn: #FFE48C;
+      --bg-rgb: 6, 16, 26;
+      --panel-rgb: 13, 35, 50;
+      --card-rgb: 23, 53, 71;
+      --stroke-rgb: 133, 234, 255;
+      --warn-rgb: 255, 228, 140;
+      --radius-panel: 44px;
+      --radius-card: 24px;
+      --radius-button: 20px;
+      --shadow-glow: 0 0 26px rgba(var(--stroke-rgb), 0.18), 0 0 76px rgba(var(--stroke-rgb), 0.08);
+      --shadow-panel: 0 26px 80px rgba(0, 0, 0, 0.44);
+      --duration-fast: 140ms;
+      --duration: 260ms;
+      --duration-slow: 680ms;
+      --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+      color-scheme: dark;
+      font-family: "Microsoft YaHei", "Segoe UI", Arial, sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      background:
+        radial-gradient(circle at 16% 0%, rgba(var(--stroke-rgb), 0.13), transparent 28rem),
+        radial-gradient(circle at 88% 18%, rgba(173, 247, 208, 0.1), transparent 34rem),
+        linear-gradient(180deg, var(--bg), #07131d 54%, #04090f);
+      color: var(--text);
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image:
+        linear-gradient(rgba(248, 252, 255, 0.035) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(248, 252, 255, 0.03) 1px, transparent 1px);
+      background-size: 72px 72px;
+      mask-image: linear-gradient(180deg, rgba(0, 0, 0, 0.76), transparent 76%);
+    }
+
+    .layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 340px;
+      gap: 28px;
+      max-width: 1500px;
+      margin: 0 auto;
+      padding: 28px;
+    }
+
+    .preview-column {
+      min-width: 0;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: end;
+      justify-content: space-between;
+      gap: 22px;
+      margin: 4px 0 26px;
+    }
+
+    .title-block h1 {
+      margin: 0;
+      font-size: clamp(34px, 4vw, 58px);
+      line-height: 1.02;
+      letter-spacing: 0;
+      color: var(--text);
+      text-shadow: 0 2px 14px rgba(var(--stroke-rgb), 0.16);
+    }
+
+    .title-block p {
+      max-width: 700px;
+      margin: 12px 0 0;
+      color: var(--muted);
+      font-size: 18px;
+      line-height: 1.55;
+    }
+
+    .view-nav {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 10px;
+    }
+
+    button {
+      font: inherit;
+    }
+
+    .nav-button,
+    .world-button {
+      min-height: 68px;
+      border: 2px solid rgba(var(--stroke-rgb), 0.58);
+      border-radius: var(--radius-button);
+      background: linear-gradient(180deg, rgba(var(--stroke-rgb), 0.2), rgba(var(--stroke-rgb), 0.08));
+      color: var(--text);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.14), 0 12px 34px rgba(0, 0, 0, 0.28);
+      cursor: pointer;
+      font-weight: 900;
+      transition:
+        transform var(--duration-fast) var(--ease),
+        border-color var(--duration) var(--ease),
+        box-shadow var(--duration) var(--ease),
+        background var(--duration) var(--ease),
+        filter var(--duration) var(--ease);
+      user-select: none;
+    }
+
+    .nav-button {
+      min-height: 48px;
+      padding: 0 16px;
+      border-radius: 16px;
+      font-size: 14px;
+    }
+
+    .world-button {
+      color: var(--button-text-dark);
+      font-size: 32px;
+      line-height: 1.08;
+    }
+
+    .nav-button:hover,
+    .world-button:hover {
+      transform: scale(1.04);
+      border-color: var(--stroke);
+      filter: brightness(1.06);
+      box-shadow: var(--shadow-glow), 0 14px 36px rgba(0, 0, 0, 0.34);
+    }
+
+    .nav-button:active,
+    .world-button:active,
+    .is-pressing {
+      transform: scale(0.96);
+    }
+
+    .world-section {
+      position: relative;
+      min-height: 520px;
+      margin-bottom: 34px;
+      padding: 36px;
+      border: 1px solid rgba(var(--stroke-rgb), 0.13);
+      border-radius: 28px;
+      background:
+        linear-gradient(135deg, rgba(248, 252, 255, 0.04), rgba(248, 252, 255, 0.01)),
+        radial-gradient(circle at 50% 8%, rgba(var(--stroke-rgb), 0.11), transparent 22rem);
+      box-shadow: inset 0 1px 0 rgba(248, 252, 255, 0.06);
+      overflow: hidden;
+      opacity: 0;
+      transform: translateY(28px) scale(0.985);
+      animation: sectionEnter var(--duration-slow) var(--ease) forwards;
+      animation-delay: calc(var(--stagger) * 90ms);
+    }
+
+    .world-section::before {
+      content: "";
+      position: absolute;
+      inset: 20px;
+      border: 1px solid rgba(var(--stroke-rgb), 0.08);
+      border-radius: 22px;
+      pointer-events: none;
+    }
+
+    .world-section::after {
+      content: "";
+      position: absolute;
+      left: 8%;
+      right: 8%;
+      bottom: 22px;
+      height: 1px;
+      background: linear-gradient(90deg, transparent, rgba(var(--stroke-rgb), 0.24), transparent);
+      pointer-events: none;
+    }
+
+    .scene-label {
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 22px;
+      color: var(--muted);
+    }
+
+    .scene-label h2 {
+      margin: 0;
+      color: var(--text);
+      font-size: 24px;
+      letter-spacing: 0;
+    }
+
+    .scene-label span {
+      color: var(--stroke);
+      font-size: 14px;
+      font-weight: 900;
+      text-transform: uppercase;
+    }
+
+    .world-stage {
+      position: relative;
+      display: grid;
+      place-items: center;
+      min-height: 430px;
+      perspective: 1200px;
+    }
+
+    .unity-canvas {
+      position: relative;
+      width: min(100%, 760px);
+      aspect-ratio: 680 / 432;
+      padding: 24px;
+      border: 2px solid rgba(var(--stroke-rgb), 0.72);
+      border-radius: var(--radius-panel);
+      background:
+        linear-gradient(180deg, rgba(248, 252, 255, 0.06), rgba(248, 252, 255, 0.012)),
+        var(--panel);
+      box-shadow: var(--shadow-panel), var(--shadow-glow), inset 0 1px 0 rgba(255, 255, 255, 0.14);
+      transform: rotateX(0.8deg);
+      overflow: hidden;
+      transition:
+        opacity var(--duration) var(--ease),
+        transform var(--duration) var(--ease),
+        box-shadow var(--duration) var(--ease);
+    }
+
+    .world-section:hover .unity-canvas {
+      transform: rotateX(0) translateY(-3px);
+      box-shadow: var(--shadow-panel), 0 0 34px rgba(var(--stroke-rgb), 0.2), 0 0 90px rgba(var(--stroke-rgb), 0.09);
+    }
+
+    .unity-canvas::before,
+    .unity-canvas::after {
+      content: "";
+      position: absolute;
+      left: 34px;
+      right: 34px;
+      height: 3px;
+      border-radius: 99px;
+      background: linear-gradient(90deg, transparent, rgba(var(--stroke-rgb), 0.34), transparent);
+      pointer-events: none;
+    }
+
+    .unity-canvas::before {
+      top: 24px;
+    }
+
+    .unity-canvas::after {
+      bottom: 24px;
+      opacity: 0.58;
+    }
+
+    .panel-grid {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      height: 100%;
+      gap: 18px;
+      min-height: 0;
+    }
+
+    .large-title {
+      margin: 0;
+      color: var(--text);
+      font-size: 74px;
+      line-height: 1;
+      letter-spacing: 0;
+      text-align: center;
+      text-shadow: 0 2px 14px rgba(var(--stroke-rgb), 0.16);
+    }
+
+    .medium-title {
+      margin: 0;
+      color: var(--text);
+      font-size: 44px;
+      line-height: 1.06;
+      text-align: center;
+      text-shadow: 0 2px 12px rgba(var(--stroke-rgb), 0.14);
+    }
+
+    @supports (-webkit-background-clip: text) or (background-clip: text) {
+      .title-block h1,
+      .large-title,
+      .medium-title,
+      .hud-title h3 {
+        background: linear-gradient(180deg, #FFFFFF 0%, #D8F7FF 100%);
+        -webkit-background-clip: text;
+        background-clip: text;
+        color: transparent;
+      }
+    }
+
+    .subcopy {
+      margin: 8px 0 0;
+      color: var(--muted);
+      font-size: 24px;
+      line-height: 1.22;
+      text-align: center;
+    }
+
+    .button-pingpong {
+      background:
+        linear-gradient(180deg, rgba(148, 239, 255, 0.86), rgba(173, 247, 208, 0.62)),
+        rgba(232, 238, 248, 0.3);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.5),
+        inset 0 -10px 28px rgba(var(--panel-rgb), 0.12),
+        0 12px 30px rgba(0, 0, 0, 0.28),
+        0 0 22px rgba(148, 239, 255, 0.2);
+    }
+
+    .button-rehab {
+      background:
+        linear-gradient(180deg, rgba(173, 247, 208, 0.88), rgba(148, 239, 255, 0.5)),
+        rgba(173, 247, 208, 0.28);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.5),
+        inset 0 -10px 28px rgba(var(--panel-rgb), 0.12),
+        0 12px 30px rgba(0, 0, 0, 0.28),
+        0 0 22px rgba(173, 247, 208, 0.2);
+    }
+
+    .button-soft {
+      background:
+        linear-gradient(180deg, rgba(232, 238, 248, 0.88), rgba(148, 239, 255, 0.62)),
+        rgba(232, 238, 248, 0.38);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.58),
+        inset 0 -10px 28px rgba(var(--panel-rgb), 0.12),
+        0 12px 30px rgba(0, 0, 0, 0.28),
+        0 0 22px rgba(148, 239, 255, 0.2);
+    }
+
+    .button-warn {
+      background:
+        linear-gradient(180deg, rgba(255, 228, 140, 0.88), rgba(255, 228, 140, 0.48)),
+        rgba(255, 228, 140, 0.22);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.48),
+        inset 0 -10px 28px rgba(var(--panel-rgb), 0.1),
+        0 12px 30px rgba(0, 0, 0, 0.28),
+        0 0 20px rgba(255, 228, 140, 0.18);
+    }
+
+    .main-entry-grid {
+      grid-template-rows: auto 1fr;
+      align-content: start;
+      gap: 44px;
+      padding-top: 8px;
+    }
+
+    .main-entry-grid .large-title {
+      font-size: 80px;
+    }
+
+    .module-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 22px;
+      align-content: start;
+    }
+
+    .module-card {
+      position: relative;
+      min-height: 128px;
+      display: grid;
+      place-items: center;
+      padding: 0 20px;
+      border: 3px solid rgba(var(--stroke-rgb), 0.78);
+      border-radius: var(--radius-card);
+      color: var(--button-text-dark);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.34), 0 12px 28px rgba(0, 0, 0, 0.24);
+      overflow: hidden;
+      text-shadow: 0 1px 0 rgba(255, 255, 255, 0.24);
+    }
+
+    .module-card h3,
+    .training-card h3 {
+      margin: 0;
+      color: var(--button-text-dark);
+      font-size: 44px;
+      line-height: 1.08;
+      text-align: center;
+      font-weight: 900;
+      text-shadow: 0 1px 0 rgba(255, 255, 255, 0.24);
+    }
+
+    .module-card.is-pending::after {
+      content: "待接入";
+      position: absolute;
+      right: 14px;
+      top: 12px;
+      padding: 5px 11px;
+      border-radius: 999px;
+      color: var(--button-text-dark);
+      background: var(--status-warn);
+      font-size: 16px;
+      font-weight: 900;
+      box-shadow: 0 0 12px rgba(var(--warn-rgb), 0.2);
+      text-shadow: 0 1px 0 rgba(255, 255, 255, 0.22);
+    }
+
+    .hud-canvas .panel-grid {
+      padding-bottom: 2px;
+    }
+
+    .hud-grid {
+      grid-template-rows: auto 1fr 44px 130px;
+      align-items: stretch;
+      gap: 10px;
+    }
+
+    .hud-title {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      min-height: 46px;
+      padding: 0 6px;
+    }
+
+    .hud-title h3 {
+      margin: 0;
+      font-size: 42px;
+      line-height: 1;
+    }
+
+    .status-pill {
+      min-height: 42px;
+      display: inline-flex;
+      align-items: center;
+      border: 2px solid rgba(173, 247, 208, 0.7);
+      border-radius: 999px;
+      padding: 0 20px;
+      color: var(--button-text-dark);
+      background:
+        linear-gradient(180deg, rgba(248, 252, 255, 0.18), rgba(248, 252, 255, 0.04)),
+        linear-gradient(180deg, rgba(173, 247, 208, 0.9), rgba(148, 239, 255, 0.56));
+      font-size: 22px;
+      font-weight: 900;
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.42),
+        0 0 18px rgba(173, 247, 208, 0.2);
+    }
+
+    .metric-stack {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-rows: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      min-height: 0;
+    }
+
+    .metric-card {
+      min-height: 82px;
+      display: grid;
+      align-content: center;
+      padding: 5px 16px;
+      border: 2px solid rgba(var(--stroke-rgb), 0.58);
+      border-radius: var(--radius-card);
+      background:
+        linear-gradient(180deg, rgba(248, 252, 255, 0.07), rgba(248, 252, 255, 0.015)),
+        rgba(var(--card-rgb), 0.92);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.13),
+        0 8px 20px rgba(0, 0, 0, 0.18);
+    }
+
+    .metric-label,
+    .data-block .label {
+      color: var(--muted);
+      font-size: 22px;
+      line-height: 1.05;
+      font-weight: 900;
+    }
+
+    .metric-value {
+      margin-top: 2px;
+      font-size: 48px;
+      line-height: 1;
+      font-weight: 900;
+    }
+
+    .difficulty-value {
+      font-size: 46px;
+      line-height: 1;
+      font-weight: 900;
+      color: var(--status-warn);
+    }
+
+    .metric-unit {
+      margin-left: 8px;
+      font-size: 26px;
+      color: var(--muted);
+      vertical-align: baseline;
+    }
+
+    .hud-controls {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      grid-template-rows: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+      align-items: end;
+    }
+
+    .hud-controls .world-button,
+    .difficulty-controls .world-button,
+    .wide-button,
+    .bottom-row .world-button {
+      min-height: 60px;
+      border: 3px solid rgba(var(--stroke-rgb), 0.76);
+      font-size: 28px;
+      font-weight: 900;
+    }
+
+    .hud-note {
+      min-height: 44px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 18px;
+      border: 2px solid rgba(var(--warn-rgb), 0.36);
+      border-radius: 18px;
+      background: rgba(var(--warn-rgb), 0.12);
+      color: var(--status-warn);
+      font-size: 24px;
+      font-weight: 900;
+      line-height: 1;
+      text-align: center;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    }
+
+    .difficulty-canvas {
+      width: min(100%, 680px);
+    }
+
+    .difficulty-grid {
+      grid-template-rows: auto 1fr auto;
+      align-items: stretch;
+      gap: 20px;
+      padding-top: 6px;
+    }
+
+    .difficulty-controls {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 220px minmax(0, 1fr);
+      gap: 18px;
+      align-items: center;
+    }
+
+    .speed-badge {
+      min-height: 164px;
+      display: grid;
+      place-items: center;
+      padding: 12px;
+      border: 3px solid rgba(var(--stroke-rgb), 0.78);
+      border-radius: 30px;
+      background: linear-gradient(180deg, rgba(var(--warn-rgb), 0.18), var(--card));
+      box-shadow: 0 0 26px rgba(var(--stroke-rgb), 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    }
+
+    .speed-value {
+      color: var(--status-warn);
+      font-size: 62px;
+      line-height: 0.98;
+      font-weight: 900;
+      text-align: center;
+    }
+
+    .speed-label {
+      margin-top: 8px;
+      color: var(--muted);
+      font-size: 24px;
+      font-weight: 900;
+      text-align: center;
+    }
+
+    .speed-hint {
+      margin: 0;
+      color: var(--muted);
+      font-size: 22px;
+      line-height: 1.2;
+      text-align: center;
+    }
+
+    .rehab-select-grid {
+      grid-template-rows: auto 1fr 72px;
+      align-items: stretch;
+      gap: 16px;
+    }
+
+    .training-options {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 18px;
+      align-items: stretch;
+    }
+
+    .training-card {
+      position: relative;
+      min-height: 150px;
+      display: grid;
+      place-items: center;
+      padding: 18px;
+      border: 3px solid rgba(var(--stroke-rgb), 0.76);
+      border-radius: var(--radius-card);
+      color: var(--button-text-dark);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.34), 0 12px 28px rgba(0, 0, 0, 0.22);
+    }
+
+    .training-card strong {
+      display: block;
+      margin-top: 8px;
+      color: var(--button-text-dark);
+      font-size: 22px;
+      line-height: 1;
+    }
+
+    .wide-button {
+      width: 100%;
+    }
+
+    .training-layout {
+      grid-template-rows: auto 1fr 66px 72px;
+      align-items: stretch;
+      gap: 14px;
+    }
+
+    .data-row {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+      gap: 16px;
+      min-height: 0;
+    }
+
+    .data-block,
+    .progress-card {
+      min-height: 150px;
+      padding: 18px 22px;
+      border: 2px solid rgba(var(--stroke-rgb), 0.56);
+      border-radius: var(--radius-card);
+      background:
+        linear-gradient(180deg, rgba(248, 252, 255, 0.07), rgba(248, 252, 255, 0.015)),
+        rgba(var(--card-rgb), 0.78);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.1),
+        0 8px 22px rgba(0, 0, 0, 0.18);
+    }
+
+    .data-block {
+      display: grid;
+      align-content: center;
+      justify-items: start;
+    }
+
+    .data-block .value {
+      margin-top: 10px;
+      color: var(--pingpong-button);
+      font-size: 58px;
+      font-weight: 900;
+      line-height: 1;
+    }
+
+    .data-block .note {
+      margin-top: 8px;
+      color: rgba(199, 216, 226, 0.78);
+      font-size: 20px;
+      line-height: 1;
+      font-weight: 700;
+    }
+
+    .progress-card {
+      display: grid;
+      place-items: center;
+      padding: 12px;
+      position: relative;
+      isolation: isolate;
+      overflow: hidden;
+      z-index: 2;
+    }
+
+    .rehab-progress-ring {
+      --ring-angle: 0deg;
+      --progress-angle: 136.8deg;
+      --progress-color: var(--rehab-button);
+      position: relative;
+      z-index: 5;
+      width: 144px;
+      height: 144px;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background:
+        conic-gradient(var(--progress-color) var(--ring-angle), rgba(232, 238, 248, 0.14) var(--ring-angle) 360deg);
+      box-shadow:
+        0 0 16px rgba(173, 247, 208, 0.32),
+        0 0 34px rgba(var(--stroke-rgb), 0.14),
+        inset 0 1px 0 rgba(255, 255, 255, 0.18);
+      animation: progressFill 1050ms ease-out forwards;
+    }
+
+    .rehab-progress-ring::before {
+      content: "";
+      position: absolute;
+      inset: -3px;
+      border-radius: 50%;
+      border: 1px solid rgba(var(--stroke-rgb), 0.4);
+      pointer-events: none;
+    }
+
+    .rehab-progress-ring::after {
+      content: "";
+      position: absolute;
+      inset: 16px;
+      border-radius: 50%;
+      background:
+        linear-gradient(180deg, rgba(248, 252, 255, 0.08), rgba(248, 252, 255, 0.015)),
+        rgba(var(--card-rgb), 0.58);
+      border: 1px solid rgba(var(--stroke-rgb), 0.2);
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    .rehab-progress-inner {
+      position: relative;
+      z-index: 6;
+      width: 98px;
+      height: 98px;
+      display: grid;
+      place-items: center;
+      align-content: center;
+      border-radius: 50%;
+      background:
+        linear-gradient(180deg, rgba(248, 252, 255, 0.1), rgba(248, 252, 255, 0.03)),
+        rgba(var(--bg-rgb), 0.88);
+      border: 1px solid rgba(var(--stroke-rgb), 0.28);
+      text-align: center;
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.12),
+        0 10px 28px rgba(0, 0, 0, 0.28);
+    }
+
+    .rehab-progress-inner strong {
+      color: #ADF7D0;
+      font-size: 40px;
+      line-height: 1;
+      font-weight: 900;
+      text-shadow: 0 2px 12px rgba(173, 247, 208, 0.22);
+    }
+
+    .rehab-progress-inner span {
+      margin-top: 5px;
+      color: rgba(248, 252, 255, 0.88);
+      font-size: 20px;
+      line-height: 1;
+      font-weight: 700;
+    }
+
+    .safety-strip {
+      min-height: 62px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: 2px solid rgba(var(--warn-rgb), 0.58);
+      border-radius: 20px;
+      background: rgba(var(--warn-rgb), 0.12);
+      color: var(--status-warn);
+      font-size: 28px;
+      font-weight: 900;
+      text-align: center;
+      padding: 0 14px;
+    }
+
+    .bottom-row {
+      display: grid;
+      grid-template-columns: 1fr 186px;
+      gap: 14px;
+      align-items: end;
+    }
+
+    .debug-line {
+      color: rgba(199, 216, 226, 0.58);
+      font-size: 17px;
+      line-height: 1.25;
+      align-self: center;
+    }
+
+    #video-adjust .unity-canvas {
+      padding: 6px 24px 20px;
+    }
+
+    .video-adjust-grid {
+      grid-template-rows: 36px minmax(0, 1fr);
+      align-items: stretch;
+      gap: 8px;
+    }
+
+    .video-adjust-grid .hud-title {
+      min-height: 36px;
+      padding: 0 2px;
+    }
+
+    .video-adjust-grid .hud-title h3 {
+      font-size: 34px;
+    }
+
+    .video-adjust-grid .status-pill {
+      min-height: 34px;
+      padding: 0 16px;
+      font-size: 19px;
+    }
+
+    .video-watch-layout {
+      display: grid;
+      grid-template-rows: minmax(0, 1fr) 124px;
+      gap: 6px;
+      min-height: 0;
+    }
+
+    .video-main-frame {
+      position: relative;
+      width: 100%;
+      min-height: 226px;
+      max-height: 236px;
+      border: 3px solid rgba(var(--stroke-rgb), 0.68);
+      border-radius: 24px;
+      overflow: hidden;
+      background:
+        linear-gradient(180deg, rgba(148, 239, 255, 0.18), rgba(var(--bg-rgb), 0.78)),
+        radial-gradient(circle at 24% 22%, rgba(var(--warn-rgb), 0.28), transparent 18rem),
+        radial-gradient(circle at 78% 70%, rgba(173, 247, 208, 0.16), transparent 14rem),
+        rgba(var(--bg-rgb), 0.72);
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.16),
+        0 0 24px rgba(var(--stroke-rgb), 0.16);
+    }
+
+    .video-main-frame::before {
+      content: "";
+      position: absolute;
+      left: 8%;
+      right: 8%;
+      bottom: 26%;
+      height: 3px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, transparent, rgba(173, 247, 208, 0.38), transparent);
+    }
+
+    .video-status {
+      position: absolute;
+      right: 22px;
+      top: 18px;
+      padding: 8px 16px;
+      border-radius: 999px;
+      background:
+        linear-gradient(180deg, rgba(173, 247, 208, 0.88), rgba(148, 239, 255, 0.56));
+      color: var(--button-text-dark);
+      font-size: 20px;
+      line-height: 1;
+      font-weight: 900;
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.42),
+        0 0 16px rgba(173, 247, 208, 0.18);
+    }
+
+    .video-placeholder {
+      position: absolute;
+      left: 28px;
+      bottom: 22px;
+      color: rgba(248, 252, 255, 0.92);
+      font-size: 30px;
+      line-height: 1;
+      font-weight: 900;
+      text-shadow: 0 2px 12px rgba(0, 0, 0, 0.36);
+    }
+
+    .video-button-controls {
+      display: grid;
+      grid-template-columns: repeat(3, minmax(0, 1fr));
+      grid-template-rows: repeat(2, 58px);
+      gap: 8px;
+      align-items: stretch;
+      min-height: 0;
+    }
+
+    .video-button-controls .world-button {
+      min-height: 58px;
+      border: 2px solid rgba(var(--stroke-rgb), 0.72);
+      border-radius: 18px;
+      color: var(--button-text-dark);
+      font-size: 26px;
+      line-height: 1;
+      font-weight: 900;
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.48),
+        0 10px 24px rgba(0, 0, 0, 0.24),
+        0 0 18px rgba(148, 239, 255, 0.16);
+    }
+
+    .video-readout {
+      display: grid;
+      align-content: center;
+      gap: 4px;
+      padding: 0 14px;
+      border: 2px solid rgba(var(--stroke-rgb), 0.45);
+      border-radius: 18px;
+      background:
+        linear-gradient(180deg, rgba(248, 252, 255, 0.06), rgba(248, 252, 255, 0.015)),
+        rgba(var(--card-rgb), 0.78);
+      color: var(--text);
+      font-size: 18px;
+      line-height: 1.12;
+      font-weight: 800;
+      box-shadow:
+        inset 0 1px 0 rgba(255, 255, 255, 0.1),
+        0 8px 20px rgba(0, 0, 0, 0.18);
+    }
+
+    .video-readout span {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 10px;
+      white-space: nowrap;
+    }
+
+    .video-readout strong {
+      color: var(--pingpong-button);
+      font-weight: 900;
+    }
+
+    .token-panel {
+      position: sticky;
+      top: 24px;
+      align-self: start;
+      max-height: calc(100vh - 48px);
+      overflow: auto;
+      padding: 22px;
+      border: 1px solid rgba(var(--stroke-rgb), 0.24);
+      border-radius: 24px;
+      background:
+        linear-gradient(180deg, rgba(248, 252, 255, 0.07), rgba(248, 252, 255, 0.02)),
+        rgba(var(--panel-rgb), 0.88);
+      box-shadow: var(--shadow-panel), var(--shadow-glow);
+    }
+
+    .token-panel h2 {
+      margin: 0 0 6px;
+      font-size: 24px;
+    }
+
+    .token-panel > p {
+      margin: 0 0 22px;
+      color: var(--muted);
+      font-size: 14px;
+      line-height: 1.45;
+    }
+
+    .token-group {
+      margin-top: 22px;
+      padding-top: 18px;
+      border-top: 1px solid rgba(var(--stroke-rgb), 0.15);
+    }
+
+    .token-group h3 {
+      margin: 0 0 12px;
+      color: var(--stroke);
+      font-size: 15px;
+      text-transform: uppercase;
+    }
+
+    .token-row {
+      display: grid;
+      grid-template-columns: 28px 1fr auto;
+      gap: 10px;
+      align-items: center;
+      min-height: 32px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    .swatch {
+      width: 22px;
+      height: 22px;
+      border: 1px solid rgba(255, 255, 255, 0.18);
+      border-radius: 8px;
+      box-shadow: 0 0 14px rgba(255, 255, 255, 0.08);
+    }
+
+    .token-row code,
+    .plain-token code {
+      color: var(--text);
+      font-family: "Cascadia Mono", Consolas, monospace;
+      font-size: 12px;
+    }
+
+    .plain-token {
+      display: flex;
+      justify-content: space-between;
+      gap: 18px;
+      min-height: 30px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    @keyframes sectionEnter {
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    @keyframes progressFill {
+      to {
+        --ring-angle: var(--progress-angle);
+      }
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *,
+      *::before,
+      *::after {
+        animation-duration: 1ms !important;
+        animation-iteration-count: 1 !important;
+        scroll-behavior: auto !important;
+        transition-duration: 1ms !important;
+      }
+    }
+
+    @media (max-width: 1180px) {
+      .layout {
+        grid-template-columns: 1fr;
+      }
+
+      .token-panel {
+        position: relative;
+        top: auto;
+        max-height: none;
+      }
+    }
+
+    @media (max-width: 760px) {
+      .layout {
+        padding: 18px;
+      }
+
+      .topbar {
+        display: block;
+      }
+
+      .view-nav {
+        justify-content: flex-start;
+        margin-top: 18px;
+      }
+
+      .world-section {
+        min-height: auto;
+        padding: 22px;
+      }
+
+      .unity-canvas {
+        padding: 18px;
+        border-radius: 28px;
+      }
+
+      .module-grid,
+      .training-options,
+      .data-row,
+      .metric-stack,
+      .hud-controls,
+      .bottom-row,
+      .difficulty-controls {
+        grid-template-columns: 1fr;
+      }
+
+      .main-entry-grid .large-title {
+        font-size: 56px;
+      }
+
+      .module-card h3,
+      .training-card h3 {
+        font-size: 34px;
+      }
+
+      .world-button {
+        width: 100%;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="layout">
+    <section class="preview-column" aria-label="PICO ElderCare UI visual preview">
+      <header class="topbar">
+        <div class="title-block">
+          <h1>PICO ElderCare VR/MR UI</h1>
+          <p>静态视觉预览，不连接 Unity 运行时。比例、字号、按钮高度和动效按世界空间 Canvas 的近距离射线点击场景处理。</p>
+        </div>
+        <nav class="view-nav" aria-label="Preview navigation">
+          <button class="nav-button" data-target="main-entry">MainEntry</button>
+          <button class="nav-button" data-target="pingpong-hud">PingPong Training Panel</button>
+          <button class="nav-button" data-target="rehab-select">Rehab Select</button>
+          <button class="nav-button" data-target="rehab-training">Rehab Training</button>
+          <button class="nav-button" data-target="video-adjust">Video Adjust</button>
+        </nav>
+      </header>
+
+      <section class="world-section" id="main-entry" style="--stagger: 0">
+        <div class="scene-label">
+          <h2>MainEntry</h2>
+          <span>680 x 432 world canvas</span>
+        </div>
+        <div class="world-stage">
+          <div class="unity-canvas">
+            <div class="panel-grid main-entry-grid">
+              <div>
+                <h3 class="large-title">VR康养服务</h3>
+              </div>
+              <div class="module-grid">
+                <button class="module-card world-button button-pingpong is-ready">
+                  <h3>乒乓球训练</h3>
+                </button>
+                <button class="module-card world-button button-rehab is-ready">
+                  <h3>康复运动</h3>
+                </button>
+                <button class="module-card world-button button-soft is-pending">
+                  <h3>VR旅游</h3>
+                </button>
+                <button class="module-card world-button button-soft is-pending">
+                  <h3>场景视频</h3>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="world-section" id="pingpong-hud" style="--stagger: 1">
+        <div class="scene-label">
+          <h2>PingPong Training Panel</h2>
+          <span>status and difficulty control</span>
+        </div>
+        <div class="world-stage">
+          <div class="unity-canvas hud-canvas">
+            <div class="panel-grid hud-grid">
+              <div class="hud-title">
+                <h3>乒乓球训练</h3>
+                <span class="status-pill">待开始</span>
+              </div>
+              <div class="metric-stack">
+                <div class="metric-card">
+                  <div class="metric-label">命中率</div>
+                  <div class="metric-value" style="color: var(--pingpong-button)">86%</div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-label">难度</div>
+                  <div class="metric-value difficulty-value">标准</div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-label">有效击球</div>
+                  <div class="metric-value" style="color: var(--rehab-button)">24</div>
+                </div>
+                <div class="metric-card">
+                  <div class="metric-label">时长</div>
+                  <div class="metric-value" style="color: var(--status-warn)">08:40</div>
+                </div>
+              </div>
+              <div class="hud-note">当前难度适合热身和基础训练。</div>
+              <div class="hud-controls">
+                <button class="world-button button-rehab">开始训练</button>
+                <button class="world-button button-soft">返回主页</button>
+                <button class="world-button button-pingpong">难度增加</button>
+                <button class="world-button button-warn">难度降低</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="world-section" id="rehab-select" style="--stagger: 2">
+        <div class="scene-label">
+          <h2>Rehab Select</h2>
+          <span>training type selection</span>
+        </div>
+        <div class="world-stage">
+          <div class="unity-canvas">
+            <div class="panel-grid rehab-select-grid">
+              <div>
+                <h3 class="medium-title">请选择康复训练</h3>
+                <p class="subcopy">选择训练类型</p>
+              </div>
+              <div class="training-options">
+                <button class="training-card world-button button-rehab">
+                  <div>
+                    <h3>八段锦训练</h3>
+                    <strong>约 5 分钟</strong>
+                  </div>
+                </button>
+                <button class="training-card world-button button-pingpong">
+                  <div>
+                    <h3>太极训练</h3>
+                    <strong>约 6 分钟</strong>
+                  </div>
+                </button>
+              </div>
+              <button class="world-button wide-button button-soft">返回</button>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="world-section" id="rehab-training" style="--stagger: 3">
+        <div class="scene-label">
+          <h2>Rehab Training</h2>
+          <span>progress and safety</span>
+        </div>
+        <div class="world-stage">
+          <div class="unity-canvas">
+            <div class="panel-grid training-layout">
+              <div>
+                <h3 class="medium-title">八段锦：双手托天理三焦</h3>
+                <p class="subcopy">请保持舒适幅度，跟随提示完成动作。</p>
+              </div>
+              <div class="data-row">
+                <div class="data-block">
+                  <div class="label">倒计时</div>
+                  <div class="value">04:18</div>
+                  <div class="note">剩余训练时间</div>
+                </div>
+                <div class="progress-card">
+                  <div class="rehab-progress-ring" data-progress="38">
+                    <div class="rehab-progress-inner">
+                      <strong>38%</strong>
+                      <span>完成度</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="safety-strip">保持呼吸平稳，肩部不要用力过猛</div>
+              <div class="bottom-row">
+                <div class="debug-line">开发信息：动作 2/8 | 步骤 1/2 | 保持 6.4s | 距中心 0.18m</div>
+                <button class="world-button button-soft">返回</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="world-section" id="video-adjust" style="--stagger: 4">
+        <div class="scene-label">
+          <h2>Video Display Adjust</h2>
+          <span>scene video comfort controls</span>
+        </div>
+        <div class="world-stage">
+          <div class="unity-canvas">
+            <div class="panel-grid video-adjust-grid">
+              <div class="hud-title">
+                <h3>场景视频</h3>
+                <span class="status-pill">视频播放</span>
+              </div>
+              <div class="video-watch-layout">
+                <div class="video-main-frame" aria-label="场景视频画面预览">
+                  <span class="video-status">播放中</span>
+                  <div class="video-placeholder">场景视频画面</div>
+                </div>
+                <div class="video-button-controls">
+                  <button class="world-button button-soft">画面缩小</button>
+                  <button class="world-button button-pingpong">画面放大</button>
+                  <button class="world-button button-soft">返回</button>
+                  <button class="world-button button-soft">音量降低</button>
+                  <button class="world-button button-rehab">音量提高</button>
+                  <div class="video-readout">
+                    <span>画面大小 <strong>100%</strong></span>
+                    <span>音量 <strong>54%</strong></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </section>
+
+    <aside class="token-panel" aria-label="Design tokens">
+      <h2>Design Tokens</h2>
+      <p>B+ 高对比奶油蓝绿风，用于静态视觉预览，不代表已迁移到 Unity。</p>
+
+      <div class="token-group">
+        <h3>Colors</h3>
+        <div class="token-row"><span class="swatch" style="background:#06101A"></span><span>Background</span><code>#06101A</code></div>
+        <div class="token-row"><span class="swatch" style="background:#0D2332"></span><span>Panel</span><code>#0D2332</code></div>
+        <div class="token-row"><span class="swatch" style="background:#173547"></span><span>Card</span><code>#173547</code></div>
+        <div class="token-row"><span class="swatch" style="background:#94EFFF"></span><span>PingPong Button</span><code>#94EFFF</code></div>
+        <div class="token-row"><span class="swatch" style="background:#ADF7D0"></span><span>Rehab Button</span><code>#ADF7D0</code></div>
+        <div class="token-row"><span class="swatch" style="background:#E8EEF8"></span><span>Soft Button</span><code>#E8EEF8</code></div>
+        <div class="token-row"><span class="swatch" style="background:#85EAFF"></span><span>Stroke</span><code>#85EAFF</code></div>
+        <div class="token-row"><span class="swatch" style="background:#FFE48C"></span><span>Status Warn</span><code>#FFE48C</code></div>
+        <div class="token-row"><span class="swatch" style="background:#F8FCFF"></span><span>Text</span><code>#F8FCFF</code></div>
+        <div class="token-row"><span class="swatch" style="background:#C7D8E2"></span><span>Muted</span><code>#C7D8E2</code></div>
+        <div class="token-row"><span class="swatch" style="background:#061826"></span><span>Button Text Dark</span><code>#061826</code></div>
+      </div>
+
+      <div class="token-group">
+        <h3>Typography</h3>
+        <div class="plain-token"><span>Title Large</span><code>56-82px</code></div>
+        <div class="plain-token"><span>Title</span><code>44-56px</code></div>
+        <div class="plain-token"><span>Subtitle</span><code>34px</code></div>
+        <div class="plain-token"><span>Body</span><code>24-28px</code></div>
+        <div class="plain-token"><span>Button</span><code>26-48px / 900</code></div>
+      </div>
+
+      <div class="token-group">
+        <h3>Shape & Spacing</h3>
+        <div class="plain-token"><span>World Canvas</span><code>680 x 432</code></div>
+        <div class="plain-token"><span>Panel Radius</span><code>44px</code></div>
+        <div class="plain-token"><span>Card Radius</span><code>24px</code></div>
+        <div class="plain-token"><span>Button Radius</span><code>20px</code></div>
+        <div class="plain-token"><span>Training Button Height</span><code>&gt;= 58px</code></div>
+        <div class="plain-token"><span>Main Entry Button Height</span><code>&gt;= 120px</code></div>
+      </div>
+
+      <div class="token-group">
+        <h3>Motion</h3>
+        <div class="plain-token"><span>Hover Scale</span><code>1.03-1.05</code></div>
+        <div class="plain-token"><span>Pressed Scale</span><code>0.96</code></div>
+        <div class="plain-token"><span>Progress Ring Animation</span><code>900-1200ms</code></div>
+        <div class="plain-token"><span>Stagger Entrance</span><code>90ms</code></div>
+        <div class="plain-token"><span>Easing</span><code>cubic-bezier(.2,.8,.2,1)</code></div>
+      </div>
+    </aside>
+  </main>
+
+  <script>
+    const buttons = document.querySelectorAll("button");
+    const navButtons = document.querySelectorAll("[data-target]");
+    const rings = document.querySelectorAll(".rehab-progress-ring");
+
+    buttons.forEach((button) => {
+      button.addEventListener("pointerdown", () => button.classList.add("is-pressing"));
+      ["pointerup", "pointercancel", "pointerleave"].forEach((eventName) => {
+        button.addEventListener(eventName, () => button.classList.remove("is-pressing"));
+      });
+    });
+
+    navButtons.forEach((button) => {
+      button.addEventListener("click", () => {
+        const target = document.getElementById(button.dataset.target);
+        if (!target) return;
+        target.scrollIntoView({ behavior: "smooth", block: "center" });
+        const canvas = target.querySelector(".unity-canvas");
+        if (!canvas) return;
+        canvas.style.opacity = "0.55";
+        canvas.style.transform = "translateY(10px) scale(0.985)";
+        window.setTimeout(() => {
+          canvas.style.opacity = "";
+          canvas.style.transform = "";
+        }, 180);
+      });
+    });
+
+    rings.forEach((ring) => {
+      const progress = Math.max(0, Math.min(100, Number(ring.dataset.progress || 0)));
+      const color = progress < 30
+        ? getComputedStyle(document.documentElement).getPropertyValue("--pingpong-button").trim()
+        : progress < 70
+          ? getComputedStyle(document.documentElement).getPropertyValue("--rehab-button").trim()
+          : getComputedStyle(document.documentElement).getPropertyValue("--status-warn").trim();
+      ring.style.setProperty("--progress", progress);
+      ring.style.setProperty("--progress-angle", `${progress * 3.6}deg`);
+      ring.style.setProperty("--progress-color", color);
+    });
+  </script>
+</body>
+</html>

@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PICO ElderCare UI 截图预览</title>
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg: #071016;
+      --panel: #101b24;
+      --stroke: #2a3d4b;
+      --text: #edf7ff;
+      --muted: #9eb1bf;
+      --cyan: #28e7ff;
+    }
+
+    body {
+      margin: 0;
+      padding: 28px;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "Microsoft YaHei", "Segoe UI", sans-serif;
+    }
+
+    h1 {
+      margin: 0 0 8px;
+      font-size: 28px;
+      font-weight: 700;
+    }
+
+    p {
+      margin: 0 0 24px;
+      color: var(--muted);
+      font-size: 15px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+      gap: 22px;
+    }
+
+    figure {
+      margin: 0;
+      padding: 14px;
+      border: 1px solid var(--stroke);
+      border-radius: 12px;
+      background: var(--panel);
+    }
+
+    figcaption {
+      margin-bottom: 10px;
+      color: var(--cyan);
+      font-size: 16px;
+      font-weight: 700;
+    }
+
+    img {
+      display: block;
+      width: 100%;
+      height: auto;
+      border-radius: 8px;
+      background: #000;
+    }
+  </style>
+</head>
+<body>
+  <h1>PICO ElderCare 当前 UI 截图</h1>
+  <p>截图来自当前 Unity 场景导出，尺寸均为 1920x1080。</p>
+
+  <main class="grid">
+    <figure>
+      <figcaption>00_MainEntry 首页</figcaption>
+      <img src="main-entry.png" alt="00_MainEntry 首页截图">
+    </figure>
+    <figure>
+      <figcaption>MR_Rehab_Main 康复选择页</figcaption>
+      <img src="rehab-select.png" alt="康复选择页截图">
+    </figure>
+    <figure>
+      <figcaption>MR_Rehab_Main 训练中面板</figcaption>
+      <img src="rehab-training.png" alt="训练中面板截图">
+    </figure>
+    <figure>
+      <figcaption>MR_Rehab_Main 结果面板</figcaption>
+      <img src="rehab-result.png" alt="结果面板截图">
+    </figure>
+    <figure>
+      <figcaption>01_PingPongDemo 乒乓 HUD</figcaption>
+      <img src="pingpong-hud.png" alt="乒乓 HUD 截图">
+    </figure>
+  </main>
+</body>
+</html>

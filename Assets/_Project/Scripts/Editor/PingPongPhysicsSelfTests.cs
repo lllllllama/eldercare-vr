@@ -1,5 +1,8 @@
+using System.Reflection;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.UI;
+using TMPro;
 
 public static class PingPongPhysicsSelfTests
 {
@@ -9,6 +12,8 @@ public static class PingPongPhysicsSelfTests
         HeldServeHitUsesPaddleVelocity();
         SideSwipeDoesNotLaunchHeldBall();
         TableBounceReflectsUpward();
+        TableBounceKeepsPlayableLiftForSlowImpact();
+        TableSurfaceUsesPlayableElasticity();
         SolverClampsMaximumSpeed();
         ContactPlacementChangesLateralDirection();
         ServeProfilesCreateOppositeSpin();
@@ -61,13 +66,43 @@ public static class PingPongPhysicsSelfTests
     private static void TableBounceReflectsUpward()
     {
         var input = PingPongHitSolver.CreateDefault(Vector3.down * 3f, Vector3.zero, Vector3.up, Vector3.zero);
-        input.normalRestitution = 0.86f;
-        input.tangentialFriction = 0.08f;
+        input.normalRestitution = 0.93f;
+        input.tangentialFriction = 0.05f;
         input.maximumSpeed = 9f;
 
         var result = PingPongHitSolver.Solve(input);
         AssertTrue(result.accepted, "Table bounce should be accepted for downward velocity.");
-        AssertTrue(result.velocity.y > 2.4f, "Table bounce should reflect upward with restitution.");
+        AssertTrue(result.velocity.y > 2.7f, "Table bounce should reflect upward with playable restitution.");
+    }
+
+    private static void TableBounceKeepsPlayableLiftForSlowImpact()
+    {
+        var adjusted = PingPongBall.EnsureMinimumTableBounceVelocity(
+            new Vector3(0.2f, 0.32f, -0.7f),
+            new Vector3(0.2f, -0.42f, -0.7f),
+            1.35f,
+            0.12f,
+            9f);
+
+        AssertTrue(adjusted.y >= 1.35f, "A slow tabletop bounce should still lift enough to remain playable.");
+        AssertTrue(adjusted.magnitude <= 9.001f, "Minimum tabletop lift should still respect the ball speed cap.");
+    }
+
+    private static void TableSurfaceUsesPlayableElasticity()
+    {
+        var surfaceObject = new GameObject("TableSurfaceDefaults");
+        try
+        {
+            var surface = surfaceObject.AddComponent<PingPongSurface>();
+            surface.Configure(PingPongSurfaceType.Table);
+
+            AssertTrue(surface.normalRestitution >= 0.92f, "Table surface restitution should be high enough for normal play.");
+            AssertTrue(surface.tangentialFriction <= 0.06f, "Table tangential friction should not over-damp the bounce.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(surfaceObject);
+        }
     }
 
     private static void SolverClampsMaximumSpeed()
@@ -252,6 +287,13 @@ public static class PingPongPhysicsSelfTests
             AssertTrue(controller.enableControllerSpeedButtons, "Difficulty panel should use controller A/B buttons.");
             AssertTrue(!IsChildActive(canvasObject.transform, "DifficultyPanel/DecreaseButton"), "Decrease screen button should be inactive.");
             AssertTrue(!IsChildActive(canvasObject.transform, "DifficultyPanel/IncreaseButton"), "Increase screen button should be inactive.");
+
+            var background = canvasObject.transform.Find("DifficultyPanel/Background");
+            AssertTrue(background != null, "Difficulty panel should expose a visible drag surface.");
+            AssertTrue(background.GetComponent<Image>() != null && background.GetComponent<Image>().raycastTarget, "Difficulty panel background should accept ray hits.");
+            var dragHandle = background.GetComponent<WorldSpaceUiRayDragHandle>();
+            AssertTrue(dragHandle != null, "Difficulty panel background should be ray-draggable.");
+            AssertTrue(dragHandle.targetRoot == canvasObject.transform, "Difficulty panel drag should move the detached world UI canvas.");
         }
         finally
         {
@@ -334,20 +376,61 @@ public static class PingPongPhysicsSelfTests
         var canvasObject = new GameObject("ScoreCanvas", typeof(RectTransform), typeof(Canvas));
         try
         {
+            canvasObject.SetActive(false);
             var rect = canvasObject.GetComponent<RectTransform>();
             rect.sizeDelta = new Vector2(900f, 560f);
+            var hitText = CreateTestScoreText(canvasObject.transform, "HitText", new Vector2(0f, 150f));
+            var servedText = CreateTestScoreText(canvasObject.transform, "ServedText", new Vector2(0f, 90f));
+            var missedText = CreateTestScoreText(canvasObject.transform, "MissedText", new Vector2(0f, 30f));
+            var accuracyText = CreateTestScoreText(canvasObject.transform, "AccuracyText", new Vector2(0f, -30f));
+            var speedText = CreateTestScoreText(canvasObject.transform, "LastSpeedText", new Vector2(0f, -90f));
+            var spinText = CreateTestScoreText(canvasObject.transform, "LastSpinText", new Vector2(0f, -150f));
+
             var score = canvasObject.AddComponent<ScoreManager>();
             score.autoCreateDifficultyControls = false;
+            score.hitText = hitText;
+            score.servedText = servedText;
+            score.missedText = missedText;
+            score.accuracyText = accuracyText;
+            score.lastSpeedText = speedText;
+            score.lastSpinText = spinText;
 
+            canvasObject.SetActive(true);
+            typeof(ScoreManager)
+                .GetMethod("EnsureReadableHud", BindingFlags.Instance | BindingFlags.NonPublic)
+                ?.Invoke(score, null);
             score.EnsureDisplayCanvasInteraction();
 
             AssertTrue(canvasObject.GetComponent<ComfortWorldSpaceUIPlacer>() != null, "Score canvas should get a comfort placer for ray manipulation.");
             AssertTrue(rect.Find("RayDragHandle") != null, "Score canvas should expose a ray-drag handle.");
+
+            var backdrop = rect.Find("ScoreHudBackdrop");
+            AssertTrue(backdrop != null, "Score HUD should create a readable backdrop.");
+            AssertTrue(backdrop.GetComponent<Image>() != null && backdrop.GetComponent<Image>().raycastTarget, "Score HUD backdrop should accept ray hits.");
+            var panelDrag = backdrop.GetComponent<WorldSpaceUiRayDragHandle>();
+            AssertTrue(panelDrag != null, "Score HUD backdrop should be ray-draggable.");
+            AssertTrue(panelDrag.targetRoot == canvasObject.transform, "Score HUD drag should move the detached world UI canvas.");
         }
         finally
         {
             Object.DestroyImmediate(canvasObject);
         }
+    }
+
+    private static TextMeshProUGUI CreateTestScoreText(Transform parent, string name, Vector2 anchoredPosition)
+    {
+        var textObject = new GameObject(name, typeof(RectTransform));
+        textObject.transform.SetParent(parent, false);
+        var rect = textObject.GetComponent<RectTransform>();
+        rect.anchorMin = new Vector2(0.5f, 0.5f);
+        rect.anchorMax = new Vector2(0.5f, 0.5f);
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.sizeDelta = new Vector2(480f, 48f);
+        rect.anchoredPosition = anchoredPosition;
+
+        var text = textObject.AddComponent<TextMeshProUGUI>();
+        text.text = name;
+        return text;
     }
 
     private static void SpatialTablePlacementIsDisabledButManualDragStaysEnabled()

@@ -2,24 +2,45 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 
+[RequireComponent(typeof(CanvasRenderer))]
 public class ElderCareRoundedPanel : MaskableGraphic
 {
     public float cornerRadius = 32f;
     public int cornerSegments = 8;
 
+    protected override void OnValidate()
+    {
+        base.OnValidate();
+        cornerRadius = Mathf.Max(0f, cornerRadius);
+        cornerSegments = Mathf.Max(2, cornerSegments);
+        SetVerticesDirty();
+    }
+
     protected override void OnPopulateMesh(VertexHelper vh)
     {
         vh.Clear();
 
-        var rect = GetPixelAdjustedRect();
+        var rect = rectTransform.rect;
+        if (rect.width <= 0f || rect.height <= 0f)
+        {
+            return;
+        }
+
         var radius = Mathf.Min(cornerRadius, rect.width * 0.5f, rect.height * 0.5f);
         var segments = Mathf.Max(2, cornerSegments);
         var points = new List<Vector2>();
 
-        AddArc(points, new Vector2(rect.xMax - radius, rect.yMin + radius), radius, -90f, 0f, segments);
-        AddArc(points, new Vector2(rect.xMax - radius, rect.yMax - radius), radius, 0f, 90f, segments);
-        AddArc(points, new Vector2(rect.xMin + radius, rect.yMax - radius), radius, 90f, 180f, segments);
-        AddArc(points, new Vector2(rect.xMin + radius, rect.yMin + radius), radius, 180f, 270f, segments);
+        if (radius <= 0.001f)
+        {
+            AddRect(points, rect);
+        }
+        else
+        {
+            AddArc(points, new Vector2(rect.xMax - radius, rect.yMin + radius), radius, -90f, 0f, segments);
+            AddArc(points, new Vector2(rect.xMax - radius, rect.yMax - radius), radius, 0f, 90f, segments);
+            AddArc(points, new Vector2(rect.xMin + radius, rect.yMax - radius), radius, 90f, 180f, segments);
+            AddArc(points, new Vector2(rect.xMin + radius, rect.yMin + radius), radius, 180f, 270f, segments);
+        }
 
         var c = (Color32)color;
         vh.AddVert(rect.center, c, Vector2.zero);
@@ -31,8 +52,16 @@ public class ElderCareRoundedPanel : MaskableGraphic
         for (var i = 0; i < points.Count; i++)
         {
             var next = i == points.Count - 1 ? 1 : i + 2;
-            vh.AddTriangle(0, i + 1, next);
+            vh.AddTriangle(0, next, i + 1);
         }
+    }
+
+    private static void AddRect(List<Vector2> points, Rect rect)
+    {
+        points.Add(new Vector2(rect.xMin, rect.yMin));
+        points.Add(new Vector2(rect.xMax, rect.yMin));
+        points.Add(new Vector2(rect.xMax, rect.yMax));
+        points.Add(new Vector2(rect.xMin, rect.yMax));
     }
 
     private static void AddArc(List<Vector2> points, Vector2 center, float radius, float startDegrees, float endDegrees, int segments)

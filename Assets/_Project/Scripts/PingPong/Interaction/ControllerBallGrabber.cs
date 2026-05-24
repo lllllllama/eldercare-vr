@@ -17,6 +17,8 @@ public class ControllerBallGrabber : MonoBehaviour
     public Vector3 holdOffset = new Vector3(0f, 0f, 0.08f);
     public GrabHandPoseAnimator handPoseAnimator;
     public SimpleGripInteractionState interactionState;
+    public MonoBehaviour gripInputSourceBehaviour;
+    public bool autoCreatePicoGripInputSource = true;
     public bool suppressGrab;
 
     private readonly Collider[] _grabCandidates = new Collider[64];
@@ -30,6 +32,8 @@ public class ControllerBallGrabber : MonoBehaviour
     private float _nextHandPoseSearchTime;
     private bool _waitForGripReleaseBeforeGrab;
     private bool _wasGripPressed;
+    private IGripInputSource _gripInputSource;
+    private bool _warnedInvalidGripInputSource;
 
     public bool IsHoldingBall => _grabbedBall != null;
 
@@ -41,6 +45,7 @@ public class ControllerBallGrabber : MonoBehaviour
         _nextHandPoseSearchTime = 0f;
         _waitForGripReleaseBeforeGrab = false;
         _wasGripPressed = false;
+        ResolveGripInputSource();
         ResolveInteractionState();
         TryBindHandPoseAnimator();
     }
@@ -49,6 +54,7 @@ public class ControllerBallGrabber : MonoBehaviour
     {
         UpdateControllerVelocity();
         TryBindHandPoseAnimator();
+        ResolveGripInputSource();
         ResolveInteractionState();
 
         var gripPressed = IsGripPressed();
@@ -267,6 +273,11 @@ public class ControllerBallGrabber : MonoBehaviour
 
     private bool IsGripPressed()
     {
+        if (_gripInputSource != null)
+        {
+            return _gripInputSource.IsGripPressed;
+        }
+
         InputDevices.GetDevicesAtXRNode(controllerNode, _devices);
         foreach (var device in _devices)
         {
@@ -282,6 +293,58 @@ public class ControllerBallGrabber : MonoBehaviour
         }
 
         return false;
+    }
+
+    private void ResolveGripInputSource()
+    {
+        _gripInputSource = gripInputSourceBehaviour as IGripInputSource;
+        if (_gripInputSource != null)
+        {
+            return;
+        }
+
+        if (gripInputSourceBehaviour != null)
+        {
+            if (!_warnedInvalidGripInputSource)
+            {
+                Debug.LogWarning($"{nameof(ControllerBallGrabber)} on {name} ignored {gripInputSourceBehaviour.name} because it does not implement {nameof(IGripInputSource)}.");
+                _warnedInvalidGripInputSource = true;
+            }
+
+            return;
+        }
+
+        if (controllerTransform == null) return;
+
+        _gripInputSource = FindGripInputSource(controllerTransform);
+        if (_gripInputSource != null)
+        {
+            gripInputSourceBehaviour = _gripInputSource as MonoBehaviour;
+            return;
+        }
+
+        if (!autoCreatePicoGripInputSource) return;
+
+        var picoGrip = controllerTransform.gameObject.AddComponent<PicoGripInputSource>();
+        picoGrip.controllerNode = controllerNode;
+        gripInputSourceBehaviour = picoGrip;
+        _gripInputSource = picoGrip;
+    }
+
+    private static IGripInputSource FindGripInputSource(Transform controller)
+    {
+        if (controller == null) return null;
+
+        var behaviours = controller.GetComponents<MonoBehaviour>();
+        for (var i = 0; i < behaviours.Length; i++)
+        {
+            if (behaviours[i] is IGripInputSource source)
+            {
+                return source;
+            }
+        }
+
+        return null;
     }
 
     private void TryBindHandPoseAnimator()
