@@ -37,6 +37,18 @@ public static class PingPongDemoSceneBuilder
         CustomModelRoot + "/Racket.fbx",
         CustomModelRoot + "/Racket.obj"
     };
+    private static readonly string[] CustomHandModelPaths =
+    {
+        CustomModelRoot + "/LeftHand.prefab",
+        CustomModelRoot + "/LeftHand.fbx",
+        CustomModelRoot + "/LeftHand.obj",
+        CustomModelRoot + "/Hand.prefab",
+        CustomModelRoot + "/Hand.fbx",
+        CustomModelRoot + "/Hand.obj",
+        CustomModelRoot + "/GrabHand.prefab",
+        CustomModelRoot + "/GrabHand.fbx",
+        CustomModelRoot + "/GrabHand.obj"
+    };
     private static readonly string[] CustomBallModelPaths =
     {
         CustomModelRoot + "/PingPongBall.prefab",
@@ -52,6 +64,13 @@ public static class PingPongDemoSceneBuilder
     private static readonly Vector3 PaddleColliderSize = PingPongGeometry.PaddleColliderSize;
     private static readonly Vector3 PaddleHitZoneCenter = PingPongGeometry.PaddleHitZoneCenter;
     private static readonly Vector3 PaddleHitZoneSize = PingPongGeometry.PaddleHitZoneSize;
+    private static readonly Vector3 HandVisualTargetSize = new Vector3(0.16f, 0.18f, 0.22f);
+    private static readonly Vector3 DefaultPaddleVisualOffsetPosition = Vector3.zero;
+    private static readonly Vector3 DefaultPaddleVisualOffsetRotation = new Vector3(0f, 90f, 0f);
+    private static readonly Vector3 DefaultPaddleVisualOffsetScale = Vector3.one;
+    private static readonly Vector3 DefaultHandVisualOffsetPosition = Vector3.zero;
+    private static readonly Vector3 DefaultHandVisualOffsetRotation = new Vector3(0f, 90f, 0f);
+    private static readonly Vector3 DefaultHandVisualOffsetScale = Vector3.one;
 
     [MenuItem("Tools/PICO ElderCare/Build VRTableTennis Adapted Assets")]
     public static void BuildVrTableTennisAdaptedAssets()
@@ -81,6 +100,114 @@ public static class PingPongDemoSceneBuilder
     public static void BuildMixedRealityDemoScene()
     {
         BuildDemoSceneInternal(true);
+    }
+
+    [MenuItem("Tools/PICO ElderCare/Replace Paddle Visual Only")]
+    public static void ReplacePaddleVisualOnly()
+    {
+        if (!EnsureEditMode()) return;
+
+        var sourceModel = LoadFirstModel(CustomPaddleModelPaths);
+        if (sourceModel == null)
+        {
+            EditorUtility.DisplayDialog("PingPong", "Custom paddle model not found in Assets/_Project/External/CustomPingPong/Models.", "OK");
+            return;
+        }
+
+        var paddle = FindRightPaddleInOpenScene();
+        if (paddle == null)
+        {
+            EditorUtility.DisplayDialog("PingPong", "Scene object Paddle_Right not found. Please build or open the ping pong scene first.", "OK");
+            Debug.LogWarning("Scene object Paddle_Right not found. Please build or open the ping pong scene first.");
+            return;
+        }
+
+        ReplacePaddleVisualOnly(paddle, sourceModel);
+        EditorUtility.SetDirty(paddle);
+        UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(UnityEngine.SceneManagement.SceneManager.GetActiveScene());
+        Debug.Log("Paddle visual replaced only. Gameplay components were preserved.");
+    }
+
+    [MenuItem("Tools/PICO ElderCare/Replace Left Hand Visual Only")]
+    public static void ReplaceLeftHandVisualOnly()
+    {
+        if (!EnsureEditMode()) return;
+
+        var sourceModel = LoadPreferredHandModel();
+        if (sourceModel == null)
+        {
+            const string message = "No custom hand model found. Put LeftHand.prefab or Hand.prefab under Assets/_Project/External/CustomPingPong/Models/";
+            EditorUtility.DisplayDialog("PingPong", message, "OK");
+            Debug.LogError(message);
+            return;
+        }
+
+        var hand = FindLeftGrabHandInOpenScene();
+        if (hand == null)
+        {
+            const string message = "Left_GrabHand not found. Please open or build the ping pong scene first.";
+            EditorUtility.DisplayDialog("PingPong", message, "OK");
+            Debug.LogError(message);
+            return;
+        }
+
+        ReplaceLeftHandVisualOnly(hand, sourceModel);
+        EditorUtility.SetDirty(hand);
+        UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(UnityEngine.SceneManagement.SceneManager.GetActiveScene());
+        Debug.Log("Left hand visual replaced only. Controller following and gameplay logic were preserved.");
+    }
+
+    [MenuItem("Tools/PICO ElderCare/Reset Paddle Visual Pose Offset")]
+    public static void ResetPaddleVisualPoseOffset()
+    {
+        if (!EnsureEditMode()) return;
+
+        var paddle = FindRightPaddleInOpenScene();
+        if (paddle == null)
+        {
+            EditorUtility.DisplayDialog("PingPong", "Scene object Paddle_Right not found. Please build or open the ping pong scene first.", "OK");
+            Debug.LogWarning("Scene object Paddle_Right not found. Please build or open the ping pong scene first.");
+            return;
+        }
+
+        var offset = GetOrCreateVisualOffset(
+            paddle.transform,
+            "PaddleVisualOffset",
+            DefaultPaddleVisualOffsetPosition,
+            DefaultPaddleVisualOffsetRotation,
+            DefaultPaddleVisualOffsetScale,
+            true);
+
+        EditorUtility.SetDirty(offset.gameObject);
+        UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(UnityEngine.SceneManagement.SceneManager.GetActiveScene());
+        Debug.Log("Paddle visual pose offset reset.");
+    }
+
+    [MenuItem("Tools/PICO ElderCare/Reset Left Hand Visual Pose Offset")]
+    public static void ResetLeftHandVisualPoseOffset()
+    {
+        if (!EnsureEditMode()) return;
+
+        var hand = FindLeftGrabHandInOpenScene();
+        if (hand == null)
+        {
+            const string message = "Left_GrabHand not found. Please open or build the ping pong scene first.";
+            EditorUtility.DisplayDialog("PingPong", message, "OK");
+            Debug.LogError(message);
+            return;
+        }
+
+        var offset = GetOrCreateVisualOffset(
+            hand.transform,
+            "HandVisualOffset",
+            DefaultHandVisualOffsetPosition,
+            DefaultHandVisualOffsetRotation,
+            DefaultHandVisualOffsetScale,
+            true);
+
+        EditorUtility.SetDirty(offset.gameObject);
+        UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(UnityEngine.SceneManagement.SceneManager.GetActiveScene());
+        Debug.Log("Left hand visual pose offset reset.");
     }
 
     private static void BuildDemoSceneInternal(bool mixedRealityMode)
@@ -300,6 +427,277 @@ public static class PingPongDemoSceneBuilder
         EditorUtility.DisplayDialog("PingPong", "PingPong Demo scene objects have been repaired.", "OK");
     }
 
+    private static GameObject FindRightPaddleInOpenScene()
+    {
+        var pingPong = GameObject.Find("PingPong");
+        var child = pingPong != null ? pingPong.transform.Find("Paddle_Right") : null;
+        return child != null
+            ? child.gameObject
+            : GameObject.Find("Paddle_Right") ?? GameObject.Find("PingPong/Paddle_Right");
+    }
+
+    private static void ReplacePaddleVisualOnly(GameObject paddle, GameObject sourceModel)
+    {
+        if (paddle == null || sourceModel == null) return;
+
+        RemoveOldDirectPaddleVisualChildren(paddle.transform);
+        var offset = GetOrCreateVisualOffset(
+            paddle.transform,
+            "PaddleVisualOffset",
+            DefaultPaddleVisualOffsetPosition,
+            DefaultPaddleVisualOffsetRotation,
+            DefaultPaddleVisualOffsetScale,
+            false);
+        RemoveOldPaddleVisualChildren(offset);
+
+        var visual = PrefabUtility.InstantiatePrefab(sourceModel) as GameObject;
+        if (visual == null)
+        {
+            visual = Object.Instantiate(sourceModel);
+        }
+
+        if (visual == null)
+        {
+            Debug.LogError($"Could not instantiate custom paddle model at '{AssetDatabase.GetAssetPath(sourceModel)}'.");
+            return;
+        }
+
+        visual.name = "Visual_CustomRacket";
+        visual.transform.SetParent(offset, false);
+        visual.transform.localPosition = Vector3.zero;
+        visual.transform.localRotation = Quaternion.identity;
+        visual.transform.localScale = Vector3.one;
+
+        StripVisualGameplayComponents(visual);
+        FitVisualToTarget(visual, PaddleColliderCenter, PaddleColliderSize, 0.95f, false);
+
+        EditorUtility.SetDirty(visual);
+        EditorUtility.SetDirty(offset.gameObject);
+    }
+
+    private static void RemoveOldDirectPaddleVisualChildren(Transform paddle)
+    {
+        if (paddle == null) return;
+
+        var childrenToRemove = new List<GameObject>();
+        foreach (Transform child in paddle)
+        {
+            if (child == null || child.name == "PaddleHitZone" || child.name == "PaddleVisualOffset") continue;
+            if (IsPaddleVisualChildName(child.name))
+            {
+                childrenToRemove.Add(child.gameObject);
+            }
+        }
+
+        foreach (var child in childrenToRemove)
+        {
+            Object.DestroyImmediate(child);
+        }
+    }
+
+    private static void RemoveOldPaddleVisualChildren(Transform visualOffset)
+    {
+        if (visualOffset == null) return;
+
+        var childrenToRemove = new List<GameObject>();
+        foreach (Transform child in visualOffset)
+        {
+            if (child == null) continue;
+            if (child.name == "Visual_CustomRacket" || IsPaddleVisualChildName(child.name))
+            {
+                childrenToRemove.Add(child.gameObject);
+            }
+        }
+
+        foreach (var child in childrenToRemove)
+        {
+            Object.DestroyImmediate(child);
+        }
+    }
+
+    private static bool IsPaddleVisualChildName(string childName)
+    {
+        return !string.IsNullOrEmpty(childName) &&
+               (childName.StartsWith("Visual_") ||
+                childName.StartsWith("CustomPaddleVisual") ||
+                childName.StartsWith("RacketVisual") ||
+                childName.StartsWith("PaddleVisual"));
+    }
+
+    private static GameObject FindLeftGrabHandInOpenScene()
+    {
+        var pingPong = GameObject.Find("PingPong");
+        var child = pingPong != null ? pingPong.transform.Find("Left_GrabHand") : null;
+        return child != null
+            ? child.gameObject
+            : GameObject.Find("Left_GrabHand") ?? GameObject.Find("PingPong/Left_GrabHand");
+    }
+
+    private static void ReplaceLeftHandVisualOnly(GameObject hand, GameObject sourceModel)
+    {
+        if (hand == null || sourceModel == null) return;
+
+        RemoveOldDirectLeftHandVisualChildren(hand.transform);
+        var offset = GetOrCreateVisualOffset(
+            hand.transform,
+            "HandVisualOffset",
+            DefaultHandVisualOffsetPosition,
+            DefaultHandVisualOffsetRotation,
+            DefaultHandVisualOffsetScale,
+            false);
+        RemoveOldLeftHandVisualChildren(offset);
+
+        var visual = PrefabUtility.InstantiatePrefab(sourceModel) as GameObject;
+        if (visual == null)
+        {
+            visual = Object.Instantiate(sourceModel);
+        }
+
+        if (visual == null)
+        {
+            Debug.LogError($"Could not instantiate custom hand model at '{AssetDatabase.GetAssetPath(sourceModel)}'.");
+            return;
+        }
+
+        visual.name = "HandVisual";
+        visual.transform.SetParent(offset, false);
+        visual.transform.localPosition = Vector3.zero;
+        visual.transform.localRotation = Quaternion.identity;
+        visual.transform.localScale = Vector3.one;
+
+        StripVisualGameplayComponents(visual);
+        FitVisualToTarget(visual, Vector3.zero, HandVisualTargetSize, 0.95f, true);
+        ConfigureVisualHandGripAnimator(hand, visual.transform);
+
+        EditorUtility.SetDirty(visual);
+        EditorUtility.SetDirty(offset.gameObject);
+    }
+
+    private static void ConfigureVisualHandGripAnimator(GameObject hand, Transform handVisual)
+    {
+        if (hand == null) return;
+
+        var visualAnimator = EnsureComponent<VisualHandGripAnimator>(hand);
+        if (visualAnimator != null)
+        {
+            visualAnimator.controllerNode = XRNode.LeftHand;
+            visualAnimator.handVisual = handVisual;
+            visualAnimator.autoFindFingerBones = true;
+            visualAnimator.closedPoseSpeed = 12f;
+            visualAnimator.RebuildPoseCache();
+        }
+
+        var generatedPoseAnimator = hand.GetComponent<GrabHandPoseAnimator>();
+        if (generatedPoseAnimator != null)
+        {
+            generatedPoseAnimator.enabled = false;
+        }
+    }
+
+    private static void RemoveOldDirectLeftHandVisualChildren(Transform hand)
+    {
+        if (hand == null) return;
+
+        var childrenToRemove = new List<GameObject>();
+        foreach (Transform child in hand)
+        {
+            if (child == null || child.name == "HandVisualOffset") continue;
+            if (IsLeftHandVisualChildName(child.name))
+            {
+                childrenToRemove.Add(child.gameObject);
+            }
+        }
+
+        foreach (var child in childrenToRemove)
+        {
+            Object.DestroyImmediate(child);
+        }
+    }
+
+    private static void RemoveOldLeftHandVisualChildren(Transform visualOffset)
+    {
+        if (visualOffset == null) return;
+
+        var childrenToRemove = new List<GameObject>();
+        foreach (Transform child in visualOffset)
+        {
+            if (child == null) continue;
+            if (child.name == "HandVisual" || IsLeftHandVisualChildName(child.name))
+            {
+                childrenToRemove.Add(child.gameObject);
+            }
+        }
+
+        foreach (var child in childrenToRemove)
+        {
+            Object.DestroyImmediate(child);
+        }
+    }
+
+    private static bool IsLeftHandVisualChildName(string childName)
+    {
+        return !string.IsNullOrEmpty(childName) &&
+               (childName == "Palm" ||
+                childName == "Thumb" ||
+                childName == "IndexFinger" ||
+                childName == "MiddleFinger" ||
+                childName == "RingFinger" ||
+                childName == "LittleFinger" ||
+                childName == "HandVisual" ||
+                childName.StartsWith("Visual_") ||
+                childName.StartsWith("CustomHandVisual") ||
+                childName.StartsWith("LeftHandVisual"));
+    }
+
+    private static Transform GetOrCreateVisualOffset(
+        Transform parent,
+        string childName,
+        Vector3 defaultPosition,
+        Vector3 defaultRotationEuler,
+        Vector3 defaultScale,
+        bool forceDefaultPose)
+    {
+        var offset = parent.Find(childName);
+        var created = false;
+        if (offset == null)
+        {
+            offset = new GameObject(childName).transform;
+            offset.SetParent(parent, false);
+            created = true;
+        }
+
+        var existingPose = offset.GetComponent<VisualPoseOffset>();
+        var pose = EnsureComponent<VisualPoseOffset>(offset.gameObject);
+        if (pose != null)
+        {
+            pose.visualRoot = offset;
+            pose.applyOnValidate = true;
+            pose.applyOnStart = true;
+
+            if (created || forceDefaultPose)
+            {
+                pose.localPositionOffset = defaultPosition;
+                pose.localRotationOffsetEuler = defaultRotationEuler;
+                pose.localScale = defaultScale;
+                pose.ApplyPose();
+            }
+            else if (existingPose == null)
+            {
+                pose.localPositionOffset = offset.localPosition;
+                pose.localRotationOffsetEuler = offset.localEulerAngles;
+                pose.localScale = offset.localScale;
+            }
+        }
+        else if (created || forceDefaultPose)
+        {
+            offset.localPosition = defaultPosition;
+            offset.localRotation = Quaternion.Euler(defaultRotationEuler);
+            offset.localScale = defaultScale;
+        }
+
+        return offset;
+    }
+
     private static void EnsureFolders()
     {
         EnsureFolderPath("Assets/_Project");
@@ -439,6 +837,11 @@ public static class PingPongDemoSceneBuilder
     {
         return LoadFirstModel(CustomPaddleModelPaths) ??
                AssetDatabase.LoadAssetAtPath<GameObject>($"{OriginalModelRoot}/PPPaddle.fbx");
+    }
+
+    private static GameObject LoadPreferredHandModel()
+    {
+        return LoadFirstModel(CustomHandModelPaths);
     }
 
     private static GameObject LoadPreferredBallModel()
