@@ -19,6 +19,18 @@ namespace PicoElderCare.UI
         public static readonly Color TextSecondary = new Color(1f, 1f, 1f, 0.78f);
         public static readonly Color TextMuted = new Color(1f, 1f, 1f, 0.62f);
         public static readonly Color Disabled = new Color(1f, 1f, 1f, 0.46f);
+        public static readonly Color BPlusBackground = new Color32(0x06, 0x10, 0x1A, 0xFF);
+        public static readonly Color BPlusPanel = new Color32(0x0D, 0x23, 0x32, 0xFF);
+        public static readonly Color BPlusCard = new Color32(0x17, 0x35, 0x47, 0xFF);
+        public static readonly Color PingPongButton = new Color32(0x94, 0xEF, 0xFF, 0xFF);
+        public static readonly Color RehabButton = new Color32(0xAD, 0xF7, 0xD0, 0xFF);
+        public static readonly Color SoftButton = new Color32(0xE8, 0xEE, 0xF8, 0xFF);
+        public static readonly Color ButtonTextDark = new Color32(0x06, 0x18, 0x26, 0xFF);
+        public static readonly Color Stroke = new Color32(0x85, 0xEA, 0xFF, 0xFF);
+        public static readonly Color StatusWarn = new Color32(0xFF, 0xE4, 0x8C, 0xFF);
+        public static readonly Color BPlusText = new Color32(0xF8, 0xFC, 0xFF, 0xFF);
+        public static readonly Color BPlusMuted = new Color32(0xC7, 0xD8, 0xE2, 0xFF);
+        public static readonly Color Card = BPlusCard;
 
         public const float TitleLarge = 74f;
         public const float Title = 44f;
@@ -36,6 +48,8 @@ namespace PicoElderCare.UI
         public static readonly Vector2 RehabButtonSize = new Vector2(360f, 76f);
         public static readonly Vector2 PingPongHudSize = new Vector2(680f, 432f);
         public const float MinButtonHeightForElderly = 68f;
+        public const float BPlusMinButtonHeight = 58f;
+        public const float BPlusMainEntryButtonHeight = 120f;
 
         public const float MainEntryDistanceMeters = 2.2f;
         public const float RehabUiDistanceMeters = 2.45f;
