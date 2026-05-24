@@ -4,6 +4,7 @@ using PicoElderCare.UI;
 using PicoElderCare.UI.BPlus;
 using TMPro;
 using UnityEditor;
+using UnityEditor.Events;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -15,6 +16,9 @@ public static class BPlusUiPrefabBuilder
 {
     private const string PrefabFolder = "Assets/_Project/Prefabs/UI/BPlus";
     private const string SceneFolder = "Assets/_Project/Scenes/BPlus";
+    private const string MainEntryScenePath = "Assets/_Project/Scenes/00_MainEntry.unity";
+    private const string PingPongScenePath = "Assets/_Project/Scenes/01_PingPongDemo.unity";
+    private const string RehabScenePath = "Assets/_Project/Scenes/MR_Rehab_Main.unity";
     private static readonly Vector2 CanvasSize = ElderCareUiTheme.MainEntryCanvasSize;
 
     [MenuItem("PICO ElderCare/B+ UI/Generate All B+ Prefabs And Test Scenes")]
@@ -30,15 +34,12 @@ public static class BPlusUiPrefabBuilder
         EnsureFolder("Assets/_Project/Prefabs", "UI");
         EnsureFolder("Assets/_Project/Prefabs/UI", "BPlus");
 
-        SavePrefab(BuildMainEntryCanvas(), "BPlusMainEntryCanvas.prefab");
-        SavePrefab(BuildPingPongTrainingPanel(), "BPlusPingPongTrainingPanel.prefab");
-        SavePrefab(BuildRehabSelectPanel(), "BPlusRehabSelectPanel.prefab");
-        SavePrefab(BuildRehabTrainingPanel(), "BPlusRehabTrainingPanel.prefab");
+        RemoveDeprecatedTakeoverPrefabs();
         SavePrefab(BuildSceneVideoPanel(), "BPlusSceneVideoPanel.prefab");
 
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
-        Debug.Log("B+ UI static phase 1 prefabs generated.");
+        Debug.Log("B+ UI extension prefabs generated.");
     }
 
     [MenuItem("PICO ElderCare/B+ UI/Generate B+ Test Scenes")]
@@ -53,100 +54,6 @@ public static class BPlusUiPrefabBuilder
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
         Debug.Log("B+ UI test scenes generated.");
-    }
-
-    private static GameObject BuildMainEntryCanvas()
-    {
-        var root = CreateWorldCanvasRoot("BPlusMainEntryCanvas", ElderCareUiTheme.MainEntryDistanceMeters);
-        var content = root.transform as RectTransform;
-        CreatePanel(content, "Background", CanvasSize, Vector2.zero, WithAlpha(ElderCareUiTheme.BPlusPanel, 0.98f), 44f, false);
-        CreateText(content, "Title", "VR康养服务", new Vector2(600f, 76f), new Vector2(0f, 154f), 62f, FontStyles.Bold, ElderCareUiTheme.BPlusText, TextAlignmentOptions.Center);
-
-        CreateButton(content, "Button_PingPong", "乒乓球训练", new Vector2(292f, 126f), new Vector2(-156f, 48f), ElderCareUiTheme.PingPongButton, "MainEntry", 0f);
-        CreateButton(content, "Button_Rehab", "康复运动", new Vector2(292f, 126f), new Vector2(156f, 48f), ElderCareUiTheme.RehabButton, "MainEntry", 0.04f);
-        CreateButton(content, "Button_Travel", "VR旅游", new Vector2(292f, 126f), new Vector2(-156f, -102f), ElderCareUiTheme.SoftButton, "MainEntry", 0.08f);
-        CreateButton(content, "Button_SceneVideo", "场景视频", new Vector2(292f, 126f), new Vector2(156f, -102f), ElderCareUiTheme.SoftButton, "MainEntry", 0.12f);
-        CreateStatusBadge(content, "TravelPendingBadge", "待接入", new Vector2(-48f, -58f), ElderCareUiTheme.StatusWarn);
-        CreateText(content, "StatusText", "请选择服务", new Vector2(560f, 26f), new Vector2(0f, -194f), 18f, FontStyles.Bold, ElderCareUiTheme.BPlusMuted, TextAlignmentOptions.Center);
-        var controller = root.AddComponent<BPlusMainEntryController>();
-        controller.pingPongButton = FindButton(root.transform, "Button_PingPong");
-        controller.rehabButton = FindButton(root.transform, "Button_Rehab");
-        controller.travelButton = FindButton(root.transform, "Button_Travel");
-        controller.sceneVideoButton = FindButton(root.transform, "Button_SceneVideo");
-        controller.statusText = FindText(root.transform, "StatusText");
-        return root;
-    }
-
-    private static GameObject BuildPingPongTrainingPanel()
-    {
-        var root = CreateWorldCanvasRoot("BPlusPingPongTrainingPanel", ElderCareUiTheme.HudDistanceMeters);
-        var content = root.transform as RectTransform;
-        CreatePanel(content, "Background", CanvasSize, Vector2.zero, WithAlpha(ElderCareUiTheme.BPlusPanel, 0.98f), 44f, false);
-        CreateHeader(content, "乒乓球训练", "待开始");
-
-        CreateMetricCard(content, "Metric_Accuracy", "命中率", "0%", new Vector2(-178f, 72f), ElderCareUiTheme.PingPongButton);
-        CreateMetricCard(content, "Metric_Difficulty", "难度", "标准", new Vector2(178f, 72f), ElderCareUiTheme.RehabButton);
-        CreateMetricCard(content, "Metric_Hits", "有效击球", "0", new Vector2(-178f, -46f), ElderCareUiTheme.RehabButton);
-        CreateMetricCard(content, "Metric_Time", "时长", "00:00", new Vector2(178f, -46f), ElderCareUiTheme.SoftButton);
-        CreateHintStrip(content, "Hint", "当前难度适合热身和基础训练。", new Vector2(0f, -132f));
-
-        CreateButton(content, "Button_Start", "开始训练", new Vector2(154f, 58f), new Vector2(-243f, -181f), ElderCareUiTheme.PingPongButton, "PingPongTraining", 0f);
-        CreateButton(content, "Button_Return", "返回主页", new Vector2(154f, 58f), new Vector2(-81f, -181f), ElderCareUiTheme.SoftButton, "PingPongTraining", 0.03f);
-        CreateButton(content, "Button_IncreaseDifficulty", "难度增加", new Vector2(154f, 58f), new Vector2(81f, -181f), ElderCareUiTheme.RehabButton, "PingPongTraining", 0.06f);
-        CreateButton(content, "Button_DecreaseDifficulty", "难度降低", new Vector2(154f, 58f), new Vector2(243f, -181f), ElderCareUiTheme.SoftButton, "PingPongTraining", 0.09f);
-        var controller = root.AddComponent<BPlusPingPongTrainingPanelController>();
-        controller.startButton = FindButton(root.transform, "Button_Start");
-        controller.returnButton = FindButton(root.transform, "Button_Return");
-        controller.increaseDifficultyButton = FindButton(root.transform, "Button_IncreaseDifficulty");
-        controller.decreaseDifficultyButton = FindButton(root.transform, "Button_DecreaseDifficulty");
-        controller.statusText = FindText(root.transform, "Status/Text");
-        controller.accuracyText = FindText(root.transform, "Metric_Accuracy/Value");
-        controller.difficultyText = FindText(root.transform, "Metric_Difficulty/Value");
-        controller.hitsText = FindText(root.transform, "Metric_Hits/Value");
-        controller.durationText = FindText(root.transform, "Metric_Time/Value");
-        return root;
-    }
-
-    private static GameObject BuildRehabSelectPanel()
-    {
-        var root = CreateWorldCanvasRoot("BPlusRehabSelectPanel", ElderCareUiTheme.RehabUiDistanceMeters);
-        var content = root.transform as RectTransform;
-        CreatePanel(content, "Background", CanvasSize, Vector2.zero, WithAlpha(ElderCareUiTheme.BPlusPanel, 0.98f), 44f, false);
-        CreateText(content, "Title", "请选择康复训练", new Vector2(600f, 64f), new Vector2(0f, 148f), 46f, FontStyles.Bold, ElderCareUiTheme.BPlusText, TextAlignmentOptions.Center);
-
-        CreateTrainingOption(content, "Button_Baduanjin", "八段锦训练", "约 5 分钟", new Vector2(-160f, 22f), ElderCareUiTheme.RehabButton);
-        CreateTrainingOption(content, "Button_TaiChi", "太极训练", "约 5 分钟", new Vector2(160f, 22f), ElderCareUiTheme.PingPongButton);
-        CreateButton(content, "Button_Return", "返回", new Vector2(600f, 72f), new Vector2(0f, -146f), ElderCareUiTheme.SoftButton, "RehabSelect", 0.08f);
-        var controller = root.AddComponent<BPlusRehabSelectController>();
-        controller.baduanjinButton = FindButton(root.transform, "Button_Baduanjin");
-        controller.taiChiButton = FindButton(root.transform, "Button_TaiChi");
-        controller.returnButton = FindButton(root.transform, "Button_Return");
-        return root;
-    }
-
-    private static GameObject BuildRehabTrainingPanel()
-    {
-        var root = CreateWorldCanvasRoot("BPlusRehabTrainingPanel", ElderCareUiTheme.RehabUiDistanceMeters);
-        var content = root.transform as RectTransform;
-        CreatePanel(content, "Background", CanvasSize, Vector2.zero, WithAlpha(ElderCareUiTheme.BPlusPanel, 0.98f), 44f, false);
-        CreateText(content, "Title", "八段锦：双手托天理三焦", new Vector2(600f, 46f), new Vector2(0f, 166f), 35f, FontStyles.Bold, ElderCareUiTheme.BPlusText, TextAlignmentOptions.Center);
-        CreateText(content, "Description", "请保持舒适幅度，跟随提示完成动作。", new Vector2(600f, 34f), new Vector2(0f, 126f), 22f, FontStyles.Normal, ElderCareUiTheme.BPlusMuted, TextAlignmentOptions.Center);
-
-        CreateMetricCard(content, "CountdownCard", "倒计时", "04:18", new Vector2(-188f, 40f), ElderCareUiTheme.PingPongButton);
-        CreateProgressRing(content, "ProgressRing", new Vector2(188f, 36f), 0.38f);
-        CreateHintStrip(content, "SafetyHint", "保持呼吸平稳，肩部不要用力过猛", new Vector2(0f, -104f));
-        CreateText(content, "DevInfo", "开发信息：动作识别数据接入后刷新完成度", new Vector2(600f, 28f), new Vector2(0f, -144f), 18f, FontStyles.Normal, WithAlpha(ElderCareUiTheme.BPlusMuted, 0.66f), TextAlignmentOptions.Center);
-        CreateButton(content, "Button_Return", "返回", new Vector2(600f, 60f), new Vector2(0f, -184f), ElderCareUiTheme.SoftButton, "RehabTraining", 0.08f);
-        var controller = root.AddComponent<BPlusRehabTrainingPanelController>();
-        controller.returnButton = FindButton(root.transform, "Button_Return");
-        controller.titleText = FindText(root.transform, "Title");
-        controller.descriptionText = FindText(root.transform, "Description");
-        controller.countdownText = FindText(root.transform, "CountdownCard/Value");
-        controller.progressText = FindText(root.transform, "ProgressRing/Center/Percent");
-        controller.safetyText = FindText(root.transform, "SafetyHint/Text");
-        controller.devInfoText = FindText(root.transform, "DevInfo");
-        controller.progressFillImage = FindImage(root.transform, "ProgressRing/RingFill");
-        return root;
     }
 
     private static GameObject BuildSceneVideoPanel()
@@ -334,82 +241,10 @@ public static class BPlusUiPrefabBuilder
         return button;
     }
 
-    private static void CreateMetricCard(RectTransform parent, string name, string label, string value, Vector2 position, Color accent)
-    {
-        var panel = CreatePanel(parent, name, new Vector2(292f, 104f), position, WithAlpha(Color.Lerp(ElderCareUiTheme.BPlusCard, accent, 0.12f), 0.92f), 24f, false);
-        var rect = panel.rectTransform;
-        CreateText(rect, "Label", label, new Vector2(250f, 30f), new Vector2(0f, 24f), 22f, FontStyles.Bold, ElderCareUiTheme.BPlusMuted, TextAlignmentOptions.Center);
-        CreateText(rect, "Value", value, new Vector2(250f, 48f), new Vector2(0f, -18f), 42f, FontStyles.Bold, accent, TextAlignmentOptions.Center);
-    }
-
-    private static void CreateTrainingOption(RectTransform parent, string name, string title, string subtitle, Vector2 position, Color accent)
-    {
-        var button = CreateButton(parent, name, title, new Vector2(292f, 156f), position, accent, "RehabSelect", 0f);
-        var rect = button.transform as RectTransform;
-        var label = rect.Find("Label") as RectTransform;
-        if (label != null)
-        {
-            label.anchoredPosition = new Vector2(0f, 18f);
-            label.sizeDelta = new Vector2(250f, 58f);
-        }
-
-        CreateText(rect, "Subtitle", subtitle, new Vector2(250f, 30f), new Vector2(0f, -42f), 22f, FontStyles.Bold, ElderCareUiTheme.ButtonTextDark, TextAlignmentOptions.Center);
-    }
-
-    private static void CreateHintStrip(RectTransform parent, string name, string value, Vector2 position)
-    {
-        var panel = CreatePanel(parent, name, new Vector2(600f, 50f), position, WithAlpha(ElderCareUiTheme.StatusWarn, 0.14f), 18f, false);
-        CreateText(panel.rectTransform, "Text", value, new Vector2(560f, 34f), Vector2.zero, 24f, FontStyles.Bold, ElderCareUiTheme.StatusWarn, TextAlignmentOptions.Center);
-    }
-
     private static void CreateStatusBadge(RectTransform parent, string name, string value, Vector2 position, Color accent)
     {
         var panel = CreatePanel(parent, name, new Vector2(156f, 40f), position, Color.Lerp(ElderCareUiTheme.SoftButton, accent, 0.68f), 20f, false);
         CreateText(panel.rectTransform, "Text", value, new Vector2(132f, 28f), Vector2.zero, 20f, FontStyles.Bold, ElderCareUiTheme.ButtonTextDark, TextAlignmentOptions.Center);
-    }
-
-    private static void CreateProgressRing(RectTransform parent, string name, Vector2 position, float progress)
-    {
-        var root = new GameObject(name, typeof(RectTransform));
-        root.transform.SetParent(parent, false);
-        var rect = root.GetComponent<RectTransform>();
-        rect.anchorMin = new Vector2(0.5f, 0.5f);
-        rect.anchorMax = new Vector2(0.5f, 0.5f);
-        rect.pivot = new Vector2(0.5f, 0.5f);
-        rect.sizeDelta = new Vector2(148f, 148f);
-        rect.anchoredPosition = position;
-
-        var bg = CreateCircleImage(rect, "RingBackground", new Vector2(148f, 148f), WithAlpha(ElderCareUiTheme.SoftButton, 0.14f));
-        bg.type = Image.Type.Filled;
-        bg.fillMethod = Image.FillMethod.Radial360;
-        bg.fillAmount = 1f;
-        bg.raycastTarget = false;
-
-        var fill = CreateCircleImage(rect, "RingFill", new Vector2(148f, 148f), ElderCareUiTheme.RehabButton);
-        fill.type = Image.Type.Filled;
-        fill.fillMethod = Image.FillMethod.Radial360;
-        fill.fillOrigin = 2;
-        fill.fillAmount = Mathf.Clamp01(progress);
-        fill.raycastTarget = false;
-
-        var center = CreatePanel(rect, "Center", new Vector2(100f, 100f), Vector2.zero, WithAlpha(ElderCareUiTheme.BPlusCard, 0.96f), 50f, false);
-        CreateText(center.rectTransform, "Percent", "38%", new Vector2(82f, 44f), new Vector2(0f, 10f), 38f, FontStyles.Bold, ElderCareUiTheme.RehabButton, TextAlignmentOptions.Center);
-        CreateText(center.rectTransform, "Label", "完成度", new Vector2(82f, 28f), new Vector2(0f, -24f), 18f, FontStyles.Bold, ElderCareUiTheme.BPlusText, TextAlignmentOptions.Center);
-    }
-
-    private static Image CreateCircleImage(RectTransform parent, string name, Vector2 size, Color color)
-    {
-        var go = new GameObject(name, typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
-        go.transform.SetParent(parent, false);
-        var rect = go.GetComponent<RectTransform>();
-        rect.anchorMin = new Vector2(0.5f, 0.5f);
-        rect.anchorMax = new Vector2(0.5f, 0.5f);
-        rect.pivot = new Vector2(0.5f, 0.5f);
-        rect.sizeDelta = size;
-        rect.anchoredPosition = Vector2.zero;
-        var image = go.GetComponent<Image>();
-        image.color = color;
-        return image;
     }
 
     private static void CreateVideoReadout(RectTransform parent, Vector2 position)
@@ -438,91 +273,29 @@ public static class BPlusUiPrefabBuilder
 
     private static void GenerateMainEntryScene()
     {
-        var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+        const string destination = SceneFolder + "/00_MainEntry_BPlus.unity";
+        var scene = CopyAndOpenScene(MainEntryScenePath, destination);
         EnsureDefaultSceneObjects();
-        var mainEntry = InstantiateBPlusPrefab("BPlusMainEntryCanvas.prefab");
-        var controller = mainEntry.GetComponent<BPlusMainEntryController>();
-        if (controller != null)
-        {
-            controller.loadScenes = true;
-            controller.pingPongSceneName = "01_PingPongDemo_BPlusUI";
-            controller.rehabSceneName = "MR_Rehab_Main_BPlusUI";
-            controller.sceneVideoSceneName = "SceneVideo_BPlusUI";
-            controller.sceneVideoAvailable = true;
-        }
-
+        ConfigureUnifiedEntryMenusForBPlus();
+        ConfigureSceneVideoEntry();
         SaveScene(scene, "00_MainEntry_BPlus.unity");
     }
 
     private static void GeneratePingPongScene()
     {
         const string destination = SceneFolder + "/01_PingPongDemo_BPlusUI.unity";
-        var scene = CopyAndOpenScene("Assets/_Project/Scenes/01_PingPongDemo.unity", destination);
+        var scene = CopyAndOpenScene(PingPongScenePath, destination);
         EnsureDefaultSceneObjects();
-        var bPlusPanel = InstantiateBPlusPrefab("BPlusPingPongTrainingPanel.prefab");
-        var ballSpawner = Object.FindObjectOfType<BallSpawner>(true);
-        var difficultyController = Object.FindObjectOfType<PingPongDifficultyController>(true);
-        if (ballSpawner != null)
-        {
-            ballSpawner.autoStartOnPlay = false;
-            EditorUtility.SetDirty(ballSpawner);
-        }
-
-        var controller = bPlusPanel.GetComponent<BPlusPingPongTrainingPanelController>();
-        if (controller != null)
-        {
-            controller.ballSpawner = ballSpawner;
-            controller.difficultyController = difficultyController;
-            controller.returnBySceneLoad = true;
-            controller.mainEntrySceneName = "00_MainEntry_BPlus";
-        }
-
-        var legacyRoots = HideLegacyCanvases(new[] { bPlusPanel });
-        AddModeSwitch(new[] { bPlusPanel }, legacyRoots);
+        ConfigureModuleHomeMenusForBPlus();
         SaveScene(scene, "01_PingPongDemo_BPlusUI.unity");
     }
 
     private static void GenerateRehabScene()
     {
         const string destination = SceneFolder + "/MR_Rehab_Main_BPlusUI.unity";
-        var scene = CopyAndOpenScene("Assets/_Project/Scenes/MR_Rehab_Main.unity", destination);
+        var scene = CopyAndOpenScene(RehabScenePath, destination);
         EnsureDefaultSceneObjects();
-        var selectPanel = InstantiateBPlusPrefab("BPlusRehabSelectPanel.prefab");
-        var trainingPanel = InstantiateBPlusPrefab("BPlusRehabTrainingPanel.prefab");
-        trainingPanel.SetActive(false);
-
-        var modeSelect = Object.FindObjectOfType<RehabModeSelectUI>(true);
-        var sessionManager = Object.FindObjectOfType<RehabSessionManager>(true);
-        var movementEvaluator = Object.FindObjectOfType<MovementEvaluator>(true);
-        var uiController = Object.FindObjectOfType<RehabUIController>(true);
-        if (modeSelect != null)
-        {
-            modeSelect.showTrainingSelectOnStart = false;
-            EditorUtility.SetDirty(modeSelect);
-        }
-
-        var selectController = selectPanel.GetComponent<BPlusRehabSelectController>();
-        if (selectController != null)
-        {
-            selectController.modeSelectUI = modeSelect;
-            selectController.sessionManager = sessionManager;
-            selectController.rehabTrainingPanel = trainingPanel;
-            selectController.returnBySceneLoad = true;
-            selectController.mainEntrySceneName = "00_MainEntry_BPlus";
-        }
-
-        var trainingController = trainingPanel.GetComponent<BPlusRehabTrainingPanelController>();
-        if (trainingController != null)
-        {
-            trainingController.sessionManager = sessionManager;
-            trainingController.movementEvaluator = movementEvaluator;
-            trainingController.uiControllerAdapter = uiController;
-            trainingController.rehabSelectPanel = selectPanel;
-            trainingController.returnBySceneLoad = false;
-        }
-
-        var legacyRoots = HideLegacyCanvases(new[] { selectPanel, trainingPanel });
-        AddModeSwitch(new[] { selectPanel, trainingPanel }, legacyRoots);
+        ConfigureModuleHomeMenusForBPlus();
         SaveScene(scene, "MR_Rehab_Main_BPlusUI.unity");
     }
 
@@ -571,6 +344,122 @@ public static class BPlusUiPrefabBuilder
         return instance;
     }
 
+    private static void RemoveDeprecatedTakeoverPrefabs()
+    {
+        DeleteAssetIfExists(PrefabFolder + "/BPlusMainEntryCanvas.prefab");
+        DeleteAssetIfExists(PrefabFolder + "/BPlusPingPongTrainingPanel.prefab");
+        DeleteAssetIfExists(PrefabFolder + "/BPlusRehabSelectPanel.prefab");
+        DeleteAssetIfExists(PrefabFolder + "/BPlusRehabTrainingPanel.prefab");
+    }
+
+    private static void ConfigureUnifiedEntryMenusForBPlus()
+    {
+        var menus = Object.FindObjectsOfType<UnifiedEntryMenu>(true);
+        for (var i = 0; i < menus.Length; i++)
+        {
+            if (menus[i] == null) continue;
+            menus[i].pingPongSceneName = "01_PingPongDemo_BPlusUI";
+            menus[i].rehabSceneName = "MR_Rehab_Main_BPlusUI";
+            EditorUtility.SetDirty(menus[i]);
+        }
+    }
+
+    private static void ConfigureModuleHomeMenusForBPlus()
+    {
+        var moduleHomeMenus = Object.FindObjectsOfType<ModuleHomeMenu>(true);
+        for (var i = 0; i < moduleHomeMenus.Length; i++)
+        {
+            if (moduleHomeMenus[i] == null) continue;
+            moduleHomeMenus[i].mainEntrySceneName = "00_MainEntry_BPlus";
+            EditorUtility.SetDirty(moduleHomeMenus[i]);
+        }
+    }
+
+    private static void ConfigureSceneVideoEntry()
+    {
+        var moduleVideo = FindSceneObjectByName("Module_Video");
+        if (moduleVideo == null)
+        {
+            Debug.LogWarning("B+ scene video entry was not configured because Module_Video was not found.");
+            return;
+        }
+
+        var link = moduleVideo.GetComponent<BPlusSceneVideoEntryLink>();
+        if (link == null)
+        {
+            link = moduleVideo.AddComponent<BPlusSceneVideoEntryLink>();
+        }
+
+        link.sceneName = "SceneVideo_BPlusUI";
+
+        var button = moduleVideo.GetComponent<Button>();
+        if (button != null)
+        {
+            button.interactable = true;
+            UnityEventTools.AddPersistentListener(button.onClick, link.LoadSceneVideo);
+            EditorUtility.SetDirty(button);
+        }
+
+        var motion = moduleVideo.GetComponent<TechModuleCardMotion>();
+        if (motion != null)
+        {
+            motion.interactable = true;
+            EditorUtility.SetDirty(motion);
+        }
+
+        SetDirectChildActive(moduleVideo.transform, "StatusBadgePanel", false);
+        SetDirectChildActive(moduleVideo.transform, "StatusBadge", false);
+        EditorUtility.SetDirty(moduleVideo);
+    }
+
+    private static GameObject FindSceneObjectByName(string objectName)
+    {
+        var roots = SceneManager.GetActiveScene().GetRootGameObjects();
+        for (var i = 0; i < roots.Length; i++)
+        {
+            var result = FindChildByName(roots[i].transform, objectName);
+            if (result != null)
+            {
+                return result.gameObject;
+            }
+        }
+
+        return null;
+    }
+
+    private static Transform FindChildByName(Transform root, string objectName)
+    {
+        if (root == null) return null;
+        if (root.name == objectName) return root;
+        for (var i = 0; i < root.childCount; i++)
+        {
+            var result = FindChildByName(root.GetChild(i), objectName);
+            if (result != null)
+            {
+                return result;
+            }
+        }
+
+        return null;
+    }
+
+    private static void SetDirectChildActive(Transform root, string childName, bool active)
+    {
+        if (root == null) return;
+        var child = root.Find(childName);
+        if (child == null) return;
+        child.gameObject.SetActive(active);
+        EditorUtility.SetDirty(child.gameObject);
+    }
+
+    private static void DeleteAssetIfExists(string path)
+    {
+        if (AssetDatabase.LoadAssetAtPath<Object>(path) != null)
+        {
+            AssetDatabase.DeleteAsset(path);
+        }
+    }
+
     private static void EnsureDefaultSceneObjects()
     {
         if (Camera.main == null)
@@ -595,47 +484,6 @@ public static class BPlusUiPrefabBuilder
         {
             new GameObject("EventSystem", typeof(EventSystem), typeof(StandaloneInputModule));
         }
-    }
-
-    private static GameObject[] HideLegacyCanvases(GameObject[] bPlusRoots)
-    {
-        var legacyRoots = new List<GameObject>();
-        var canvases = Object.FindObjectsOfType<Canvas>(true);
-        for (var i = 0; i < canvases.Length; i++)
-        {
-            var canvas = canvases[i];
-            if (canvas == null || IsInsideAny(canvas.transform, bPlusRoots)) continue;
-            legacyRoots.Add(canvas.gameObject);
-            canvas.gameObject.SetActive(false);
-            EditorUtility.SetDirty(canvas.gameObject);
-        }
-
-        return legacyRoots.ToArray();
-    }
-
-    private static bool IsInsideAny(Transform target, GameObject[] roots)
-    {
-        if (target == null || roots == null) return false;
-        for (var i = 0; i < roots.Length; i++)
-        {
-            if (roots[i] != null && target.IsChildOf(roots[i].transform))
-            {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    private static void AddModeSwitch(GameObject[] bPlusRoots, GameObject[] legacyRoots)
-    {
-        var switchRoot = new GameObject("BPlusUiModeSwitch");
-        var modeSwitch = switchRoot.AddComponent<BPlusUiModeSwitch>();
-        modeSwitch.applyOnValidate = false;
-        modeSwitch.useBPlusUi = true;
-        modeSwitch.bPlusUiRoots = bPlusRoots;
-        modeSwitch.legacyUiRoots = legacyRoots;
-        modeSwitch.Apply();
     }
 
     private static void SaveScene(Scene scene, string fileName)
