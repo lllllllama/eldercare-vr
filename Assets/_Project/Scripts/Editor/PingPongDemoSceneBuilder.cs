@@ -82,6 +82,32 @@ public static class PingPongDemoSceneBuilder
         BuildDemoSceneInternal(true);
     }
 
+    [MenuItem("Tools/PICO ElderCare/Replace Paddle Visual Only")]
+    public static void ReplacePaddleVisualOnly()
+    {
+        if (!EnsureEditMode()) return;
+
+        var sourceModel = LoadFirstModel(CustomPaddleModelPaths);
+        if (sourceModel == null)
+        {
+            EditorUtility.DisplayDialog("PingPong", "Custom paddle model not found in Assets/_Project/External/CustomPingPong/Models.", "OK");
+            return;
+        }
+
+        var paddle = FindRightPaddleInOpenScene();
+        if (paddle == null)
+        {
+            EditorUtility.DisplayDialog("PingPong", "Scene object Paddle_Right not found. Please build or open the ping pong scene first.", "OK");
+            Debug.LogWarning("Scene object Paddle_Right not found. Please build or open the ping pong scene first.");
+            return;
+        }
+
+        ReplacePaddleVisualOnly(paddle, sourceModel);
+        EditorUtility.SetDirty(paddle);
+        UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(UnityEngine.SceneManagement.SceneManager.GetActiveScene());
+        Debug.Log("Paddle visual replaced only. Gameplay components were preserved.");
+    }
+
     private static void BuildDemoSceneInternal(bool mixedRealityMode)
     {
         if (!EnsureEditMode()) return;
@@ -297,6 +323,73 @@ public static class PingPongDemoSceneBuilder
         AssetDatabase.SaveAssets();
 
         EditorUtility.DisplayDialog("PingPong", "PingPong Demo scene objects have been repaired.", "OK");
+    }
+
+    private static GameObject FindRightPaddleInOpenScene()
+    {
+        var pingPong = GameObject.Find("PingPong");
+        return pingPong != null
+            ? pingPong.transform.Find("Paddle_Right")?.gameObject
+            : GameObject.Find("PingPong/Paddle_Right");
+    }
+
+    private static void ReplacePaddleVisualOnly(GameObject paddle, GameObject sourceModel)
+    {
+        if (paddle == null || sourceModel == null) return;
+
+        RemoveOldPaddleVisualChildren(paddle.transform);
+
+        var visual = PrefabUtility.InstantiatePrefab(sourceModel) as GameObject;
+        if (visual == null)
+        {
+            visual = Object.Instantiate(sourceModel);
+        }
+
+        if (visual == null)
+        {
+            Debug.LogError($"Could not instantiate custom paddle model at '{AssetDatabase.GetAssetPath(sourceModel)}'.");
+            return;
+        }
+
+        visual.name = "Visual_CustomRacket";
+        visual.transform.SetParent(paddle.transform, false);
+        visual.transform.localPosition = Vector3.zero;
+        visual.transform.localRotation = Quaternion.identity;
+        visual.transform.localScale = Vector3.one;
+
+        StripVisualGameplayComponents(visual);
+        FitVisualToTarget(visual, PaddleColliderCenter, PaddleColliderSize, 0.95f, false);
+
+        EditorUtility.SetDirty(visual);
+    }
+
+    private static void RemoveOldPaddleVisualChildren(Transform paddle)
+    {
+        if (paddle == null) return;
+
+        var childrenToRemove = new List<GameObject>();
+        foreach (Transform child in paddle)
+        {
+            if (child == null || child.name == "PaddleHitZone") continue;
+            if (IsPaddleVisualChildName(child.name))
+            {
+                childrenToRemove.Add(child.gameObject);
+            }
+        }
+
+        foreach (var child in childrenToRemove)
+        {
+            Object.DestroyImmediate(child);
+        }
+    }
+
+    private static bool IsPaddleVisualChildName(string childName)
+    {
+        return !string.IsNullOrEmpty(childName) &&
+               (childName.StartsWith("Visual_") ||
+                childName.StartsWith("CustomPaddleVisual") ||
+                childName.StartsWith("RacketVisual") ||
+                childName.StartsWith("PaddleVisual"));
     }
 
     private static void EnsureFolders()
