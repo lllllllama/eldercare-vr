@@ -190,9 +190,9 @@ MonoBehaviour:
   minimumClosingSpeed: 0.15
   heldBallMinimumSwingSpeed: 0.35
   maxSpeed: 9
-  minimumTableBounceUpSpeed: 1.35
+  minimumTableBounceUpSpeed: 1.65
   tableBounceRestitutionFloor: 0.93
-  tableBounceUpwardAssist: 0.12
+  tableBounceUpwardAssist: 0.22
   enableSweptSurfaceFallback: 1
   sweptSurfaceLayers:
     serializedVersion: 2

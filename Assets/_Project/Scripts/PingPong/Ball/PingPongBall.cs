@@ -16,9 +16,9 @@ public class PingPongBall : MonoBehaviour
     public float minimumClosingSpeed = 0.15f;
     public float heldBallMinimumSwingSpeed = 0.35f;
     public float maxSpeed = 9f;
-    public float minimumTableBounceUpSpeed = 1.35f;
+    public float minimumTableBounceUpSpeed = 1.65f;
     public float tableBounceRestitutionFloor = 0.93f;
-    public float tableBounceUpwardAssist = 0.12f;
+    public float tableBounceUpwardAssist = 0.22f;
     public bool enableSweptSurfaceFallback = true;
     public LayerMask sweptSurfaceLayers = ~0;
     public bool ignoreNonGameplayColliders = true;

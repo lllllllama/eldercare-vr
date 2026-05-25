@@ -39,6 +39,7 @@ public class PingPongDifficultyController : MonoBehaviour
     public bool showScreenButtons = false;
     public bool enableControllerSpeedButtons = true;
     public XRNode controllerButtonNode = XRNode.RightHand;
+    public bool createVisiblePanel = true;
 
     private readonly List<InputDevice> _buttonDevices = new List<InputDevice>();
     private PingPongDifficulty _difficulty;
@@ -48,6 +49,35 @@ public class PingPongDifficultyController : MonoBehaviour
 
     public PingPongDifficulty CurrentDifficulty => _difficulty;
     public float CurrentSpeed => ballSpawner != null ? ballSpawner.serveSpeed : GetPreset(startingDifficulty).speed;
+    public string CurrentLabel => GetLabel(_difficulty);
+
+    public static PingPongDifficultyController EnsureRuntimeController(GameObject host, BallSpawner spawner)
+    {
+        if (host == null) return null;
+
+        var controller = host.GetComponent<PingPongDifficultyController>();
+        if (controller == null)
+        {
+            controller = host.AddComponent<PingPongDifficultyController>();
+        }
+
+        controller.ballSpawner = spawner;
+        controller.difficultyText = null;
+        controller.speedText = null;
+        controller.hintText = null;
+        controller.decreaseButton = null;
+        controller.resetButton = null;
+        controller.increaseButton = null;
+        controller.startingDifficulty = PingPongDifficulty.Normal;
+        controller.controlServeInterval = true;
+        controller.showScreenButtons = false;
+        controller.enableControllerSpeedButtons = true;
+        controller.createVisiblePanel = false;
+        controller.enhancePanelReadability = false;
+        controller.RebindButtons();
+        controller.ApplyLoadedDifficulty();
+        return controller;
+    }
 
     public static PingPongDifficultyController EnsureRuntimePanel(Transform canvasTransform, BallSpawner spawner, TMP_FontAsset fontAsset)
     {
@@ -108,6 +138,8 @@ public class PingPongDifficultyController : MonoBehaviour
         controller.controlServeInterval = true;
         controller.showScreenButtons = false;
         controller.enableControllerSpeedButtons = true;
+        controller.createVisiblePanel = true;
+        controller.enhancePanelReadability = true;
         controller.RebindButtons();
         controller.ApplyLoadedDifficulty();
         controller.ApplyReadabilityLayout();
@@ -207,6 +239,7 @@ public class PingPongDifficultyController : MonoBehaviour
 
     public void ApplyReadabilityLayout()
     {
+        if (!createVisiblePanel) return;
         if (!enhancePanelReadability) return;
 
         var rootRect = transform as RectTransform;

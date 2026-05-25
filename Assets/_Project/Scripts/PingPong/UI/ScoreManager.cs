@@ -1,6 +1,7 @@
 using PicoElderCare.UI;
 using TMPro;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 public class ScoreManager : MonoBehaviour
@@ -35,6 +36,9 @@ public class ScoreManager : MonoBehaviour
     private int _missedCount;
     private float _lastHitSpeed;
     private float _lastSpinSpeed;
+    private PingPongDifficultyController _difficultyController;
+    private string _lastDifficultyLabel;
+    private float _lastDifficultySpeed = -1f;
 
     private void OnEnable()
     {
@@ -45,6 +49,7 @@ public class ScoreManager : MonoBehaviour
         ResolveFontIfNeeded();
         ApplyFont();
         EnsureReadableHud();
+        EnsureDifficultyControls();
         EnsureDisplayCanvasInteraction();
         RefreshUI();
     }
@@ -54,6 +59,12 @@ public class ScoreManager : MonoBehaviour
         EnsureDifficultyControls();
         EnsureReadableHud();
         EnsureDisplayCanvasInteraction();
+        RefreshUI();
+    }
+
+    private void Update()
+    {
+        RefreshDifficultyMetricIfNeeded();
     }
 
     private void OnDisable()
@@ -104,7 +115,7 @@ public class ScoreManager : MonoBehaviour
         var accuracy = _servedCount > 0 ? (float)_hitCount / _servedCount * 100f : 0f;
 
         if (accuracyText != null) accuracyText.text = FormatPrimaryMetric("命中率", accuracy.ToString("0.0"), "%");
-        if (lastSpeedText != null) lastSpeedText.text = FormatPrimaryMetric("回球速度", _lastHitSpeed.ToString("0.0"), "m/s");
+        RefreshDifficultyMetric(true);
         if (hitText != null) hitText.text = FormatSecondaryMetric("命中", _hitCount);
         if (servedText != null) servedText.text = FormatSecondaryMetric("发球", _servedCount);
         if (missedText != null) missedText.text = FormatSecondaryMetric("漏球", _missedCount);
@@ -125,6 +136,11 @@ public class ScoreManager : MonoBehaviour
     private static string FormatAuxiliaryMetric(string label, string value, string unit)
     {
         return $"<size=22>{label}</size>  <size=32><b>{value}</b></size> <size=20>{unit}</size>";
+    }
+
+    private static string FormatDifficultyMetric(string label, string value, float speed)
+    {
+        return $"<size=28>{label}</size>\n<size=58><b>{value}</b></size>\n<size=20>发球 {speed:0.0} m/s · A/B 调整</size>";
     }
 
     private void ApplyFont()
@@ -247,7 +263,9 @@ public class ScoreManager : MonoBehaviour
 
         if (ballSpawner == null) return;
 
-        PingPongDifficultyController.EnsureRuntimePanel(canvasTransform, ballSpawner, uiFont);
+        RemoveStandaloneDifficultyPanel(canvasTransform);
+        _difficultyController = PingPongDifficultyController.EnsureRuntimeController(gameObject, ballSpawner);
+        RefreshDifficultyMetric(true);
     }
 
     public void EnsureDisplayCanvasInteraction()
@@ -261,6 +279,9 @@ public class ScoreManager : MonoBehaviour
             canvas.overrideSorting = true;
             canvas.sortingOrder = Mathf.Max(canvas.sortingOrder, 100);
         }
+
+        EnsureWorldCanvasRaycasters(canvasTransform.gameObject);
+        EnsureUiEventSystem();
 
         var placer = canvasTransform.GetComponent<ComfortWorldSpaceUIPlacer>();
         if (placer == null)
@@ -284,6 +305,87 @@ public class ScoreManager : MonoBehaviour
         placer.comfortFollowEnabled = false;
         placer.EnsureWorldSpaceInteractionHelpers();
         WorldSpaceUiRayDragHandle.EnsureOnSurface(_hudBackdrop, canvasTransform, placer);
+    }
+
+    public PingPongDifficultyController DifficultyController => _difficultyController;
+
+    private void RefreshDifficultyMetricIfNeeded()
+    {
+        RefreshDifficultyMetric(false);
+    }
+
+    private void RefreshDifficultyMetric(bool force)
+    {
+        if (lastSpeedText == null) return;
+
+        if (_difficultyController == null && autoCreateDifficultyControls)
+        {
+            _difficultyController = GetComponent<PingPongDifficultyController>();
+        }
+
+        var label = _difficultyController != null ? _difficultyController.CurrentLabel : PingPongDifficultyController.GetLabel(PingPongDifficulty.Normal);
+        var speed = _difficultyController != null
+            ? _difficultyController.CurrentSpeed
+            : ballSpawner != null
+                ? ballSpawner.serveSpeed
+                : PingPongDifficultyController.GetSpeed(PingPongDifficulty.Normal);
+
+        if (!force && _lastDifficultyLabel == label && Mathf.Abs(_lastDifficultySpeed - speed) < 0.001f)
+        {
+            return;
+        }
+
+        _lastDifficultyLabel = label;
+        _lastDifficultySpeed = speed;
+        lastSpeedText.text = FormatDifficultyMetric("当前难度", label, speed);
+    }
+
+    private static void RemoveStandaloneDifficultyPanel(Transform canvasTransform)
+    {
+        if (canvasTransform == null) return;
+
+        var panel = canvasTransform.Find("DifficultyPanel");
+        if (panel == null) return;
+
+        if (Application.isPlaying)
+        {
+            Object.Destroy(panel.gameObject);
+            return;
+        }
+
+        Object.DestroyImmediate(panel.gameObject);
+    }
+
+    private static void EnsureWorldCanvasRaycasters(GameObject canvasObject)
+    {
+        if (canvasObject == null) return;
+
+        EnsureComponent<GraphicRaycaster>(canvasObject);
+        AddComponentIfTypeExists(canvasObject, "UnityEngine.XR.Interaction.Toolkit.UI.TrackedDeviceGraphicRaycaster, Unity.XR.Interaction.Toolkit");
+    }
+
+    private static void EnsureUiEventSystem()
+    {
+        var eventSystem = EventSystem.current != null ? EventSystem.current : FindSceneObject<EventSystem>();
+        if (eventSystem == null)
+        {
+            eventSystem = new GameObject("EventSystem").AddComponent<EventSystem>();
+        }
+
+        AddComponentIfTypeExists(eventSystem.gameObject, "UnityEngine.XR.Interaction.Toolkit.UI.XRUIInputModule, Unity.XR.Interaction.Toolkit");
+    }
+
+    private static Component AddComponentIfTypeExists(GameObject go, string assemblyQualifiedTypeName)
+    {
+        if (go == null || string.IsNullOrEmpty(assemblyQualifiedTypeName)) return null;
+
+        var type = System.Type.GetType(assemblyQualifiedTypeName);
+        if (type == null || !typeof(Component).IsAssignableFrom(type)) return null;
+
+        var existing = go.GetComponent(type);
+        if (existing != null) return existing;
+
+        return go.AddComponent(type);
     }
 
     private Transform ResolveCanvasTransform()
