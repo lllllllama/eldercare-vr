@@ -10,23 +10,31 @@ public class BallSpawner : MonoBehaviour
     public bool autoStartOnPlay = true;
 
     public float serveInterval = 4.0f;
-    public float serveSpeed = 2.6f;
-    public PingPongServeProfile serveProfile = PingPongServeProfile.RandomMixed;
-    public float upwardArc = 0.35f;
-    public float minimumNetClearanceHeight = PingPongGeometry.TableTopHeight + PingPongGeometry.NetHeight + 0.08f;
+    public float serveSpeed = 3.1f;
+    public PingPongServeProfile serveProfile = PingPongServeProfile.Basic;
+    public float upwardArc = 0.55f;
+    public float minimumNetClearanceHeight = PingPongGeometry.TableTopHeight + PingPongGeometry.NetHeight + 0.16f;
     public float netWorldZ = PingPongGeometry.TableCenter.z;
     public bool bounceOnTableBeforePlayer = true;
     public float tableBounceWorldY = PingPongGeometry.TableTopHeight + PingPongGeometry.BallRadius;
-    public float tableBounceWorldZ = 1.45f;
-    public float horizontalRandomRange = 0.18f;
-    public float verticalRandomRange = 0.08f;
+    public float tableBounceWorldZ = 1.35f;
+    public float horizontalRandomRange = 0.08f;
+    public float verticalRandomRange = 0.02f;
     public float topspinRadiansPerSecond = 95f;
     public float backspinRadiansPerSecond = 80f;
     public float sidespinRadiansPerSecond = 50f;
-    [Range(0f, 1f)] public float serveSpinRandomness = 0.18f;
+    [Range(0f, 1f)] public float serveSpinRandomness = 0.08f;
     public float maxServeSpin = 140f;
+    public bool logServeDiagnostics = false;
+    public float serveNetClearanceSafetyMargin = 0.03f;
+    public float spawnedBallMass = PingPongGeometry.BallMass;
+    public float spawnedBallDrag = 0.015f;
+    public float spawnedBallAngularDrag = 0.04f;
+    [Range(0f, 1f)] public float spawnedBallBounciness = 0.86f;
+    [Range(0f, 1f)] public float spawnedBallDynamicFriction = 0.01f;
+    [Range(0f, 1f)] public float spawnedBallStaticFriction = 0.01f;
 
-    private static PhysicMaterial _ballPhysicsMaterial;
+    private PhysicMaterial _ballPhysicsMaterial;
     private Coroutine _serveRoutine;
 
     public bool IsServing => _serveRoutine != null;
@@ -128,15 +136,36 @@ public class BallSpawner : MonoBehaviour
             var timeToNet = (netWorldZ - start.z) / velocity.z;
             if (timeToNet > 0f && timeToNet < timeToTarget)
             {
-                var yAtNet = start.y + velocity.y * timeToNet + 0.5f * Physics.gravity.y * timeToNet * timeToNet;
-                if (yAtNet < minimumNetClearanceHeight)
+                var requiredNetY = minimumNetClearanceHeight + Mathf.Max(0f, serveNetClearanceSafetyMargin);
+                var yAtNet = PredictProjectileY(start.y, velocity.y, timeToNet);
+                if (yAtNet < requiredNetY)
                 {
-                    velocity.y += (minimumNetClearanceHeight - yAtNet) / timeToNet;
+                    velocity.y += (requiredNetY - yAtNet) / timeToNet;
+                    yAtNet = PredictProjectileY(start.y, velocity.y, timeToNet);
+                }
+
+                if (yAtNet < requiredNetY)
+                {
+                    velocity.y += (requiredNetY - yAtNet) / timeToNet;
+                    yAtNet = PredictProjectileY(start.y, velocity.y, timeToNet);
+                }
+
+                if (logServeDiagnostics)
+                {
+                    Debug.Log(
+                        $"Serve diagnostics: spawn={start}, target={target}, timeToNet={timeToNet:0.###}, " +
+                        $"yAtNet={yAtNet:0.###}, minimumNetClearanceHeight={minimumNetClearanceHeight:0.###}, " +
+                        $"finalVelocity={velocity}");
                 }
             }
         }
 
         return velocity;
+    }
+
+    private static float PredictProjectileY(float startY, float velocityY, float time)
+    {
+        return startY + velocityY * time + 0.5f * Physics.gravity.y * time * time;
     }
 
     public static Vector3 CalculateProfileSpin(
@@ -198,7 +227,7 @@ public class BallSpawner : MonoBehaviour
         return spin + Random.insideUnitSphere * (spinMagnitude * serveSpinRandomness);
     }
 
-    private static Rigidbody ConfigureSpawnedBall(GameObject ballObj)
+    private Rigidbody ConfigureSpawnedBall(GameObject ballObj)
     {
         var rb = ballObj.GetComponent<Rigidbody>();
         if (rb == null)
@@ -208,7 +237,7 @@ public class BallSpawner : MonoBehaviour
 
         if (rb == null) return null;
 
-        rb.mass = PingPongGeometry.BallMass;
+        rb.mass = spawnedBallMass;
         var pingPongBall = ballObj.GetComponent<PingPongBall>();
         if (pingPongBall == null)
         {
@@ -221,8 +250,8 @@ public class BallSpawner : MonoBehaviour
             SetLayerRecursively(ballObj, ballLayer);
         }
 
-        rb.drag = pingPongBall != null && pingPongBall.useAerodynamics ? 0f : PingPongGeometry.BallDrag;
-        rb.angularDrag = PingPongGeometry.BallAngularDrag;
+        rb.drag = pingPongBall != null && pingPongBall.useAerodynamics ? 0f : spawnedBallDrag;
+        rb.angularDrag = spawnedBallAngularDrag;
         rb.useGravity = true;
         rb.collisionDetectionMode = CollisionDetectionMode.ContinuousDynamic;
         rb.interpolation = RigidbodyInterpolation.Interpolate;
@@ -234,7 +263,6 @@ public class BallSpawner : MonoBehaviour
             collider = ballObj.AddComponent<SphereCollider>();
         }
 
-        ballObj.transform.localScale = PingPongGeometry.BallPrefabScale;
         collider.radius = 0.5f;
         collider.isTrigger = false;
         collider.sharedMaterial = GetBallPhysicsMaterial();
@@ -262,18 +290,18 @@ public class BallSpawner : MonoBehaviour
         }
     }
 
-    private static PhysicMaterial GetBallPhysicsMaterial()
+    private PhysicMaterial GetBallPhysicsMaterial()
     {
-        if (_ballPhysicsMaterial != null) return _ballPhysicsMaterial;
-
-        _ballPhysicsMaterial = new PhysicMaterial("PingPongBallPhysics")
+        if (_ballPhysicsMaterial == null)
         {
-            bounciness = 0.72f,
-            dynamicFriction = 0.02f,
-            staticFriction = 0.02f,
-            bounceCombine = PhysicMaterialCombine.Maximum,
-            frictionCombine = PhysicMaterialCombine.Minimum
-        };
+            _ballPhysicsMaterial = new PhysicMaterial("PingPongBallPhysics");
+        }
+
+        _ballPhysicsMaterial.bounciness = spawnedBallBounciness;
+        _ballPhysicsMaterial.dynamicFriction = spawnedBallDynamicFriction;
+        _ballPhysicsMaterial.staticFriction = spawnedBallStaticFriction;
+        _ballPhysicsMaterial.bounceCombine = PhysicMaterialCombine.Maximum;
+        _ballPhysicsMaterial.frictionCombine = PhysicMaterialCombine.Minimum;
         return _ballPhysicsMaterial;
     }
 }

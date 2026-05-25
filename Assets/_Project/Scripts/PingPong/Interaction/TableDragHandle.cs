@@ -17,8 +17,8 @@ public class TableDragHandle : MonoBehaviour
     public BallSpawner[] syncedSpawners;
     public ControllerTableCollisionLimiter[] syncedControllerLimiters;
     public float activationRadius = 0.18f;
-    public float tableBounceLocalZ = -0.55f;
-    public float minimumNetClearanceAboveNet = 0.08f;
+    public float tableBounceLocalZ = -0.65f;
+    public float minimumNetClearanceAboveNet = 0.16f;
     public bool lockTableHeight = true;
     public bool constrainToBounds = true;
     public Vector2 xBounds = new Vector2(-1.25f, 1.25f);
@@ -150,7 +150,8 @@ public class TableDragHandle : MonoBehaviour
             if (spawner == null) continue;
 
             spawner.netWorldZ = tableRoot.position.z;
-            spawner.minimumNetClearanceHeight = tableTopY + PingPongGeometry.NetHeight + minimumNetClearanceAboveNet;
+            var minimumNetClearanceHeight = tableTopY + PingPongGeometry.NetHeight + minimumNetClearanceAboveNet;
+            spawner.minimumNetClearanceHeight = Mathf.Max(spawner.minimumNetClearanceHeight, minimumNetClearanceHeight);
             spawner.tableBounceWorldY = tableTopY + PingPongGeometry.BallRadius;
             spawner.tableBounceWorldZ = tableRoot.position.z + tableBounceLocalZ;
         }

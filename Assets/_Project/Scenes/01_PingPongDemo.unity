@@ -715,21 +715,29 @@ MonoBehaviour:
   ballContainer: {fileID: 2029789589}
   autoStartOnPlay: 0
   serveInterval: 4
-  serveSpeed: 3
-  serveProfile: 4
-  upwardArc: 0.42
-  minimumNetClearanceHeight: 1.2325
+  serveSpeed: 3.1
+  serveProfile: 0
+  upwardArc: 0.55
+  minimumNetClearanceHeight: 1.0725
   netWorldZ: 2
   bounceOnTableBeforePlayer: 1
-  tableBounceWorldY: 1.02
-  tableBounceWorldZ: 1.45
-  horizontalRandomRange: 0.12
-  verticalRandomRange: 0.04
+  tableBounceWorldY: 0.79
+  tableBounceWorldZ: 1.35
+  horizontalRandomRange: 0.08
+  verticalRandomRange: 0.02
   topspinRadiansPerSecond: 95
   backspinRadiansPerSecond: 80
   sidespinRadiansPerSecond: 50
-  serveSpinRandomness: 0.18
+  serveSpinRandomness: 0.08
   maxServeSpin: 140
+  logServeDiagnostics: 0
+  serveNetClearanceSafetyMargin: 0.03
+  spawnedBallMass: 0.004
+  spawnedBallDrag: 0.015
+  spawnedBallAngularDrag: 0.04
+  spawnedBallBounciness: 0.86
+  spawnedBallDynamicFriction: 0.01
+  spawnedBallStaticFriction: 0.01
 --- !u!1 &185255634
 GameObject:
   m_ObjectHideFlags: 0
@@ -884,7 +892,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 1.2176}
+  m_AnchoredPosition: {x: 0, y: 1.5}
   m_SizeDelta: {x: 300, y: 120}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &185255641
@@ -906,8 +914,13 @@ MonoBehaviour:
   placeOnStart: 1
   placeOnEnable: 0
   recenterDuringStartup: 1
-  startupRecenterSeconds: 1.25
-  startupRecenterFrames: 18
+  startupRecenterSeconds: 0.35
+  startupRecenterFrames: 4
+  clampWorldHeight: 1
+  minWorldHeight: 1.25
+  maxWorldHeight: 1.75
+  preferredWorldHeight: 1.5
+  usePreferredHeightInsteadOfHeadHeight: 1
   enableRayDrag: 1
   enableThumbstickNavigation: 1
   invertThumbstickHorizontal: 0
@@ -2164,7 +2177,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   tableTransform: {fileID: 1991188546}
   tableSize: {x: 1.525, y: 2.74}
-  tableTopY: 1
+  tableTopY: 0.76000005
   horizontalMargin: 0.04
   verticalMargin: 0.03
 --- !u!114 &620711837
@@ -3326,6 +3339,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1198905080}
+  - component: {fileID: 1198905081}
   m_Layer: 0
   m_Name: Managers
   m_TagString: Untagged
@@ -3356,6 +3370,26 @@ Transform:
   - {fileID: 1353730840}
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1198905081
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1198905079}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fb9454bcf42b43dfbeee70022eaf60f8, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  sanitizeOnStart: 1
+  targetTableTopY: 0.76
+  uiPreferredY: 1.5
+  uiMinY: 1.25
+  uiMaxY: 1.75
+  fixTableHeight: 1
+  fixUiHeight: 1
+  ignoreCeilingPlanes: 1
 --- !u!1 &1225354589 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 120000, guid: 930e138e55e84ea2a95bc460914d44ff, type: 3}
@@ -3552,6 +3586,10 @@ PrefabInstance:
       propertyPath: m_Size.z
       value: 0.2
       objectReference: {fileID: 0}
+    - target: {fileID: 7506168475523757956, guid: 930e138e55e84ea2a95bc460914d44ff, type: 3}
+      propertyPath: m_IsActive
+      value: 0
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects:
     - {fileID: 5384030245344481810, guid: 930e138e55e84ea2a95bc460914d44ff, type: 3}
@@ -3639,6 +3677,9 @@ MonoBehaviour:
   clearanceHeightMeters: 1.15
   fallbackFloorY: 0
   tableCenterHeightAboveFloor: 0.96
+  ignoreCeilingPlanes: 1
+  maxAcceptedFloorY: 0.4
+  minimumFloorBelowHeadMeters: 0.6
   searchDurationSeconds: 8
   searchIntervalSeconds: 0.5
   obstacleMask:
@@ -3984,6 +4025,8 @@ MonoBehaviour:
   holdOffset: {x: 0, y: 0, z: 0.08}
   handPoseAnimator: {fileID: 0}
   interactionState: {fileID: 0}
+  gripInputSourceBehaviour: {fileID: 0}
+  autoCreatePicoGripInputSource: 1
   suppressGrab: 0
 --- !u!1 &1480094663
 GameObject:
@@ -4796,8 +4839,8 @@ MonoBehaviour:
   - {fileID: 620711836}
   - {fileID: 1743836097}
   activationRadius: 0.2
-  tableBounceLocalZ: -0.54999995
-  minimumNetClearanceAboveNet: 0.08
+  tableBounceLocalZ: -0.65
+  minimumNetClearanceAboveNet: 0.16
   lockTableHeight: 1
   constrainToBounds: 0
   xBounds: {x: -3, y: 3}
@@ -5081,7 +5124,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   tableTransform: {fileID: 1991188546}
   tableSize: {x: 1.525, y: 2.74}
-  tableTopY: 1
+  tableTopY: 0.76000005
   horizontalMargin: 0.04
   verticalMargin: 0.03
 --- !u!1 &1746777588
@@ -5591,7 +5634,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 400000, guid: 9c2ad91266e34b14a98877da398e44bd, type: 3}
       propertyPath: m_LocalPosition.y
-      value: 0.96
+      value: 0.72
       objectReference: {fileID: 0}
     - target: {fileID: 400000, guid: 9c2ad91266e34b14a98877da398e44bd, type: 3}
       propertyPath: m_LocalPosition.z

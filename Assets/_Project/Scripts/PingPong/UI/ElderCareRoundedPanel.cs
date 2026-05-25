@@ -8,13 +8,18 @@ public class ElderCareRoundedPanel : MaskableGraphic
     public float cornerRadius = 32f;
     public int cornerSegments = 8;
 
-    protected override void OnValidate()
+#if UNITY_EDITOR
+    private void OnValidate()
     {
-        base.OnValidate();
         cornerRadius = Mathf.Max(0f, cornerRadius);
         cornerSegments = Mathf.Max(2, cornerSegments);
-        SetVerticesDirty();
+
+        if (IsActive())
+        {
+            SetVerticesDirty();
+        }
     }
+#endif
 
     protected override void OnPopulateMesh(VertexHelper vh)
     {
