@@ -14,6 +14,7 @@ public class WorldSpaceUiRayDragHandle : MonoBehaviour, IBeginDragHandler, IDrag
     public float maxDistanceMeters = 3.4f;
     public float minHeightFromHead = -0.45f;
     public float maxHeightFromHead = 0.55f;
+    public bool lockWorldHeight = true;
     public bool lockHeightToComfortOffset = true;
     public float lockedHeightToleranceMeters = 0.08f;
 
@@ -22,6 +23,7 @@ public class WorldSpaceUiRayDragHandle : MonoBehaviour, IBeginDragHandler, IDrag
     private Transform _activeRayTransform;
     private bool _dragging;
     private float _dragStartHeight;
+    private float _lockedWorldY;
     private bool _hasDragStartHeight;
 
     private void Awake()
@@ -61,6 +63,7 @@ public class WorldSpaceUiRayDragHandle : MonoBehaviour, IBeginDragHandler, IDrag
         _activeRayTransform = FindBestControllerRay(hitPoint);
         _dragOffset = targetRoot.position - hitPoint;
         _dragStartHeight = targetRoot.position.y;
+        _lockedWorldY = targetRoot.position.y;
         _hasDragStartHeight = true;
         _dragging = true;
         if (placer != null)
@@ -126,6 +129,10 @@ public class WorldSpaceUiRayDragHandle : MonoBehaviour, IBeginDragHandler, IDrag
         position.x = headPosition.x + horizontal.x;
         position.z = headPosition.z + horizontal.z;
         position.y = ConstrainHeight(position.y, headPosition);
+        if (lockWorldHeight && _hasDragStartHeight)
+        {
+            position.y = _lockedWorldY;
+        }
 
         targetRoot.position = position;
         var toPanel = targetRoot.position - headPosition;
@@ -168,6 +175,7 @@ public class WorldSpaceUiRayDragHandle : MonoBehaviour, IBeginDragHandler, IDrag
             Mathf.Min(1f, Mathf.Max(baseColor.a, 0.72f)));
         handle.minDistanceMeters = 0.9f;
         handle.maxDistanceMeters = 3.8f;
+        handle.lockWorldHeight = true;
         handle.lockHeightToComfortOffset = true;
         handle.lockedHeightToleranceMeters = 0.08f;
         surface.color = baseColor;

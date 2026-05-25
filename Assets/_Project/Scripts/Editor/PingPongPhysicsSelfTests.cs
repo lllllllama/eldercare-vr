@@ -1,6 +1,7 @@
 using System.Reflection;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using TMPro;
 
@@ -24,11 +25,14 @@ public static class PingPongPhysicsSelfTests
         SimpleGripStatePreventsModeOverlap();
         TableDragHandleDisablesLocalInteraction();
         TableHeightNormalizesToStandardHeight();
-        DifficultyPanelUsesControllerButtonsOnly();
+        DifficultyControllerUsesControllerButtonsWithoutPanel();
+        HudShowsDifficultyInsteadOfLastHitSpeed();
+        AutomaticServeBounceKeepsStrongerTableLift();
         BallGeometryUsesElderReadableSize();
         TableSurfaceCorrectionRaisesEmbeddedBall();
         TableDragHandleDoesNotSyncWorldUiCanvas();
         ScoreCanvasInstallsRayDragHandle();
+        PingPongHudThumbstickDirectionMatchesVisualDirection();
         SpatialTablePlacementIsDisabledButManualDragStaysEnabled();
         OpenSpacePlacementWaitsForRoomSensingColliders();
         OpenSpacePlacementAvoidsTableObstacle();
@@ -80,11 +84,11 @@ public static class PingPongPhysicsSelfTests
         var adjusted = PingPongBall.EnsureMinimumTableBounceVelocity(
             new Vector3(0.2f, 0.32f, -0.7f),
             new Vector3(0.2f, -0.42f, -0.7f),
-            1.35f,
-            0.12f,
+            1.65f,
+            0.22f,
             9f);
 
-        AssertTrue(adjusted.y >= 1.35f, "A slow tabletop bounce should still lift enough to remain playable.");
+        AssertTrue(adjusted.y >= 1.65f, "A slow tabletop bounce should still lift enough to remain playable.");
         AssertTrue(adjusted.magnitude <= 9.001f, "Minimum tabletop lift should still respect the ball speed cap.");
     }
 
@@ -273,32 +277,85 @@ public static class PingPongPhysicsSelfTests
         }
     }
 
-    private static void DifficultyPanelUsesControllerButtonsOnly()
+    private static void DifficultyControllerUsesControllerButtonsWithoutPanel()
     {
-        var canvasObject = new GameObject("DifficultyCanvas", typeof(RectTransform));
+        var hostObject = new GameObject("ScoreManager");
+        var canvasObject = new GameObject("ScoreCanvas", typeof(RectTransform), typeof(Canvas));
         var spawnerObject = new GameObject("BallSpawner");
         try
         {
             var spawner = spawnerObject.AddComponent<BallSpawner>();
-            var controller = PingPongDifficultyController.EnsureRuntimePanel(canvasObject.transform, spawner, null);
+            var controller = PingPongDifficultyController.EnsureRuntimeController(hostObject, spawner);
 
-            AssertTrue(controller != null, "Difficulty panel should be created.");
-            AssertTrue(!controller.showScreenButtons, "Difficulty panel should hide +/- screen buttons.");
-            AssertTrue(controller.enableControllerSpeedButtons, "Difficulty panel should use controller A/B buttons.");
-            AssertTrue(!IsChildActive(canvasObject.transform, "DifficultyPanel/DecreaseButton"), "Decrease screen button should be inactive.");
-            AssertTrue(!IsChildActive(canvasObject.transform, "DifficultyPanel/IncreaseButton"), "Increase screen button should be inactive.");
-
-            var background = canvasObject.transform.Find("DifficultyPanel/Background");
-            AssertTrue(background != null, "Difficulty panel should expose a visible drag surface.");
-            AssertTrue(background.GetComponent<Image>() != null && background.GetComponent<Image>().raycastTarget, "Difficulty panel background should accept ray hits.");
-            var dragHandle = background.GetComponent<WorldSpaceUiRayDragHandle>();
-            AssertTrue(dragHandle != null, "Difficulty panel background should be ray-draggable.");
-            AssertTrue(dragHandle.targetRoot == canvasObject.transform, "Difficulty panel drag should move the detached world UI canvas.");
+            AssertTrue(controller != null, "HUD difficulty controller should be created.");
+            AssertTrue(!controller.createVisiblePanel, "HUD difficulty controller should not create a standalone panel.");
+            AssertTrue(!controller.showScreenButtons, "HUD difficulty controller should hide +/- screen buttons.");
+            AssertTrue(controller.enableControllerSpeedButtons, "HUD difficulty controller should keep A/B difficulty input enabled.");
+            AssertTrue(canvasObject.transform.Find("DifficultyPanel") == null, "HUD difficulty control should not create a separate DifficultyPanel.");
         }
         finally
         {
             Object.DestroyImmediate(spawnerObject);
             Object.DestroyImmediate(canvasObject);
+            Object.DestroyImmediate(hostObject);
+        }
+    }
+
+    private static void HudShowsDifficultyInsteadOfLastHitSpeed()
+    {
+        var canvasObject = new GameObject("ScoreCanvas", typeof(RectTransform), typeof(Canvas));
+        var spawnerObject = new GameObject("BallSpawner");
+        try
+        {
+            canvasObject.SetActive(false);
+            var difficultyText = CreateTestScoreText(canvasObject.transform, "LastSpeedText", Vector2.zero);
+            var spawner = spawnerObject.AddComponent<BallSpawner>();
+            var score = canvasObject.AddComponent<ScoreManager>();
+            score.ballSpawner = spawner;
+            score.autoCreateDifficultyControls = true;
+            score.lastSpeedText = difficultyText;
+
+            canvasObject.SetActive(true);
+            typeof(ScoreManager)
+                .GetMethod("EnsureDifficultyControls", BindingFlags.Instance | BindingFlags.NonPublic)
+                ?.Invoke(score, null);
+            typeof(ScoreManager)
+                .GetMethod("RefreshUI", BindingFlags.Instance | BindingFlags.NonPublic)
+                ?.Invoke(score, null);
+
+            AssertTrue(score.DifficultyController != null, "Score HUD should host the difficulty controller.");
+            AssertTrue(difficultyText.text.Contains("当前难度"), "HUD speed slot should display the current difficulty.");
+            AssertTrue(!difficultyText.text.Contains("回球速度"), "HUD should no longer label the slot as return speed.");
+            AssertTrue(canvasObject.transform.Find("DifficultyPanel") == null, "HUD difficulty display should not create a separate panel.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(spawnerObject);
+            Object.DestroyImmediate(canvasObject);
+        }
+    }
+
+    private static void AutomaticServeBounceKeepsStrongerTableLift()
+    {
+        var ballObject = new GameObject("ServeBounceTuningBall");
+        try
+        {
+            var ball = ballObject.AddComponent<PingPongBall>();
+            AssertTrue(ball.minimumTableBounceUpSpeed >= 1.65f, "Automatic serve table bounce should have enough minimum upward speed.");
+            AssertTrue(ball.tableBounceUpwardAssist >= 0.2f, "Automatic serve table bounce should add a visible upward assist.");
+
+            var adjusted = PingPongBall.EnsureMinimumTableBounceVelocity(
+                new Vector3(0.2f, 0.42f, -0.7f),
+                new Vector3(0.2f, -0.42f, -0.7f),
+                ball.minimumTableBounceUpSpeed,
+                ball.tableBounceUpwardAssist,
+                ball.maxSpeed);
+
+            AssertTrue(adjusted.y >= 1.65f, "Automatic serve table bounce should visibly lift after tabletop contact.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(ballObject);
         }
     }
 
@@ -406,7 +463,8 @@ public static class PingPongPhysicsSelfTests
 
             var backdrop = rect.Find("ScoreHudBackdrop");
             AssertTrue(backdrop != null, "Score HUD should create a readable backdrop.");
-            AssertTrue(backdrop.GetComponent<Image>() != null && backdrop.GetComponent<Image>().raycastTarget, "Score HUD backdrop should accept ray hits.");
+            var dragSurface = backdrop.GetComponent<Graphic>();
+            AssertTrue(dragSurface != null && dragSurface.raycastTarget, "Score HUD backdrop should accept ray hits.");
             var panelDrag = backdrop.GetComponent<WorldSpaceUiRayDragHandle>();
             AssertTrue(panelDrag != null, "Score HUD backdrop should be ray-draggable.");
             AssertTrue(panelDrag.targetRoot == canvasObject.transform, "Score HUD drag should move the detached world UI canvas.");
@@ -414,6 +472,59 @@ public static class PingPongPhysicsSelfTests
         finally
         {
             Object.DestroyImmediate(canvasObject);
+        }
+    }
+
+    private static void PingPongHudThumbstickDirectionMatchesVisualDirection()
+    {
+        var previousEventSystem = EventSystem.current;
+        var eventSystemObject = previousEventSystem == null ? new GameObject("EventSystem") : null;
+        var rootObject = new GameObject("PingPongNavigatorRoot", typeof(RectTransform));
+        var leftObject = CreateNavigationButton(rootObject.transform, "Left", new Vector2(-120f, 0f));
+        var middleObject = CreateNavigationButton(rootObject.transform, "Middle", Vector2.zero);
+        var rightObject = CreateNavigationButton(rootObject.transform, "Right", new Vector2(120f, 0f));
+        try
+        {
+            if (eventSystemObject != null)
+            {
+                eventSystemObject.AddComponent<EventSystem>();
+            }
+
+            var navigator = rootObject.AddComponent<WorldSpaceUiThumbstickNavigator>();
+            navigator.selectableRoot = rootObject.GetComponent<RectTransform>();
+            navigator.selectables = new Selectable[]
+            {
+                leftObject.GetComponent<Button>(),
+                middleObject.GetComponent<Button>(),
+                rightObject.GetComponent<Button>()
+            };
+
+            var eventSystem = EventSystem.current != null
+                ? EventSystem.current
+                : eventSystemObject != null
+                    ? eventSystemObject.GetComponent<EventSystem>()
+                    : Object.FindObjectOfType<EventSystem>();
+            AssertTrue(eventSystem != null, "PingPong thumbstick direction test should have an EventSystem.");
+            navigator.eventSystemOverride = eventSystem;
+
+            eventSystem.SetSelectedGameObject(middleObject);
+            AssertTrue(navigator.NavigateForInput(Vector2.left), "Left PICO thumbstick input should move selection left.");
+            AssertTrue(eventSystem.currentSelectedGameObject == leftObject, "Left PICO thumbstick input should select the visually left control.");
+
+            eventSystem.SetSelectedGameObject(middleObject);
+            AssertTrue(navigator.NavigateForInput(Vector2.right), "Right PICO thumbstick input should move selection right.");
+            AssertTrue(eventSystem.currentSelectedGameObject == rightObject, "Right PICO thumbstick input should select the visually right control.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(rightObject);
+            Object.DestroyImmediate(middleObject);
+            Object.DestroyImmediate(leftObject);
+            Object.DestroyImmediate(rootObject);
+            if (eventSystemObject != null)
+            {
+                Object.DestroyImmediate(eventSystemObject);
+            }
         }
     }
 
@@ -431,6 +542,19 @@ public static class PingPongPhysicsSelfTests
         var text = textObject.AddComponent<TextMeshProUGUI>();
         text.text = name;
         return text;
+    }
+
+    private static GameObject CreateNavigationButton(Transform parent, string name, Vector2 anchoredPosition)
+    {
+        var buttonObject = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
+        buttonObject.transform.SetParent(parent, false);
+        var rect = buttonObject.GetComponent<RectTransform>();
+        rect.anchorMin = new Vector2(0.5f, 0.5f);
+        rect.anchorMax = new Vector2(0.5f, 0.5f);
+        rect.pivot = new Vector2(0.5f, 0.5f);
+        rect.sizeDelta = new Vector2(96f, 48f);
+        rect.anchoredPosition = anchoredPosition;
+        return buttonObject;
     }
 
     private static void SpatialTablePlacementIsDisabledButManualDragStaysEnabled()
@@ -637,9 +761,4 @@ public static class PingPongPhysicsSelfTests
         }
     }
 
-    private static bool IsChildActive(Transform parent, string path)
-    {
-        var child = parent != null ? parent.Find(path) : null;
-        return child != null && child.gameObject.activeSelf;
-    }
 }

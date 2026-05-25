@@ -33,12 +33,13 @@ public class PingPongDifficultyController : MonoBehaviour
     public bool rememberDifficulty = true;
     public string playerPrefsKey = DefaultPrefsKey;
 
-    [Range(1.5f, 5.0f)] public float customSpeed = 3.0f;
+    [Range(1.5f, 5.0f)] public float customSpeed = 3.1f;
     public bool controlServeInterval = true;
     public bool enhancePanelReadability = true;
     public bool showScreenButtons = false;
     public bool enableControllerSpeedButtons = true;
     public XRNode controllerButtonNode = XRNode.RightHand;
+    public bool createVisiblePanel = true;
 
     private readonly List<InputDevice> _buttonDevices = new List<InputDevice>();
     private PingPongDifficulty _difficulty;
@@ -48,6 +49,35 @@ public class PingPongDifficultyController : MonoBehaviour
 
     public PingPongDifficulty CurrentDifficulty => _difficulty;
     public float CurrentSpeed => ballSpawner != null ? ballSpawner.serveSpeed : GetPreset(startingDifficulty).speed;
+    public string CurrentLabel => GetLabel(_difficulty);
+
+    public static PingPongDifficultyController EnsureRuntimeController(GameObject host, BallSpawner spawner)
+    {
+        if (host == null) return null;
+
+        var controller = host.GetComponent<PingPongDifficultyController>();
+        if (controller == null)
+        {
+            controller = host.AddComponent<PingPongDifficultyController>();
+        }
+
+        controller.ballSpawner = spawner;
+        controller.difficultyText = null;
+        controller.speedText = null;
+        controller.hintText = null;
+        controller.decreaseButton = null;
+        controller.resetButton = null;
+        controller.increaseButton = null;
+        controller.startingDifficulty = PingPongDifficulty.Normal;
+        controller.controlServeInterval = true;
+        controller.showScreenButtons = false;
+        controller.enableControllerSpeedButtons = true;
+        controller.createVisiblePanel = false;
+        controller.enhancePanelReadability = false;
+        controller.RebindButtons();
+        controller.ApplyLoadedDifficulty();
+        return controller;
+    }
 
     public static PingPongDifficultyController EnsureRuntimePanel(Transform canvasTransform, BallSpawner spawner, TMP_FontAsset fontAsset)
     {
@@ -108,6 +138,8 @@ public class PingPongDifficultyController : MonoBehaviour
         controller.controlServeInterval = true;
         controller.showScreenButtons = false;
         controller.enableControllerSpeedButtons = true;
+        controller.createVisiblePanel = true;
+        controller.enhancePanelReadability = true;
         controller.RebindButtons();
         controller.ApplyLoadedDifficulty();
         controller.ApplyReadabilityLayout();
@@ -135,7 +167,7 @@ public class PingPongDifficultyController : MonoBehaviour
             title.raycastTarget = false;
         }
 
-        EnsurePanelRayDrag(background, canvasTransform);
+        EnsureDifficultyPanelDragHandle(rootRect, background);
         return controller;
     }
 
@@ -207,6 +239,7 @@ public class PingPongDifficultyController : MonoBehaviour
 
     public void ApplyReadabilityLayout()
     {
+        if (!createVisiblePanel) return;
         if (!enhancePanelReadability) return;
 
         var rootRect = transform as RectTransform;
@@ -247,7 +280,23 @@ public class PingPongDifficultyController : MonoBehaviour
             motion.pressedScale = 0.99f;
         }
 
-        EnsurePanelRayDrag(background);
+        EnsureDifficultyPanelDragHandle(rootRect, background);
+    }
+
+    public static bool RepairPanelDrag(GameObject panel)
+    {
+        if (panel == null) return false;
+
+        var rootRect = panel.GetComponent<RectTransform>();
+        if (rootRect == null)
+        {
+            rootRect = panel.AddComponent<RectTransform>();
+        }
+
+        var backgroundTransform = panel.transform.Find("Background");
+        var background = backgroundTransform != null ? backgroundTransform.GetComponent<Graphic>() : null;
+        EnsureDifficultyPanelDragHandle(rootRect, background);
+        return true;
     }
 
     public static string GetLabel(PingPongDifficulty difficulty)
@@ -367,7 +416,7 @@ public class PingPongDifficultyController : MonoBehaviour
             case PingPongDifficulty.Challenge:
                 return new DifficultyPreset("挑战", 4.2f, 3.4f);
             default:
-                return new DifficultyPreset("标准", 3.0f, 4.2f);
+                return new DifficultyPreset("标准", 3.1f, 4.2f);
         }
     }
 
@@ -462,19 +511,67 @@ public class PingPongDifficultyController : MonoBehaviour
         return roundedPanel;
     }
 
-    private void EnsurePanelRayDrag(Graphic background)
+    private static void EnsureDifficultyPanelDragHandle(RectTransform rootRect, Graphic background)
     {
-        var canvas = GetComponentInParent<Canvas>(true);
-        var canvasTransform = canvas != null ? canvas.transform : transform.parent;
-        EnsurePanelRayDrag(background, canvasTransform);
-    }
+        if (rootRect == null) return;
 
-    private static void EnsurePanelRayDrag(Graphic background, Transform canvasTransform)
-    {
-        if (background == null || canvasTransform == null) return;
+        var canvas = rootRect.GetComponentInParent<Canvas>(true);
+        var canvasTransform = canvas != null ? canvas.transform : rootRect.parent;
+        var placer = canvasTransform != null ? canvasTransform.GetComponent<ComfortWorldSpaceUIPlacer>() : null;
+        if (background != null)
+        {
+            var surfaceDrag = WorldSpaceUiRayDragHandle.EnsureOnSurface(background, rootRect, placer);
+            if (surfaceDrag != null)
+            {
+                surfaceDrag.targetRoot = rootRect;
+                surfaceDrag.lockWorldHeight = true;
+            }
+        }
 
-        var placer = canvasTransform.GetComponent<ComfortWorldSpaceUIPlacer>();
-        WorldSpaceUiRayDragHandle.EnsureOnSurface(background, canvasTransform, placer);
+        var handleObject = GetOrCreateChild(rootRect, "DragHandle");
+        var handleRect = ConfigureRect(handleObject, new Vector2(420f, 34f), new Vector2(0f, 108f));
+        handleRect.SetAsLastSibling();
+
+        var roundedPanel = handleObject.GetComponent<ElderCareRoundedPanel>();
+        if (roundedPanel != null)
+        {
+            DestroyComponent(roundedPanel);
+        }
+
+        var image = handleObject.GetComponent<Image>();
+        if (image == null)
+        {
+            image = handleObject.AddComponent<Image>();
+        }
+
+        image.raycastTarget = true;
+        image.color = new Color(0.35f, 0.95f, 1f, 0.35f);
+
+        var outline = handleObject.GetComponent<Outline>();
+        if (outline == null)
+        {
+            outline = handleObject.AddComponent<Outline>();
+        }
+
+        outline.effectColor = new Color(0.68f, 1f, 1f, 0.28f);
+        outline.effectDistance = new Vector2(2f, -2f);
+
+        var drag = handleObject.GetComponent<WorldSpaceUiRayDragHandle>();
+        if (drag == null)
+        {
+            drag = handleObject.AddComponent<WorldSpaceUiRayDragHandle>();
+        }
+
+        drag.targetRoot = rootRect;
+        drag.placer = placer;
+        drag.headTransform = placer != null ? placer.headTransform : (Camera.main != null ? Camera.main.transform : null);
+        drag.handleGraphic = image;
+        drag.normalColor = image.color;
+        drag.activeColor = new Color(0.68f, 1f, 1f, 0.76f);
+        drag.minDistanceMeters = 0.9f;
+        drag.maxDistanceMeters = 3.8f;
+        drag.lockWorldHeight = true;
+        drag.lockHeightToComfortOffset = true;
     }
 
     private static TMP_Text ConfigureText(GameObject go, string value, TMP_FontAsset fontAsset, Vector2 size, Vector2 anchoredPosition, float fontSize, FontStyles style, Color color)
