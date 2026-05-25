@@ -1,5 +1,6 @@
 using PicoElderCare.Rehab;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -41,6 +42,7 @@ public static class RehabSelfTests
         VideoGuidePauseKeepsDisplayVisible();
         SpatialRayControlDragsVideoOnlyWhileTriggerHeld();
         TrainingSelectPanelUsesComfortRayPlacement();
+        RehabSceneHasBaduanjinVideoGuideWiring();
         Debug.Log("Rehab self tests passed.");
     }
 
@@ -973,6 +975,37 @@ public static class RehabSelfTests
             Object.DestroyImmediate(selectPanel);
             Object.DestroyImmediate(uiObject);
             Object.DestroyImmediate(headObject);
+        }
+    }
+
+    private static void RehabSceneHasBaduanjinVideoGuideWiring()
+    {
+        const string scenePath = "Assets/_Project/Scenes/MR_Rehab_Main.unity";
+        EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Single);
+
+        var session = Object.FindObjectOfType<RehabSessionManager>(true);
+        AssertTrue(session != null, "MR_Rehab_Main should contain a RehabSessionManager.");
+        AssertTrue(session.videoGuideController != null, "MR_Rehab_Main should wire RehabSessionManager.videoGuideController.");
+
+        var modeSelect = Object.FindObjectOfType<RehabModeSelectUI>(true);
+        AssertTrue(modeSelect != null, "MR_Rehab_Main should contain a RehabModeSelectUI.");
+        AssertTrue(modeSelect.videoGuideController == session.videoGuideController, "Mode select UI should use the same rehab video guide as the session.");
+
+        var guide = session.videoGuideController;
+        AssertTrue(guide.videoPanel != null, "Baduanjin video guide should have a video panel.");
+        AssertTrue(guide.videoPlayer != null, "Baduanjin video guide should have a VideoPlayer.");
+        AssertTrue(guide.audioSource != null, "Baduanjin video guide should have an AudioSource.");
+        AssertTrue(guide.videoQuad != null, "Baduanjin video guide should have a quad display.");
+        AssertTrue(guide.renderTexture != null, "Baduanjin video guide should have a RenderTexture.");
+        AssertTrue(guide.layoutController != null, "Baduanjin video guide should have a layout controller.");
+        AssertTrue(guide.bindings != null && guide.bindings.Length >= 8, "Baduanjin video guide should bind all eight movements.");
+
+        var definitions = BaduanjinEvaluator.CreateDefaultMovements();
+        for (var i = 0; i < definitions.Length; i++)
+        {
+            var movement = definitions[i];
+            var duration = guide.GetVideoDurationForMovement(movement.movementId.ToString(), movement.movementName);
+            AssertTrue(duration > 1f, "Baduanjin movement should have a playable video binding: " + movement.movementName);
         }
     }
 

@@ -244,6 +244,12 @@ public static class RehabSceneBuilder
             UnityEventTools.AddPersistentListener(rehabUi.trainingBackButton.onClick, modeSelectUi.ShowTrainingSelectPanel);
         }
 
+        RehabVideoGuideSceneRepair.EnsureBaduanjinVideoGuideForScene(
+            visualRoot.transform,
+            session,
+            modeSelectUi,
+            hmd);
+
         var mrManager = managers.AddComponent<RehabMixedRealityManager>();
         mrManager.targetCamera = mainCamera;
         mrManager.enableOnStart = true;
