@@ -34,6 +34,9 @@ public class PingPongOpenSpaceTablePlacer : MonoBehaviour
     public float clearanceHeightMeters = 1.15f;
     public float fallbackFloorY = 0f;
     public float tableCenterHeightAboveFloor = PingPongGeometry.TableTopHeight - PingPongGeometry.TableThickness * 0.5f;
+    public bool ignoreCeilingPlanes = true;
+    public float maxAcceptedFloorY = 0.4f;
+    public float minimumFloorBelowHeadMeters = 0.6f;
     public float searchDurationSeconds = 8f;
     public float searchIntervalSeconds = 0.5f;
     public LayerMask obstacleMask = ~0;
@@ -142,9 +145,10 @@ public class PingPongOpenSpaceTablePlacer : MonoBehaviour
     public void SetTableCenterOnFloor(Vector3 floorCenter, bool manualPlacement)
     {
         ResolveReferences();
-        _currentFloorY = floorCenter.y;
+        var floorY = ReliableFloorYOrFallback(floorCenter.y);
+        _currentFloorY = floorY;
 
-        var targetPosition = floorCenter + Vector3.up * tableCenterHeightAboveFloor;
+        var targetPosition = new Vector3(floorCenter.x, floorY + tableCenterHeightAboveFloor, floorCenter.z);
         MoveTable(targetPosition, clearBallsWhenTableMoves);
 
         if (manualPlacement)
@@ -177,8 +181,9 @@ public class PingPongOpenSpaceTablePlacer : MonoBehaviour
 
         if (!result.foundClearSpace) return;
 
-        _currentFloorY = result.floorY;
-        var targetPosition = new Vector3(result.center.x, result.floorY + tableCenterHeightAboveFloor, result.center.z);
+        var floorY = ReliableFloorYOrFallback(result.floorY);
+        _currentFloorY = floorY;
+        var targetPosition = new Vector3(result.center.x, floorY + tableCenterHeightAboveFloor, result.center.z);
         MoveTable(targetPosition, true);
         _searching = false;
 
@@ -207,6 +212,22 @@ public class PingPongOpenSpaceTablePlacer : MonoBehaviour
         {
             StopServing(true);
         }
+    }
+
+    private float ReliableFloorYOrFallback(float candidateFloorY)
+    {
+        if (!ignoreCeilingPlanes) return candidateFloorY;
+
+        var headY = hmdTransform != null ? hmdTransform.position.y : 1.6f;
+        var tooHighForFloor = candidateFloorY > maxAcceptedFloorY;
+        var tooCloseToHead = candidateFloorY > headY - Mathf.Max(0.1f, minimumFloorBelowHeadMeters);
+        if (!tooHighForFloor && !tooCloseToHead)
+        {
+            return candidateFloorY;
+        }
+
+        Debug.LogWarning($"Rejected suspicious ping pong floor height {candidateFloorY:0.###}m. Falling back to {fallbackFloorY:0.###}m.");
+        return fallbackFloorY;
     }
 
     public bool HasRequiredRoomSensingColliders()

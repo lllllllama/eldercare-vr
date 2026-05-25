@@ -15,6 +15,11 @@ public class PingPongRoomPlaneAligner : MonoBehaviour
     public bool upgradeToOpenSpacePlacement = true;
     public bool disableSpatialTablePlacementForNow = true;
     public float tableCenterHeightAboveFloor = PingPongGeometry.TableTopHeight - PingPongGeometry.TableThickness * 0.5f;
+    public float fallbackFloorY = 0f;
+    public bool ignoreCeilingPlanes = true;
+    public float maxAcceptedFloorY = 0.4f;
+    public float minimumFloorBelowHeadMeters = 0.6f;
+    public float minimumFloorNormalDot = 0.85f;
     public float minimumHeightChange = 0.01f;
     public float maximumFloorDistance = 3f;
 
@@ -82,7 +87,10 @@ public class PingPongRoomPlaneAligner : MonoBehaviour
 
         ResolveReferences();
         if (tableRoot == null) return;
-        if (!TryFindBestFloorY(planeDatas, tableRoot.position, out var floorY)) return;
+        if (!TryFindBestFloorY(planeDatas, tableRoot.position, out var floorY))
+        {
+            floorY = fallbackFloorY;
+        }
 
         var targetPosition = tableRoot.position;
         targetPosition.y = floorY + tableCenterHeightAboveFloor;
@@ -177,7 +185,8 @@ public class PingPongRoomPlaneAligner : MonoBehaviour
             if (spawner == null) continue;
 
             spawner.netWorldZ = tableRoot.position.z;
-            spawner.minimumNetClearanceHeight = tableTopY + PingPongGeometry.NetHeight + 0.08f;
+            var minimumNetClearanceHeight = tableTopY + PingPongGeometry.NetHeight + 0.08f;
+            spawner.minimumNetClearanceHeight = Mathf.Max(spawner.minimumNetClearanceHeight, minimumNetClearanceHeight);
             spawner.tableBounceWorldY = tableTopY + PingPongGeometry.BallRadius;
         }
 
@@ -197,9 +206,9 @@ public class PingPongRoomPlaneAligner : MonoBehaviour
 
         foreach (var plane in planeDatas)
         {
-            if (!IsUsableFloorPlane(plane)) continue;
-
             var planeY = GetPlaneAverageY(plane);
+            if (!IsUsableFloorPlane(plane, planeY)) continue;
+
             var horizontalDelta = new Vector2(referencePosition.x - plane.position.x, referencePosition.z - plane.position.z);
             var distance = horizontalDelta.magnitude;
             if (distance > maximumFloorDistance || distance >= bestDistance) continue;
@@ -211,13 +220,35 @@ public class PingPongRoomPlaneAligner : MonoBehaviour
         return bestDistance < float.MaxValue;
     }
 
-    private static bool IsUsableFloorPlane(PxrPlaneData plane)
+    private bool IsUsableFloorPlane(PxrPlaneData plane, float planeY)
     {
         if (plane.state == MeshChangeState.Removed) return false;
+        if (ignoreCeilingPlanes && !IsReliableFloorPlaneHeight(planeY)) return false;
+        if (ignoreCeilingPlanes && Vector3.Dot(GetPlaneNormal(plane), Vector3.up) < Mathf.Clamp01(minimumFloorNormalDot)) return false;
         if (plane.label == PxrSemanticLabel.Floor) return true;
 
         return plane.label == PxrSemanticLabel.Unknown &&
                plane.orientationMode == PxrPlaneOrientation.HorizontalUpward;
+    }
+
+    private bool IsReliableFloorPlaneHeight(float planeY)
+    {
+        var camera = Camera.main != null ? Camera.main : FindObjectOfType<Camera>(true);
+        var headY = camera != null ? camera.transform.position.y : 1.6f;
+        if (planeY > maxAcceptedFloorY) return false;
+        if (planeY > headY - Mathf.Max(0.1f, minimumFloorBelowHeadMeters)) return false;
+        return true;
+    }
+
+    private static Vector3 GetPlaneNormal(PxrPlaneData plane)
+    {
+        var normal = plane.rotation * Vector3.up;
+        if (normal.sqrMagnitude < 0.0001f)
+        {
+            normal = Vector3.up;
+        }
+
+        return normal.normalized;
     }
 
     private static float GetPlaneAverageY(PxrPlaneData plane)
@@ -287,6 +318,9 @@ public class PingPongRoomPlaneAligner : MonoBehaviour
         placer.clearanceHeightMeters = 1.15f;
         placer.fallbackFloorY = 0f;
         placer.tableCenterHeightAboveFloor = tableCenterHeightAboveFloor;
+        placer.ignoreCeilingPlanes = ignoreCeilingPlanes;
+        placer.maxAcceptedFloorY = maxAcceptedFloorY;
+        placer.minimumFloorBelowHeadMeters = minimumFloorBelowHeadMeters;
         placer.searchDurationSeconds = 8f;
         placer.searchIntervalSeconds = 0.5f;
         placer.enableRemoteDrag = false;

@@ -10,8 +10,13 @@ public class ComfortWorldSpaceUIPlacer : MonoBehaviour
     public bool placeOnStart = true;
     public bool placeOnEnable = false;
     public bool recenterDuringStartup = true;
-    public float startupRecenterSeconds = 1.25f;
-    public int startupRecenterFrames = 18;
+    public float startupRecenterSeconds = 0.35f;
+    public int startupRecenterFrames = 4;
+    public bool clampWorldHeight = true;
+    public float minWorldHeight = 1.25f;
+    public float maxWorldHeight = 1.75f;
+    public float preferredWorldHeight = 1.5f;
+    public bool usePreferredHeightInsteadOfHeadHeight = true;
     public bool enableRayDrag = true;
     public bool enableThumbstickNavigation = true;
     public bool invertThumbstickHorizontal = false;
@@ -199,7 +204,22 @@ public class ComfortWorldSpaceUIPlacer : MonoBehaviour
 
         var forward = GetHeadYawForward();
         position = headTransform.position + forward * Mathf.Max(0.01f, distanceMeters);
-        position.y = headTransform.position.y + hmdHeightOffsetMeters;
+        if (usePreferredHeightInsteadOfHeadHeight)
+        {
+            position.y = preferredWorldHeight;
+        }
+        else
+        {
+            position.y = headTransform.position.y + hmdHeightOffsetMeters;
+        }
+
+        if (clampWorldHeight)
+        {
+            var minHeight = Mathf.Min(minWorldHeight, maxWorldHeight);
+            var maxHeight = Mathf.Max(minWorldHeight, maxWorldHeight);
+            position.y = Mathf.Clamp(position.y, minHeight, maxHeight);
+        }
+
         rotation = Quaternion.LookRotation(forward, Vector3.up);
         return true;
     }

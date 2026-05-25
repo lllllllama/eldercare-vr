@@ -49,6 +49,18 @@ public static class PingPongDemoSceneBuilder
         CustomModelRoot + "/GrabHand.fbx",
         CustomModelRoot + "/GrabHand.obj"
     };
+    private static readonly string[] CustomTableModelPaths =
+    {
+        CustomModelRoot + "/PingPongTable.prefab",
+        CustomModelRoot + "/PingPongTable.fbx",
+        CustomModelRoot + "/PingPongTable.obj",
+        CustomModelRoot + "/Table.prefab",
+        CustomModelRoot + "/Table.fbx",
+        CustomModelRoot + "/Table.obj",
+        CustomModelRoot + "/TennisTable.prefab",
+        CustomModelRoot + "/TennisTable.fbx",
+        CustomModelRoot + "/TennisTable.obj"
+    };
     private static readonly string[] CustomBallModelPaths =
     {
         CustomModelRoot + "/PingPongBall.prefab",
@@ -71,6 +83,10 @@ public static class PingPongDemoSceneBuilder
     private static readonly Vector3 DefaultHandVisualOffsetPosition = Vector3.zero;
     private static readonly Vector3 DefaultHandVisualOffsetRotation = new Vector3(0f, 90f, 0f);
     private static readonly Vector3 DefaultHandVisualOffsetScale = Vector3.one;
+    private static readonly Vector3 DefaultTableVisualOffsetPosition = Vector3.zero;
+    private static readonly Vector3 DefaultTableVisualOffsetRotation = Vector3.zero;
+    private static readonly Vector3 DefaultTableVisualOffsetScale = Vector3.one;
+    private const float TunedTableTopY = PingPongGeometry.TableTopHeight;
 
     [MenuItem("Tools/PICO ElderCare/Build VRTableTennis Adapted Assets")]
     public static void BuildVrTableTennisAdaptedAssets()
@@ -100,6 +116,269 @@ public static class PingPongDemoSceneBuilder
     public static void BuildMixedRealityDemoScene()
     {
         BuildDemoSceneInternal(true);
+    }
+
+    [MenuItem("Tools/PICO ElderCare/PingPong/Apply Gameplay Tuning Only")]
+    public static void ApplyPingPongGameplayTuningOnly()
+    {
+        if (!EnsureEditMode()) return;
+
+        var table = FindTableInOpenScene();
+        if (table == null)
+        {
+            Debug.LogError("Table not found. Please open or build the ping pong scene first.");
+            return;
+        }
+
+        var tableCollider = table.GetComponent<BoxCollider>();
+        if (tableCollider == null)
+        {
+            Debug.LogError("Table BoxCollider not found. PingPong gameplay tuning was not applied.");
+            return;
+        }
+
+        var previousPosition = table.transform.position;
+        var deltaY = TunedTableTopY - tableCollider.bounds.max.y;
+        table.transform.position = previousPosition + Vector3.up * deltaY;
+
+        TuneTableDragHandles(table.transform, TunedTableTopY);
+        TuneTablePassiveMotionLock(table, TunedTableTopY);
+        SyncStandaloneNetColliderHeight(table.transform, deltaY);
+        TuneBallSpawners(table.transform, TunedTableTopY);
+        TuneControllerTableLimiters(table.transform, TunedTableTopY);
+        TuneTableSafety(table.transform, TunedTableTopY);
+
+        EditorUtility.SetDirty(table);
+        EditorUtility.SetDirty(tableCollider);
+        UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(UnityEngine.SceneManagement.SceneManager.GetActiveScene());
+
+        Debug.Log("PingPong gameplay tuning applied:\n- Table collider top height restored to PingPongGeometry.TableTopHeight\n- BallSpawner bounce height and net clearance synchronized\n- Spawned ball mass/drag/bounciness tuned for lighter rebound");
+    }
+
+    [MenuItem("Tools/PICO ElderCare/PingPong/Restore Table Gameplay Height")]
+    public static void RestoreTableGameplayHeight()
+    {
+        if (!EnsureEditMode()) return;
+
+        var table = FindTableInOpenScene();
+        if (table == null)
+        {
+            Debug.LogError("Table not found. Please open or build the ping pong scene first.");
+            return;
+        }
+
+        var tableCollider = table.GetComponent<BoxCollider>();
+        if (tableCollider == null)
+        {
+            Debug.LogError("Table BoxCollider not found. Table gameplay height was not restored.");
+            return;
+        }
+
+        var deltaY = PingPongGeometry.TableTopHeight - tableCollider.bounds.max.y;
+        table.transform.position += Vector3.up * deltaY;
+
+        TuneTableDragHandles(table.transform, PingPongGeometry.TableTopHeight);
+        TuneTablePassiveMotionLock(table, PingPongGeometry.TableTopHeight);
+        SyncStandaloneNetColliderHeight(table.transform, deltaY);
+        TuneBallSpawners(table.transform, PingPongGeometry.TableTopHeight);
+        TuneControllerTableLimiters(table.transform, PingPongGeometry.TableTopHeight);
+        TuneTableSafety(table.transform, PingPongGeometry.TableTopHeight);
+        MarkPingPongSpatialRepairDirty(table);
+        UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(UnityEngine.SceneManagement.SceneManager.GetActiveScene());
+
+        Debug.Log("Table gameplay height restored to PingPongGeometry.TableTopHeight = 0.76m.");
+    }
+
+    [MenuItem("Tools/PICO ElderCare/PingPong/Apply Stable Serve Tuning Only")]
+    public static void ApplyStableServeTuningOnly()
+    {
+        if (!EnsureEditMode()) return;
+
+        var spawners = Object.FindObjectsOfType<BallSpawner>(true);
+        if (spawners == null || spawners.Length == 0)
+        {
+            Debug.LogWarning("No BallSpawner found. Stable serve tuning was not applied.");
+            return;
+        }
+
+        foreach (var spawner in spawners)
+        {
+            if (spawner == null) continue;
+
+            spawner.bounceOnTableBeforePlayer = true;
+            spawner.serveSpeed = 3.1f;
+            spawner.upwardArc = 0.55f;
+            spawner.tableBounceWorldY = PingPongGeometry.TableTopHeight + PingPongGeometry.BallRadius;
+            spawner.tableBounceWorldZ = 1.35f;
+            spawner.minimumNetClearanceHeight = PingPongGeometry.TableTopHeight + PingPongGeometry.NetHeight + 0.16f;
+            spawner.horizontalRandomRange = 0.08f;
+            spawner.verticalRandomRange = 0.02f;
+            spawner.serveSpinRandomness = 0.08f;
+            spawner.serveProfile = PingPongServeProfile.Basic;
+            spawner.spawnedBallMass = PingPongGeometry.BallMass;
+            spawner.spawnedBallDrag = 0.015f;
+            spawner.spawnedBallAngularDrag = 0.04f;
+            spawner.spawnedBallBounciness = 0.86f;
+            spawner.spawnedBallDynamicFriction = 0.01f;
+            spawner.spawnedBallStaticFriction = 0.01f;
+            spawner.serveNetClearanceSafetyMargin = 0.03f;
+            EditorUtility.SetDirty(spawner);
+        }
+
+        var table = FindTableInOpenScene();
+        if (table != null)
+        {
+            foreach (var dragHandle in Object.FindObjectsOfType<TableDragHandle>(true))
+            {
+                if (dragHandle == null) continue;
+
+                dragHandle.tableRoot = table.transform;
+                dragHandle.tableBounceLocalZ = 1.35f - table.transform.position.z;
+                dragHandle.minimumNetClearanceAboveNet = 0.16f;
+                dragHandle.SyncHeightDependentValues();
+                EditorUtility.SetDirty(dragHandle);
+            }
+        }
+
+        UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(UnityEngine.SceneManagement.SceneManager.GetActiveScene());
+        Debug.Log("Stable ping pong serve tuning applied. Serves now target one table bounce before clearing the net.");
+    }
+
+    [MenuItem("Tools/PICO ElderCare/PingPong/Repair Difficulty Panel Drag Only")]
+    public static void RepairDifficultyPanelDragOnly()
+    {
+        if (!EnsureEditMode()) return;
+
+        var panel = FindObjectByNameIncludingInactive("DifficultyPanel");
+        if (panel == null)
+        {
+            Debug.LogWarning("DifficultyPanel not found. Open the ping pong scene before repairing panel drag.");
+            return;
+        }
+
+        if (!PingPongDifficultyController.RepairPanelDrag(panel))
+        {
+            Debug.LogWarning("DifficultyPanel drag repair could not be applied.");
+            return;
+        }
+
+        EditorUtility.SetDirty(panel);
+        MarkObjectsDirty(panel.GetComponentsInChildren<Component>(true));
+        UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(UnityEngine.SceneManagement.SceneManager.GetActiveScene());
+        Debug.Log("DifficultyPanel drag handle repaired. Dragging targets DifficultyPanel only.");
+    }
+
+    [MenuItem("Tools/PICO ElderCare/PingPong/Apply PingPong Gameplay Fixes Only")]
+    public static void ApplyPingPongGameplayFixesOnly()
+    {
+        if (!EnsureEditMode()) return;
+
+        RestoreTableGameplayHeight();
+        ApplyStableServeTuningOnly();
+        RepairDifficultyPanelDragOnly();
+        Debug.Log("PingPong gameplay fixes applied only: table height restored, stable serve tuned, and DifficultyPanel drag repaired.");
+    }
+
+    [MenuItem("Tools/PICO ElderCare/PingPong/Repair Spatial Placement Only")]
+    public static void RepairPingPongSpatialPlacementOnly()
+    {
+        if (!EnsureEditMode()) return;
+
+        var table = FindTableInOpenScene();
+        if (table == null)
+        {
+            Debug.LogError("Table not found. Please open or build the ping pong scene first.");
+            return;
+        }
+
+        if (table.GetComponent<BoxCollider>() == null)
+        {
+            Debug.LogError("Table BoxCollider not found. PingPong spatial placement repair was not applied.");
+            return;
+        }
+
+        var sanitizer = EnsurePingPongSpatialSanitizer();
+        if (sanitizer != null)
+        {
+            sanitizer.targetTableTopY = TunedTableTopY;
+            sanitizer.uiPreferredY = 1.5f;
+            sanitizer.uiMinY = 1.25f;
+            sanitizer.uiMaxY = 1.75f;
+            sanitizer.fixTableHeight = true;
+            sanitizer.fixUiHeight = true;
+            sanitizer.ignoreCeilingPlanes = true;
+            sanitizer.sanitizeOnStart = true;
+            EditorUtility.SetDirty(sanitizer);
+        }
+
+        var report = PingPongSpatialSanitizer.RepairScene(
+            TunedTableTopY,
+            1.5f,
+            1.25f,
+            1.75f,
+            true,
+            true);
+
+        MarkPingPongSpatialRepairDirty(table);
+        UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(UnityEngine.SceneManagement.SceneManager.GetActiveScene());
+
+        Debug.Log(
+            "PingPong spatial placement repaired:\n" +
+            "- UI root height clamped to [1.25, 1.75], preferred 1.5\n" +
+            "- Table collider top restored to PingPongGeometry.TableTopHeight\n" +
+            "- BallSpawner bounce height synchronized\n" +
+            "- Table interaction helpers synchronized\n" +
+            $"- Table bounds max Y: {FormatSpatialValue(report.tableTopY)}\n" +
+            $"- WorldSpaceCanvas world Y: {FormatSpatialValue(report.worldSpaceCanvasY)}\n" +
+            $"- DifficultyPanel world Y: {FormatSpatialValue(report.difficultyPanelY)}\n" +
+            $"- PingPongHomeCanvas world Y: {FormatSpatialValue(report.pingPongHomeCanvasY)}\n" +
+            $"- PingPongHomeMenu world Y: {FormatSpatialValue(report.pingPongHomeMenuY)}");
+    }
+
+    [MenuItem("Tools/PICO ElderCare/PingPong/Log Spatial Diagnostics")]
+    public static void LogPingPongSpatialDiagnostics()
+    {
+        var camera = Camera.main != null ? Camera.main : Object.FindObjectOfType<Camera>(true);
+        var xrOrigin = FindObjectByNameContainsIncludingInactive("XR Origin") ??
+                       FindObjectByNameContainsIncludingInactive("XR Rig") ??
+                       FindObjectByNameContainsIncludingInactive("XROrigin");
+        var pingPong = GameObject.Find("PingPong");
+        var table = FindTableInOpenScene();
+        var tableCollider = table != null ? table.GetComponent<BoxCollider>() : null;
+        var worldSpaceCanvas = FindObjectByNameIncludingInactive("WorldSpaceCanvas");
+        var pingPongHomeCanvas = FindObjectByNameIncludingInactive("PingPongHomeCanvas");
+        var pingPongHomeMenu = FindObjectByNameIncludingInactive("PingPongHomeMenu");
+        var difficultyPanel = FindObjectByNameIncludingInactive("DifficultyPanel");
+        var tableTopY = tableCollider != null ? tableCollider.bounds.max.y : float.NaN;
+        var uiY = worldSpaceCanvas != null ? worldSpaceCanvas.transform.position.y : float.NaN;
+        var heightDelta = !float.IsNaN(tableTopY) && !float.IsNaN(uiY) ? uiY - tableTopY : float.NaN;
+
+        var diagnostics =
+            "PingPong spatial diagnostics:\n" +
+            $"- Camera.main.position: {FormatVector(camera != null ? camera.transform.position : (Vector3?)null)}\n" +
+            $"- XR Origin position: {FormatVector(xrOrigin != null ? xrOrigin.transform.position : (Vector3?)null)}\n" +
+            $"- PingPong root position: {FormatVector(pingPong != null ? pingPong.transform.position : (Vector3?)null)}\n" +
+            $"- Table position: {FormatVector(table != null ? table.transform.position : (Vector3?)null)}\n" +
+            $"- Table BoxCollider.bounds.max.y: {FormatSpatialValue(tableTopY)}\n" +
+            $"- WorldSpaceCanvas position: {FormatVector(worldSpaceCanvas != null ? worldSpaceCanvas.transform.position : (Vector3?)null)}\n" +
+            $"- PingPongHomeCanvas position: {FormatVector(pingPongHomeCanvas != null ? pingPongHomeCanvas.transform.position : (Vector3?)null)}\n" +
+            $"- PingPongHomeMenu position: {FormatVector(pingPongHomeMenu != null ? pingPongHomeMenu.transform.position : (Vector3?)null)}\n" +
+            $"- DifficultyPanel world position: {FormatVector(difficultyPanel != null ? difficultyPanel.transform.position : (Vector3?)null)}\n" +
+            $"- UI/Table height delta: {FormatSpatialValue(heightDelta)}";
+
+        Debug.Log(diagnostics);
+
+        WarnIfHighUi("WorldSpaceCanvas", worldSpaceCanvas);
+        WarnIfHighUi("PingPongHomeCanvas", pingPongHomeCanvas);
+        WarnIfHighUi("PingPongHomeMenu", pingPongHomeMenu);
+        WarnIfHighUi("DifficultyPanel", difficultyPanel);
+
+        if (!float.IsNaN(tableTopY) && tableTopY > 1.2f)
+        {
+            Debug.LogWarning($"Table top is suspiciously high: {tableTopY:0.###}m.");
+        }
+
+        WarnIfSuspiciousPlaneHeights(camera);
     }
 
     [MenuItem("Tools/PICO ElderCare/Replace Paddle Visual Only")]
@@ -155,6 +434,35 @@ public static class PingPongDemoSceneBuilder
         EditorUtility.SetDirty(hand);
         UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(UnityEngine.SceneManagement.SceneManager.GetActiveScene());
         Debug.Log("Left hand visual replaced only. Controller following and gameplay logic were preserved.");
+    }
+
+    [MenuItem("Tools/PICO ElderCare/Replace Table Visual Only")]
+    public static void ReplaceTableVisualOnly()
+    {
+        if (!EnsureEditMode()) return;
+
+        var sourceModel = LoadPreferredTableModel();
+        if (sourceModel == null)
+        {
+            const string message = "No custom table model found. Put Table.prefab or PingPongTable.prefab under Assets/_Project/External/CustomPingPong/Models/";
+            EditorUtility.DisplayDialog("PingPong", message, "OK");
+            Debug.LogError(message);
+            return;
+        }
+
+        var table = FindTableInOpenScene();
+        if (table == null)
+        {
+            const string message = "Table not found. Please open or build the ping pong scene first.";
+            EditorUtility.DisplayDialog("PingPong", message, "OK");
+            Debug.LogError(message);
+            return;
+        }
+
+        ReplaceTableVisualOnly(table, sourceModel);
+        EditorUtility.SetDirty(table);
+        UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(UnityEngine.SceneManagement.SceneManager.GetActiveScene());
+        Debug.Log("Table visual replaced only. Table physics, net collider, and gameplay logic were preserved.");
     }
 
     [MenuItem("Tools/PICO ElderCare/Reset Paddle Visual Pose Offset")]
@@ -295,20 +603,27 @@ public static class PingPongDemoSceneBuilder
         spawner.autoStartOnPlay = false;
         spawner.serveSpeed = PingPongDifficultyController.GetSpeed(PingPongDifficulty.Normal);
         spawner.serveInterval = PingPongDifficultyController.GetServeInterval(PingPongDifficulty.Normal);
-        spawner.serveProfile = PingPongServeProfile.RandomMixed;
-        spawner.upwardArc = 0.42f;
-        spawner.minimumNetClearanceHeight = PingPongGeometry.TableTopHeight + PingPongGeometry.NetHeight + 0.08f;
+        spawner.serveProfile = PingPongServeProfile.Basic;
+        spawner.upwardArc = 0.55f;
+        spawner.minimumNetClearanceHeight = PingPongGeometry.TableTopHeight + PingPongGeometry.NetHeight + 0.16f;
         spawner.netWorldZ = PingPongGeometry.TableCenter.z;
         spawner.bounceOnTableBeforePlayer = true;
         spawner.tableBounceWorldY = PingPongGeometry.TableTopHeight + PingPongGeometry.BallRadius;
-        spawner.tableBounceWorldZ = 1.45f;
-        spawner.horizontalRandomRange = 0.12f;
-        spawner.verticalRandomRange = 0.04f;
+        spawner.tableBounceWorldZ = 1.35f;
+        spawner.horizontalRandomRange = 0.08f;
+        spawner.verticalRandomRange = 0.02f;
         spawner.topspinRadiansPerSecond = 95f;
         spawner.backspinRadiansPerSecond = 80f;
         spawner.sidespinRadiansPerSecond = 50f;
-        spawner.serveSpinRandomness = 0.18f;
+        spawner.serveSpinRandomness = 0.08f;
         spawner.maxServeSpin = 140f;
+        spawner.serveNetClearanceSafetyMargin = 0.03f;
+        spawner.spawnedBallMass = PingPongGeometry.BallMass;
+        spawner.spawnedBallDrag = 0.015f;
+        spawner.spawnedBallAngularDrag = 0.04f;
+        spawner.spawnedBallBounciness = 0.86f;
+        spawner.spawnedBallDynamicFriction = 0.01f;
+        spawner.spawnedBallStaticFriction = 0.01f;
         ValidateBallSpawnerBindings(spawner);
         var playerBodyProxy = mixedRealityMode ? SetupPlayerBodyProxy(managers.transform) : null;
         SetupPlayerTableSafety(tableBlocker, table.transform, spawner, null, playerBodyProxy);
@@ -344,6 +659,7 @@ public static class PingPongDemoSceneBuilder
             net != null ? net.transform : null);
         SetupPlayerTableSafety(tableBlocker, table.transform, spawner, dragHandle, playerBodyProxy);
         SetupInitialViewAligner(managers.transform, mixedRealityMode);
+        SetupPingPongSpatialSanitizer(managers.transform);
         BuildElderCareHomeMenu(
             uiRoot.transform,
             managers.transform,
@@ -649,6 +965,373 @@ public static class PingPongDemoSceneBuilder
                 childName.StartsWith("LeftHandVisual"));
     }
 
+    private static GameObject FindTableInOpenScene()
+    {
+        var pingPong = GameObject.Find("PingPong");
+        var child = pingPong != null ? pingPong.transform.Find("Table") : null;
+        return child != null
+            ? child.gameObject
+            : GameObject.Find("Table") ?? GameObject.Find("PingPong/Table");
+    }
+
+    private static void SyncStandaloneNetColliderHeight(Transform tableTransform, float deltaY)
+    {
+        if (tableTransform == null || Mathf.Abs(deltaY) <= 0.000001f) return;
+
+        var childNetCollider = tableTransform.Find("NetCollider");
+        if (childNetCollider != null)
+        {
+            return;
+        }
+
+        var netCollider = GameObject.Find("NetCollider");
+        if (netCollider == null || netCollider.transform.IsChildOf(tableTransform)) return;
+
+        netCollider.transform.position += Vector3.up * deltaY;
+        EditorUtility.SetDirty(netCollider);
+    }
+
+    private static void TuneBallSpawners(Transform tableTransform, float targetTableTopY)
+    {
+        var spawners = Object.FindObjectsOfType<BallSpawner>(true);
+        if (spawners == null || spawners.Length == 0)
+        {
+            Debug.LogWarning("No BallSpawner found. Table height was tuned, but serve bounce settings were not synchronized.");
+            return;
+        }
+
+        foreach (var spawner in spawners)
+        {
+            if (spawner == null) continue;
+
+            spawner.serveSpeed = Mathf.Max(spawner.serveSpeed, 3.0f);
+            spawner.upwardArc = Mathf.Max(spawner.upwardArc, 0.42f);
+            spawner.tableBounceWorldY = targetTableTopY + PingPongGeometry.BallRadius;
+            spawner.minimumNetClearanceHeight = targetTableTopY + PingPongGeometry.NetHeight + 0.16f;
+            if (tableTransform != null)
+            {
+                spawner.netWorldZ = tableTransform.position.z;
+            }
+
+            if (Mathf.Approximately(spawner.horizontalRandomRange, 0f))
+            {
+                spawner.horizontalRandomRange = 0.18f;
+            }
+
+            spawner.spawnedBallMass = PingPongGeometry.BallMass;
+            spawner.spawnedBallDrag = 0.015f;
+            spawner.spawnedBallAngularDrag = 0.04f;
+            spawner.spawnedBallBounciness = 0.86f;
+            spawner.spawnedBallDynamicFriction = 0.01f;
+            spawner.spawnedBallStaticFriction = 0.01f;
+
+            EditorUtility.SetDirty(spawner);
+        }
+    }
+
+    private static void TuneControllerTableLimiters(Transform tableTransform, float targetTableTopY)
+    {
+        var limiters = Object.FindObjectsOfType<ControllerTableCollisionLimiter>(true);
+        foreach (var limiter in limiters)
+        {
+            if (limiter == null) continue;
+
+            limiter.tableTransform = tableTransform;
+            limiter.tableTopY = targetTableTopY;
+            EditorUtility.SetDirty(limiter);
+        }
+    }
+
+    private static void TuneTableDragHandles(Transform tableTransform, float targetTableTopY)
+    {
+        var dragHandles = Object.FindObjectsOfType<TableDragHandle>(true);
+        foreach (var dragHandle in dragHandles)
+        {
+            if (dragHandle == null) continue;
+
+            dragHandle.tableRoot = tableTransform;
+            dragHandle.standardTableTopHeight = targetTableTopY;
+            dragHandle.tableBounceLocalZ = 1.35f - (tableTransform != null ? tableTransform.position.z : PingPongGeometry.TableCenter.z);
+            dragHandle.minimumNetClearanceAboveNet = 0.16f;
+            dragHandle.SyncHeightDependentValues();
+            EditorUtility.SetDirty(dragHandle);
+        }
+
+    }
+
+    private static void TuneTablePassiveMotionLock(GameObject table, float targetTableTopY)
+    {
+        if (table == null) return;
+
+        var passiveLock = table.GetComponent<TablePassiveMotionLock>();
+        if (passiveLock == null) return;
+
+        passiveLock.standardTableTopHeight = targetTableTopY;
+        passiveLock.AcceptCurrentTransform();
+        EditorUtility.SetDirty(passiveLock);
+    }
+
+    private static void TuneTableSafety(Transform tableTransform, float targetTableTopY)
+    {
+        var tableCenterHeightAboveFloor = targetTableTopY - PingPongGeometry.TableThickness * 0.5f;
+        var safeties = Object.FindObjectsOfType<PingPongPlayerTableSafety>(true);
+        foreach (var safety in safeties)
+        {
+            if (safety == null) continue;
+
+            safety.tableTransform = tableTransform;
+            safety.tableCenterHeightAboveFloor = tableCenterHeightAboveFloor;
+            EditorUtility.SetDirty(safety);
+        }
+    }
+
+    private static PingPongSpatialSanitizer SetupPingPongSpatialSanitizer(Transform parent)
+    {
+        var host = parent != null ? parent.gameObject : GameObject.Find("Managers") ?? GameObject.Find("PingPong");
+        if (host == null) return null;
+
+        var sanitizer = EnsureComponent<PingPongSpatialSanitizer>(host);
+        if (sanitizer == null) return null;
+
+        sanitizer.sanitizeOnStart = true;
+        sanitizer.targetTableTopY = TunedTableTopY;
+        sanitizer.uiPreferredY = 1.5f;
+        sanitizer.uiMinY = 1.25f;
+        sanitizer.uiMaxY = 1.75f;
+        sanitizer.fixTableHeight = true;
+        sanitizer.fixUiHeight = true;
+        sanitizer.ignoreCeilingPlanes = true;
+        EditorUtility.SetDirty(host);
+        return sanitizer;
+    }
+
+    private static PingPongSpatialSanitizer EnsurePingPongSpatialSanitizer()
+    {
+        var host = GameObject.Find("Managers") ?? GameObject.Find("PingPong");
+        if (host == null)
+        {
+            host = new GameObject("PingPongManagers");
+        }
+
+        return SetupPingPongSpatialSanitizer(host.transform);
+    }
+
+    private static void MarkPingPongSpatialRepairDirty(GameObject table)
+    {
+        if (table != null)
+        {
+            EditorUtility.SetDirty(table);
+            var tableCollider = table.GetComponent<BoxCollider>();
+            if (tableCollider != null)
+            {
+                EditorUtility.SetDirty(tableCollider);
+            }
+
+            var passiveLock = table.GetComponent<TablePassiveMotionLock>();
+            if (passiveLock != null)
+            {
+                EditorUtility.SetDirty(passiveLock);
+            }
+        }
+
+        MarkObjectsDirty(Object.FindObjectsOfType<BallSpawner>(true));
+        MarkObjectsDirty(Object.FindObjectsOfType<ControllerTableCollisionLimiter>(true));
+        MarkObjectsDirty(Object.FindObjectsOfType<TableDragHandle>(true));
+        MarkObjectsDirty(Object.FindObjectsOfType<PingPongPlayerTableSafety>(true));
+        MarkObjectsDirty(Object.FindObjectsOfType<PingPongOpenSpaceTablePlacer>(true));
+        MarkObjectsDirty(Object.FindObjectsOfType<PingPongRoomPlaneAligner>(true));
+        MarkObjectsDirty(Object.FindObjectsOfType<ComfortWorldSpaceUIPlacer>(true));
+    }
+
+    private static void MarkObjectsDirty<T>(T[] objects) where T : Object
+    {
+        if (objects == null) return;
+
+        foreach (var obj in objects)
+        {
+            if (obj != null)
+            {
+                EditorUtility.SetDirty(obj);
+            }
+        }
+    }
+
+    private static string FormatSpatialValue(float value)
+    {
+        return float.IsNaN(value) ? "not found" : value.ToString("0.###");
+    }
+
+    private static string FormatVector(Vector3? value)
+    {
+        if (!value.HasValue)
+        {
+            return "not found";
+        }
+
+        var vector = value.Value;
+        return $"({vector.x:0.###}, {vector.y:0.###}, {vector.z:0.###})";
+    }
+
+    private static void WarnIfHighUi(string objectName, GameObject uiObject)
+    {
+        if (uiObject == null) return;
+        if (uiObject.transform.position.y > 1.75f)
+        {
+            Debug.LogWarning($"{objectName} is above comfort height: {uiObject.transform.position.y:0.###}m.");
+        }
+    }
+
+    private static void WarnIfSuspiciousPlaneHeights(Camera camera)
+    {
+        var headY = camera != null ? camera.transform.position.y : 1.6f;
+        foreach (var transform in Object.FindObjectsOfType<Transform>(true))
+        {
+            if (transform == null) continue;
+            if (!IsPotentialMrPlaneName(transform.name)) continue;
+
+            var y = transform.position.y;
+            if (y > 0.4f || y > headY - 0.6f)
+            {
+                Debug.LogWarning($"Potential MR plane '{transform.name}' has suspicious height {y:0.###}m and may be a ceiling/wall candidate.");
+            }
+        }
+    }
+
+    private static bool IsPotentialMrPlaneName(string objectName)
+    {
+        if (string.IsNullOrEmpty(objectName)) return false;
+
+        return objectName == "MRDetectedPlaneTemplate" ||
+               objectName.StartsWith("MRDetectedPlaneTemplate", System.StringComparison.Ordinal) ||
+               objectName.StartsWith("PXR_Plane", System.StringComparison.Ordinal) ||
+               objectName.StartsWith("PXRPlane", System.StringComparison.Ordinal) ||
+               objectName == "Plane" ||
+               objectName.StartsWith("Plane ", System.StringComparison.Ordinal) ||
+               objectName.StartsWith("Plane(", System.StringComparison.Ordinal);
+    }
+
+    private static GameObject FindObjectByNameIncludingInactive(string objectName)
+    {
+        foreach (var transform in Object.FindObjectsOfType<Transform>(true))
+        {
+            if (transform != null && transform.name == objectName)
+            {
+                return transform.gameObject;
+            }
+        }
+
+        return null;
+    }
+
+    private static GameObject FindObjectByNameContainsIncludingInactive(string partialName)
+    {
+        foreach (var transform in Object.FindObjectsOfType<Transform>(true))
+        {
+            if (transform != null && transform.name.Contains(partialName))
+            {
+                return transform.gameObject;
+            }
+        }
+
+        return null;
+    }
+
+    private static void ReplaceTableVisualOnly(GameObject table, GameObject sourceModel)
+    {
+        if (table == null || sourceModel == null) return;
+
+        RemoveOldDirectTableVisualChildren(table.transform);
+        var offset = GetOrCreateVisualOffset(
+            table.transform,
+            "TableVisualOffset",
+            DefaultTableVisualOffsetPosition,
+            DefaultTableVisualOffsetRotation,
+            DefaultTableVisualOffsetScale,
+            false);
+        RemoveOldTableVisualChildren(offset);
+
+        var visual = PrefabUtility.InstantiatePrefab(sourceModel) as GameObject;
+        if (visual == null)
+        {
+            visual = Object.Instantiate(sourceModel);
+        }
+
+        if (visual == null)
+        {
+            Debug.LogError($"Could not instantiate custom table model at '{AssetDatabase.GetAssetPath(sourceModel)}'.");
+            return;
+        }
+
+        visual.name = "Visual_CustomTable";
+        visual.transform.SetParent(offset, false);
+        visual.transform.localPosition = Vector3.zero;
+        visual.transform.localRotation = Quaternion.identity;
+        visual.transform.localScale = Vector3.one;
+
+        StripVisualGameplayComponents(visual);
+        FitVisualToTarget(visual, Vector3.zero, TableColliderWorldSize, 0.98f, true);
+
+        EditorUtility.SetDirty(visual);
+        EditorUtility.SetDirty(offset.gameObject);
+    }
+
+    private static void RemoveOldDirectTableVisualChildren(Transform table)
+    {
+        if (table == null) return;
+
+        var childrenToRemove = new List<GameObject>();
+        foreach (Transform child in table)
+        {
+            if (child == null || child.name == "NetCollider" || child.name == "TableVisualOffset") continue;
+            if (IsTableVisualChildName(child.name))
+            {
+                childrenToRemove.Add(child.gameObject);
+            }
+        }
+
+        foreach (var child in childrenToRemove)
+        {
+            Object.DestroyImmediate(child);
+        }
+    }
+
+    private static void RemoveOldTableVisualChildren(Transform visualOffset)
+    {
+        if (visualOffset == null) return;
+
+        var childrenToRemove = new List<GameObject>();
+        foreach (Transform child in visualOffset)
+        {
+            if (child == null) continue;
+            if (child.name == "Visual_CustomTable" || IsTableVisualChildName(child.name))
+            {
+                childrenToRemove.Add(child.gameObject);
+            }
+        }
+
+        foreach (var child in childrenToRemove)
+        {
+            Object.DestroyImmediate(child);
+        }
+    }
+
+    private static bool IsTableVisualChildName(string childName)
+    {
+        return !string.IsNullOrEmpty(childName) &&
+               (childName == "TableTopVisual" ||
+                childName == "NetVisual" ||
+                childName == "LegFrontLeft" ||
+                childName == "LegFrontRight" ||
+                childName == "LegBackLeft" ||
+                childName == "LegBackRight" ||
+                childName == "NetPostLeft" ||
+                childName == "NetPostRight" ||
+                childName == "CustomTableVisual" ||
+                childName == "TableVisual" ||
+                childName == "Visual_CustomTable" ||
+                childName == "TableVisualOffset");
+    }
+
     private static Transform GetOrCreateVisualOffset(
         Transform parent,
         string childName,
@@ -842,6 +1525,11 @@ public static class PingPongDemoSceneBuilder
     private static GameObject LoadPreferredHandModel()
     {
         return LoadFirstModel(CustomHandModelPaths);
+    }
+
+    private static GameObject LoadPreferredTableModel()
+    {
+        return LoadFirstModel(CustomTableModelPaths);
     }
 
     private static GameObject LoadPreferredBallModel()
@@ -1899,6 +2587,11 @@ public static class PingPongDemoSceneBuilder
         comfortPlacer.placeOnStart = false;
         comfortPlacer.placeOnEnable = false;
         comfortPlacer.recenterDuringStartup = false;
+        comfortPlacer.clampWorldHeight = true;
+        comfortPlacer.minWorldHeight = 1.25f;
+        comfortPlacer.maxWorldHeight = 1.75f;
+        comfortPlacer.preferredWorldHeight = 1.5f;
+        comfortPlacer.usePreferredHeightInsteadOfHeadHeight = true;
         comfortPlacer.enableRayDrag = true;
         comfortPlacer.enableThumbstickNavigation = true;
         comfortPlacer.invertThumbstickHorizontal = false;
@@ -2074,7 +2767,7 @@ public static class PingPongDemoSceneBuilder
         canvas.renderMode = RenderMode.WorldSpace;
         canvas.worldCamera = Camera.main;
         canvas.sortingOrder = 20;
-        canvasGo.transform.position = new Vector3(0f, 1.62f, 1.18f);
+        canvasGo.transform.position = new Vector3(0f, 1.5f, 1.18f);
         canvasGo.transform.rotation = Quaternion.identity;
         canvasGo.transform.localScale = Vector3.one * 0.0015f;
 
@@ -2088,8 +2781,13 @@ public static class PingPongDemoSceneBuilder
             comfortPlacer.placeOnStart = false;
             comfortPlacer.placeOnEnable = false;
             comfortPlacer.recenterDuringStartup = true;
-            comfortPlacer.startupRecenterSeconds = 1.25f;
-            comfortPlacer.startupRecenterFrames = 18;
+            comfortPlacer.startupRecenterSeconds = 0.35f;
+            comfortPlacer.startupRecenterFrames = 4;
+            comfortPlacer.clampWorldHeight = true;
+            comfortPlacer.minWorldHeight = 1.25f;
+            comfortPlacer.maxWorldHeight = 1.75f;
+            comfortPlacer.preferredWorldHeight = 1.5f;
+            comfortPlacer.usePreferredHeightInsteadOfHeadHeight = true;
             comfortPlacer.enableRayDrag = true;
             comfortPlacer.enableThumbstickNavigation = true;
             comfortPlacer.invertThumbstickHorizontal = false;
@@ -2788,7 +3486,7 @@ public static class PingPongDemoSceneBuilder
         var dragHandle = EnsureComponent<TableDragHandle>(handle);
         if (dragHandle != null)
         {
-            var tableBounceLocalZ = 1.45f - PingPongGeometry.TableCenter.z;
+            var tableBounceLocalZ = 1.35f - PingPongGeometry.TableCenter.z;
             dragHandle.tableRoot = table.transform;
             dragHandle.controllerTransform = leftController;
             dragHandle.controllerNode = XRNode.LeftHand;
@@ -2798,7 +3496,7 @@ public static class PingPongDemoSceneBuilder
             dragHandle.syncedSpawners = spawner != null ? new[] { spawner } : null;
             dragHandle.activationRadius = 0.2f;
             dragHandle.tableBounceLocalZ = tableBounceLocalZ;
-            dragHandle.minimumNetClearanceAboveNet = 0.08f;
+            dragHandle.minimumNetClearanceAboveNet = 0.16f;
             dragHandle.lockTableHeight = true;
             dragHandle.constrainToBounds = !mixedRealityPlacement;
             dragHandle.xBounds = mixedRealityPlacement ? new Vector2(-3f, 3f) : new Vector2(-1.5f, 1.5f);
@@ -2933,7 +3631,10 @@ public static class PingPongDemoSceneBuilder
             tablePlacer.clearanceRadiusMeters = 1.65f;
             tablePlacer.clearanceHeightMeters = 1.15f;
             tablePlacer.fallbackFloorY = 0f;
-            tablePlacer.tableCenterHeightAboveFloor = PingPongGeometry.TableTopHeight - PingPongGeometry.TableThickness * 0.5f;
+            tablePlacer.tableCenterHeightAboveFloor = TunedTableTopY - PingPongGeometry.TableThickness * 0.5f;
+            tablePlacer.ignoreCeilingPlanes = true;
+            tablePlacer.maxAcceptedFloorY = 0.4f;
+            tablePlacer.minimumFloorBelowHeadMeters = 0.6f;
             tablePlacer.searchDurationSeconds = 8f;
             tablePlacer.searchIntervalSeconds = 0.5f;
             tablePlacer.enableRemoteDrag = true;
