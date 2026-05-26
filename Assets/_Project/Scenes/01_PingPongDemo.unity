@@ -732,12 +732,12 @@ MonoBehaviour:
   maxServeSpin: 140
   logServeDiagnostics: 0
   serveNetClearanceSafetyMargin: 0.03
-  spawnedBallMass: 0.003
-  spawnedBallDrag: 0.008
-  spawnedBallAngularDrag: 0.03
-  spawnedBallBounciness: 0.94
-  spawnedBallDynamicFriction: 0.005
-  spawnedBallStaticFriction: 0.005
+  spawnedBallMass: 0.0027
+  spawnedBallDrag: 0.006
+  spawnedBallAngularDrag: 0.025
+  spawnedBallBounciness: 0.97
+  spawnedBallDynamicFriction: 0.003
+  spawnedBallStaticFriction: 0.003
 --- !u!1 &185255634
 GameObject:
   m_ObjectHideFlags: 0
@@ -5727,7 +5727,7 @@ PrefabInstance:
     - target: {fileID: 650000, guid: 9c2ad91266e34b14a98877da398e44bd, type: 3}
       propertyPath: m_Material
       value: 
-      objectReference: {fileID: 13400000, guid: 261cdc4f14a6c0f4a92afbcb3bc4a0e8, type: 2}
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects:
     - {fileID: 2185057209203283169, guid: 9c2ad91266e34b14a98877da398e44bd, type: 3}

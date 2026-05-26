@@ -114,7 +114,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 0.06, y: 0.06, z: 0.06}
+  m_LocalScale: {x: 0.035, y: 0.035, z: 0.035}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 2695383633644338639}
@@ -186,13 +186,13 @@ MonoBehaviour:
   minimumPaddleHitSpeed: 2.6
   heldBallHitSpeed: 3.2
   paddleHitCooldown: 0.12
-  surfaceHitCooldown: 0.035
-  minimumClosingSpeed: 0.15
+  surfaceHitCooldown: 0.08
+  minimumClosingSpeed: 2
   heldBallMinimumSwingSpeed: 0.35
-  maxSpeed: 9
+  maxSpeed: 10
   minimumTableBounceUpSpeed: 1.8
-  tableBounceRestitutionFloor: 0.96
-  tableBounceUpwardAssist: 0.25
+  tableBounceRestitutionFloor: 0.97
+  tableBounceUpwardAssist: 0.32
   enableSweptSurfaceFallback: 1
   sweptSurfaceLayers:
     serializedVersion: 2
