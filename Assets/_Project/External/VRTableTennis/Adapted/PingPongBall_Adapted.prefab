@@ -190,9 +190,9 @@ MonoBehaviour:
   minimumClosingSpeed: 0.15
   heldBallMinimumSwingSpeed: 0.35
   maxSpeed: 9
-  minimumTableBounceUpSpeed: 1.35
-  tableBounceRestitutionFloor: 0.93
-  tableBounceUpwardAssist: 0.12
+  minimumTableBounceUpSpeed: 1.8
+  tableBounceRestitutionFloor: 0.96
+  tableBounceUpwardAssist: 0.25
   enableSweptSurfaceFallback: 1
   sweptSurfaceLayers:
     serializedVersion: 2
@@ -201,7 +201,7 @@ MonoBehaviour:
   collisionFilterRefreshInterval: 0.2
   ballPhysicsLayerName: Ball
   ignoredRoomSensingLayerName: RoomSensing
-  useAerodynamics: 1
+  useAerodynamics: 0
   airDensity: 1.27
   dragCoefficient: 0.5
   magnusLiftCoefficient: 0.28

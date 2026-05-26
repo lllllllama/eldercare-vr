@@ -732,12 +732,12 @@ MonoBehaviour:
   maxServeSpin: 140
   logServeDiagnostics: 0
   serveNetClearanceSafetyMargin: 0.03
-  spawnedBallMass: 0.004
-  spawnedBallDrag: 0.015
-  spawnedBallAngularDrag: 0.04
-  spawnedBallBounciness: 0.86
-  spawnedBallDynamicFriction: 0.01
-  spawnedBallStaticFriction: 0.01
+  spawnedBallMass: 0.003
+  spawnedBallDrag: 0.008
+  spawnedBallAngularDrag: 0.03
+  spawnedBallBounciness: 0.94
+  spawnedBallDynamicFriction: 0.005
+  spawnedBallStaticFriction: 0.005
 --- !u!1 &185255634
 GameObject:
   m_ObjectHideFlags: 0
@@ -851,7 +851,7 @@ MonoBehaviour:
   m_FallbackScreenDPI: 96
   m_DefaultSpriteDPI: 96
   m_DynamicPixelsPerUnit: 1
-  m_PresetInfoIsWorld: 0
+  m_PresetInfoIsWorld: 1
 --- !u!223 &185255639
 Canvas:
   m_ObjectHideFlags: 0
