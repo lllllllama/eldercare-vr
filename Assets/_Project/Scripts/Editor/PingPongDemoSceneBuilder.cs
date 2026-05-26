@@ -189,6 +189,57 @@ public static class PingPongDemoSceneBuilder
         Debug.Log("Table gameplay height restored to PingPongGeometry.TableTopHeight = 0.76m.");
     }
 
+    [MenuItem("Tools/PICO ElderCare/PingPong/Recenter Table In Front Of Player Once")]
+    public static void RecenterTableInFrontOfPlayerOnce()
+    {
+        var table = FindTableInOpenScene();
+        if (table == null)
+        {
+            Debug.LogError("Table not found. Please open the ping pong scene first.");
+            return;
+        }
+
+        var head = PingPongTableRecenterOnEnter.FindHeadTransform();
+        if (head == null)
+        {
+            Debug.LogWarning("Cannot recenter table because Camera.main / HMD transform was not found.");
+            return;
+        }
+
+        var recentered = PingPongTableRecenterOnEnter.RecenterTableInFrontOfPlayer(
+            tableRoot: table.transform,
+            headTransform: head,
+            tableDistanceInFront: 1.7f,
+            targetTableTopY: PingPongGeometry.TableTopHeight,
+            preserveCurrentTableTopHeight: true,
+            rotateTableToFacePlayer: true,
+            yawOffsetDegrees: 0f,
+            syncBallSpawner: true,
+            syncServeTransforms: true,
+            syncDifficultyPanel: true,
+            syncTableHelpers: true,
+            acceptPassiveLockAfterMove: true,
+            logResult: true,
+            out _);
+
+        if (!recentered) return;
+
+        EditorUtility.SetDirty(table);
+        var spawners = Object.FindObjectsOfType<BallSpawner>(true);
+        MarkObjectsDirty(spawners);
+        MarkBallSpawnerServeTransformsDirty(spawners);
+        MarkObjectsDirty(Object.FindObjectsOfType<TableDragHandle>(true));
+        MarkObjectsDirty(Object.FindObjectsOfType<ControllerTableCollisionLimiter>(true));
+        MarkObjectsDirty(Object.FindObjectsOfType<PingPongPlayerTableSafety>(true));
+        var difficultyPanel = FindObjectByNameIncludingInactive("DifficultyPanel");
+        if (difficultyPanel != null)
+        {
+            MarkObjectsDirty(difficultyPanel.GetComponentsInChildren<Component>(true));
+        }
+
+        UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(UnityEngine.SceneManagement.SceneManager.GetActiveScene());
+    }
+
     [MenuItem("Tools/PICO ElderCare/PingPong/Apply Stable Serve Tuning Only")]
     public static void ApplyStableServeTuningOnly()
     {
@@ -379,6 +430,91 @@ public static class PingPongDemoSceneBuilder
         }
 
         WarnIfSuspiciousPlaneHeights(camera);
+    }
+
+    [MenuItem("Tools/PICO ElderCare/PingPong/Align Paddle Visual To Collider")]
+    public static void AlignPaddleVisualToCollider()
+    {
+        if (!EnsureEditMode()) return;
+
+        var paddle = FindRightPaddleInOpenScene();
+        if (paddle == null)
+        {
+            Debug.LogError("Scene object Paddle_Right not found. Please build or open the ping pong scene first.");
+            return;
+        }
+
+        var paddleCollider = paddle.GetComponent<BoxCollider>();
+        if (paddleCollider == null)
+        {
+            Debug.LogError("Paddle_Right BoxCollider not found. Paddle visual alignment was not applied.");
+            return;
+        }
+
+        if (!TryResolvePaddleVisualHierarchy(paddle, out var visualOffset, out var visual))
+        {
+            Debug.LogError("Visual_CustomRacket not found under Paddle_Right. Replace the paddle visual first.");
+            return;
+        }
+
+        if (!TryGetRendererBounds(visual, out var visualBounds))
+        {
+            Debug.LogError("Visual_CustomRacket has no renderers. Paddle visual alignment was not applied.");
+            return;
+        }
+
+        var targetCenter = paddleCollider.bounds.center;
+        var deltaWorld = targetCenter - visualBounds.center;
+        var movedTransform = visualOffset != null ? visualOffset : visual.transform;
+        movedTransform.position += deltaWorld;
+        SyncVisualPoseOffsetFields(movedTransform);
+
+        EditorUtility.SetDirty(paddle);
+        EditorUtility.SetDirty(visual);
+        EditorUtility.SetDirty(movedTransform.gameObject);
+        UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(UnityEngine.SceneManagement.SceneManager.GetActiveScene());
+
+        Debug.Log(
+            "Paddle visual aligned to collider.\n" +
+            $"- Moved: {movedTransform.name}\n" +
+            $"- Applied world delta: {FormatVector(deltaWorld)}\n" +
+            $"- Paddle collider center: {FormatVector(targetCenter)}\n" +
+            $"- Previous visual center: {FormatVector(visualBounds.center)}");
+    }
+
+    [MenuItem("Tools/PICO ElderCare/PingPong/Log Paddle Alignment")]
+    public static void LogPaddleAlignment()
+    {
+        var paddle = FindRightPaddleInOpenScene();
+        if (paddle == null)
+        {
+            Debug.LogError("Scene object Paddle_Right not found. Please build or open the ping pong scene first.");
+            return;
+        }
+
+        var paddleCollider = paddle.GetComponent<BoxCollider>();
+        if (paddleCollider == null)
+        {
+            Debug.LogError("Paddle_Right BoxCollider not found.");
+            return;
+        }
+
+        var visual = TryFindPaddleVisual(paddle, out _);
+        var visualBounds = default(Bounds);
+        var hasVisualBounds = visual != null && TryGetRendererBounds(visual, out visualBounds);
+        var hitZoneCollider = FindPaddleHitZoneCollider(paddle.transform);
+        var hasHitZone = hitZoneCollider != null;
+
+        var paddleBounds = paddleCollider.bounds;
+        var hitZoneBounds = hasHitZone ? hitZoneCollider.bounds : default(Bounds);
+        Debug.Log(
+            "Paddle alignment diagnostics:\n" +
+            $"- Paddle_Right BoxCollider center / size: {FormatVector(paddleBounds.center)} / {FormatVector(paddleBounds.size)}\n" +
+            $"- PaddleHitZone center / size: {(hasHitZone ? FormatVector(hitZoneBounds.center) : "not found")} / {(hasHitZone ? FormatVector(hitZoneBounds.size) : "not found")}\n" +
+            $"- Visual_CustomRacket bounds center / size: {(hasVisualBounds ? FormatVector(visualBounds.center) : "not found")} / {(hasVisualBounds ? FormatVector(visualBounds.size) : "not found")}\n" +
+            $"- HitZone minus BoxCollider center: {(hasHitZone ? FormatVector(hitZoneBounds.center - paddleBounds.center) : "not found")}\n" +
+            $"- Visual minus BoxCollider center: {(hasVisualBounds ? FormatVector(visualBounds.center - paddleBounds.center) : "not found")}\n" +
+            $"- Visual minus HitZone center: {(hasVisualBounds && hasHitZone ? FormatVector(visualBounds.center - hitZoneBounds.center) : "not found")}");
     }
 
     [MenuItem("Tools/PICO ElderCare/Replace Paddle Visual Only")]
@@ -660,6 +796,7 @@ public static class PingPongDemoSceneBuilder
         SetupPlayerTableSafety(tableBlocker, table.transform, spawner, dragHandle, playerBodyProxy);
         SetupInitialViewAligner(managers.transform, mixedRealityMode);
         SetupPingPongSpatialSanitizer(managers.transform);
+        SetupPingPongTableRecenterOnEnter(managers.transform, table.transform);
         BuildElderCareHomeMenu(
             uiRoot.transform,
             managers.transform,
@@ -735,6 +872,10 @@ public static class PingPongDemoSceneBuilder
         {
             SetupTableDragHandle(pingPong.transform, table, leftController, leftBallGrabber, spawner, spawner.spawnPoint, spawner.targetPoint, tableBlocker != null ? tableBlocker.transform : null, false);
         }
+        if (table != null)
+        {
+            SetupPingPongTableRecenterOnEnter(managers, table.transform);
+        }
         RemoveRootLevelGeneratedBallObjects();
         RepairExistingBallObjectsInScene();
         MarkActiveSceneDirtyAndSaveForBatch();
@@ -750,6 +891,92 @@ public static class PingPongDemoSceneBuilder
         return child != null
             ? child.gameObject
             : GameObject.Find("Paddle_Right") ?? GameObject.Find("PingPong/Paddle_Right");
+    }
+
+    private static bool TryResolvePaddleVisualHierarchy(GameObject paddle, out Transform visualOffset, out GameObject visual)
+    {
+        visualOffset = null;
+        visual = null;
+        if (paddle == null) return false;
+
+        visualOffset = paddle.transform.Find("PaddleVisualOffset");
+        if (visualOffset != null)
+        {
+            visual = FindVisualCustomRacket(visualOffset);
+            if (visual != null) return true;
+        }
+
+        var directVisual = FindVisualCustomRacket(paddle.transform);
+        if (visualOffset == null)
+        {
+            visualOffset = GetOrCreateVisualOffset(
+                paddle.transform,
+                "PaddleVisualOffset",
+                DefaultPaddleVisualOffsetPosition,
+                DefaultPaddleVisualOffsetRotation,
+                DefaultPaddleVisualOffsetScale,
+                false);
+        }
+
+        if (directVisual != null && directVisual.transform.parent != visualOffset)
+        {
+            directVisual.transform.SetParent(visualOffset, true);
+            EditorUtility.SetDirty(directVisual);
+            EditorUtility.SetDirty(visualOffset.gameObject);
+        }
+
+        visual = FindVisualCustomRacket(visualOffset);
+        return visual != null;
+    }
+
+    private static GameObject TryFindPaddleVisual(GameObject paddle, out Transform visualOffset)
+    {
+        visualOffset = null;
+        if (paddle == null) return null;
+
+        visualOffset = paddle.transform.Find("PaddleVisualOffset");
+        var visual = visualOffset != null ? FindVisualCustomRacket(visualOffset) : null;
+        return visual != null ? visual : FindVisualCustomRacket(paddle.transform);
+    }
+
+    private static GameObject FindVisualCustomRacket(Transform parent)
+    {
+        if (parent == null) return null;
+
+        var exact = parent.Find("Visual_CustomRacket");
+        if (exact != null) return exact.gameObject;
+
+        foreach (Transform child in parent)
+        {
+            if (child == null || child.name == "PaddleHitZone" || child.name == "PaddleVisualOffset") continue;
+            if (!IsPaddleVisualChildName(child.name)) continue;
+            if (!TryGetRendererBounds(child.gameObject, out _)) continue;
+            return child.gameObject;
+        }
+
+        return null;
+    }
+
+    private static Collider FindPaddleHitZoneCollider(Transform paddle)
+    {
+        if (paddle == null) return null;
+
+        var hitZone = paddle.Find("PaddleHitZone");
+        return hitZone != null ? hitZone.GetComponent<Collider>() : null;
+    }
+
+    private static void SyncVisualPoseOffsetFields(Transform movedTransform)
+    {
+        if (movedTransform == null) return;
+
+        var pose = movedTransform.GetComponent<VisualPoseOffset>();
+        if (pose == null) return;
+
+        var target = pose.visualRoot != null ? pose.visualRoot : movedTransform;
+        pose.localPositionOffset = target.localPosition;
+        pose.localRotationOffsetEuler = target.localEulerAngles;
+        pose.localScale = target.localScale;
+        EditorUtility.SetDirty(pose);
     }
 
     private static void ReplacePaddleVisualOnly(GameObject paddle, GameObject sourceModel)
@@ -1116,6 +1343,33 @@ public static class PingPongDemoSceneBuilder
         return SetupPingPongSpatialSanitizer(host.transform);
     }
 
+    private static PingPongTableRecenterOnEnter SetupPingPongTableRecenterOnEnter(Transform parent, Transform table)
+    {
+        var host = parent != null ? parent.gameObject : GameObject.Find("Managers") ?? GameObject.Find("PingPong");
+        if (host == null) return null;
+
+        var recenter = EnsureComponent<PingPongTableRecenterOnEnter>(host);
+        if (recenter == null) return null;
+
+        recenter.recenterOnStart = true;
+        recenter.tableRoot = table != null ? table : PingPongTableRecenterOnEnter.FindTableRoot();
+        recenter.headTransform = Camera.main != null ? Camera.main.transform : null;
+        recenter.tableDistanceInFront = 1.7f;
+        recenter.targetTableTopY = PingPongGeometry.TableTopHeight;
+        recenter.preserveCurrentTableTopHeight = true;
+        recenter.rotateTableToFacePlayer = true;
+        recenter.yawOffsetDegrees = 0f;
+        recenter.syncBallSpawner = true;
+        recenter.syncServeTransforms = true;
+        recenter.syncDifficultyPanel = true;
+        recenter.syncTableHelpers = true;
+        recenter.acceptPassiveLockAfterMove = true;
+        recenter.startDelaySeconds = 0.15f;
+        EditorUtility.SetDirty(host);
+        EditorUtility.SetDirty(recenter);
+        return recenter;
+    }
+
     private static void MarkPingPongSpatialRepairDirty(GameObject table)
     {
         if (table != null)
@@ -1152,6 +1406,26 @@ public static class PingPongDemoSceneBuilder
             if (obj != null)
             {
                 EditorUtility.SetDirty(obj);
+            }
+        }
+    }
+
+    private static void MarkBallSpawnerServeTransformsDirty(BallSpawner[] spawners)
+    {
+        if (spawners == null) return;
+
+        foreach (var spawner in spawners)
+        {
+            if (spawner == null) continue;
+
+            if (spawner.spawnPoint != null)
+            {
+                EditorUtility.SetDirty(spawner.spawnPoint);
+            }
+
+            if (spawner.targetPoint != null)
+            {
+                EditorUtility.SetDirty(spawner.targetPoint);
             }
         }
     }
