@@ -220,7 +220,7 @@ public static class PingPongDemoSceneBuilder
             syncTableHelpers: true,
             acceptPassiveLockAfterMove: true,
             logResult: true,
-            out _);
+            report: out _);
 
         if (!recentered) return;
 
@@ -252,15 +252,20 @@ public static class PingPongDemoSceneBuilder
             return;
         }
 
+        var table = FindTableInOpenScene();
         foreach (var spawner in spawners)
         {
             if (spawner == null) continue;
 
             spawner.bounceOnTableBeforePlayer = true;
+            spawner.tableTransform = table != null ? table.transform : spawner.tableTransform;
+            spawner.useTableRelativeServeTargets = true;
+            spawner.netLocalZ = 0f;
             spawner.serveSpeed = 3.1f;
             spawner.upwardArc = 0.55f;
             spawner.tableBounceWorldY = PingPongGeometry.TableTopHeight + PingPongGeometry.BallRadius;
             spawner.tableBounceWorldZ = 1.35f;
+            spawner.tableBounceLocalZ = 1.35f - PingPongGeometry.TableCenter.z;
             spawner.minimumNetClearanceHeight = PingPongGeometry.TableTopHeight + PingPongGeometry.NetHeight + 0.16f;
             spawner.horizontalRandomRange = 0.08f;
             spawner.verticalRandomRange = 0.02f;
@@ -276,7 +281,6 @@ public static class PingPongDemoSceneBuilder
             EditorUtility.SetDirty(spawner);
         }
 
-        var table = FindTableInOpenScene();
         if (table != null)
         {
             foreach (var dragHandle in Object.FindObjectsOfType<TableDragHandle>(true))
@@ -284,7 +288,7 @@ public static class PingPongDemoSceneBuilder
                 if (dragHandle == null) continue;
 
                 dragHandle.tableRoot = table.transform;
-                dragHandle.tableBounceLocalZ = 1.35f - table.transform.position.z;
+                dragHandle.tableBounceLocalZ = 1.35f - PingPongGeometry.TableCenter.z;
                 dragHandle.minimumNetClearanceAboveNet = 0.16f;
                 dragHandle.SyncHeightDependentValues();
                 EditorUtility.SetDirty(dragHandle);
@@ -735,11 +739,15 @@ public static class PingPongDemoSceneBuilder
         spawner.ballPrefab = ballPrefab;
         spawner.spawnPoint = spawn.transform;
         spawner.targetPoint = target.transform;
+        spawner.tableTransform = table.transform;
         spawner.ballContainer = ballContainer.transform;
         spawner.autoStartOnPlay = false;
         spawner.serveSpeed = PingPongDifficultyController.GetSpeed(PingPongDifficulty.Normal);
         spawner.serveInterval = PingPongDifficultyController.GetServeInterval(PingPongDifficulty.Normal);
         spawner.serveProfile = PingPongServeProfile.Basic;
+        spawner.useTableRelativeServeTargets = true;
+        spawner.netLocalZ = 0f;
+        spawner.tableBounceLocalZ = 1.35f - PingPongGeometry.TableCenter.z;
         spawner.upwardArc = 0.55f;
         spawner.minimumNetClearanceHeight = PingPongGeometry.TableTopHeight + PingPongGeometry.NetHeight + 0.16f;
         spawner.netWorldZ = PingPongGeometry.TableCenter.z;
@@ -1237,7 +1245,12 @@ public static class PingPongDemoSceneBuilder
             spawner.minimumNetClearanceHeight = targetTableTopY + PingPongGeometry.NetHeight + 0.16f;
             if (tableTransform != null)
             {
-                spawner.netWorldZ = tableTransform.position.z;
+                spawner.tableTransform = tableTransform;
+                spawner.useTableRelativeServeTargets = true;
+                spawner.netLocalZ = 0f;
+                spawner.tableBounceLocalZ = 1.35f - PingPongGeometry.TableCenter.z;
+                spawner.netWorldZ = tableTransform.TransformPoint(new Vector3(0f, 0f, spawner.netLocalZ)).z;
+                spawner.tableBounceWorldZ = tableTransform.TransformPoint(new Vector3(0f, 0f, spawner.tableBounceLocalZ)).z;
             }
 
             if (Mathf.Approximately(spawner.horizontalRandomRange, 0f))
@@ -1278,7 +1291,7 @@ public static class PingPongDemoSceneBuilder
 
             dragHandle.tableRoot = tableTransform;
             dragHandle.standardTableTopHeight = targetTableTopY;
-            dragHandle.tableBounceLocalZ = 1.35f - (tableTransform != null ? tableTransform.position.z : PingPongGeometry.TableCenter.z);
+            dragHandle.tableBounceLocalZ = 1.35f - PingPongGeometry.TableCenter.z;
             dragHandle.minimumNetClearanceAboveNet = 0.16f;
             dragHandle.SyncHeightDependentValues();
             EditorUtility.SetDirty(dragHandle);
@@ -3768,6 +3781,7 @@ public static class PingPongDemoSceneBuilder
             dragHandle.hmdTransform = Camera.main != null ? Camera.main.transform : null;
             dragHandle.syncedTransforms = BuildSyncedTransformList(spawn, target, tableBlocker, extraSyncedTransforms);
             dragHandle.syncedSpawners = spawner != null ? new[] { spawner } : null;
+            dragHandle.syncDifficultyPanel = true;
             dragHandle.activationRadius = 0.2f;
             dragHandle.tableBounceLocalZ = tableBounceLocalZ;
             dragHandle.minimumNetClearanceAboveNet = 0.16f;
@@ -3794,9 +3808,13 @@ public static class PingPongDemoSceneBuilder
 
             if (spawner != null)
             {
-                spawner.netWorldZ = table.transform.position.z;
+                spawner.tableTransform = table.transform;
+                spawner.useTableRelativeServeTargets = true;
+                spawner.netLocalZ = 0f;
+                spawner.tableBounceLocalZ = tableBounceLocalZ;
+                spawner.netWorldZ = table.transform.TransformPoint(new Vector3(0f, 0f, spawner.netLocalZ)).z;
                 spawner.tableBounceWorldY = table.transform.position.y + PingPongGeometry.TableThickness * 0.5f + PingPongGeometry.BallRadius;
-                spawner.tableBounceWorldZ = table.transform.position.z + tableBounceLocalZ;
+                spawner.tableBounceWorldZ = table.transform.TransformPoint(new Vector3(0f, 0f, tableBounceLocalZ)).z;
                 EditorUtility.SetDirty(spawner);
             }
 

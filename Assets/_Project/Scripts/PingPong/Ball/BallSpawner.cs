@@ -6,6 +6,7 @@ public class BallSpawner : MonoBehaviour
     public GameObject ballPrefab;
     public Transform spawnPoint;
     public Transform targetPoint;
+    public Transform tableTransform;
     public Transform ballContainer;
     public bool autoStartOnPlay = true;
 
@@ -15,9 +16,12 @@ public class BallSpawner : MonoBehaviour
     public float upwardArc = 0.55f;
     public float minimumNetClearanceHeight = PingPongGeometry.TableTopHeight + PingPongGeometry.NetHeight + 0.16f;
     public float netWorldZ = PingPongGeometry.TableCenter.z;
+    public bool useTableRelativeServeTargets = true;
+    public float netLocalZ = 0f;
     public bool bounceOnTableBeforePlayer = true;
     public float tableBounceWorldY = PingPongGeometry.TableTopHeight + PingPongGeometry.BallRadius;
     public float tableBounceWorldZ = 1.35f;
+    public float tableBounceLocalZ = -0.65f;
     public float horizontalRandomRange = 0.08f;
     public float verticalRandomRange = 0.02f;
     public float topspinRadiansPerSecond = 95f;
@@ -93,14 +97,12 @@ public class BallSpawner : MonoBehaviour
         var rb = ConfigureSpawnedBall(ballObj);
         if (rb == null) return;
 
-        Vector3 target = targetPoint.position;
-        target.x += Random.Range(-horizontalRandomRange, horizontalRandomRange);
-        target.y += Random.Range(-verticalRandomRange, verticalRandomRange);
+        Vector3 target = GetRandomizedTargetPoint();
 
         var trajectoryTarget = target;
         if (bounceOnTableBeforePlayer)
         {
-            trajectoryTarget = new Vector3(target.x, tableBounceWorldY, tableBounceWorldZ);
+            trajectoryTarget = GetTableBounceTarget(target);
         }
 
         var velocity = CalculateServeVelocity(spawnPoint.position, trajectoryTarget);
@@ -131,36 +133,90 @@ public class BallSpawner : MonoBehaviour
         var velocity = horizontalDelta / timeToTarget;
         velocity.y = (target.y - start.y - 0.5f * Physics.gravity.y * timeToTarget * timeToTarget) / timeToTarget;
 
-        if (Mathf.Abs(velocity.z) > 0.001f)
+        if (TryGetTimeToNet(start, velocity, timeToTarget, out var timeToNet))
         {
-            var timeToNet = (netWorldZ - start.z) / velocity.z;
-            if (timeToNet > 0f && timeToNet < timeToTarget)
+            var requiredNetY = minimumNetClearanceHeight + Mathf.Max(0f, serveNetClearanceSafetyMargin);
+            var yAtNet = PredictProjectileY(start.y, velocity.y, timeToNet);
+            if (yAtNet < requiredNetY)
             {
-                var requiredNetY = minimumNetClearanceHeight + Mathf.Max(0f, serveNetClearanceSafetyMargin);
-                var yAtNet = PredictProjectileY(start.y, velocity.y, timeToNet);
-                if (yAtNet < requiredNetY)
-                {
-                    velocity.y += (requiredNetY - yAtNet) / timeToNet;
-                    yAtNet = PredictProjectileY(start.y, velocity.y, timeToNet);
-                }
+                velocity.y += (requiredNetY - yAtNet) / timeToNet;
+                yAtNet = PredictProjectileY(start.y, velocity.y, timeToNet);
+            }
 
-                if (yAtNet < requiredNetY)
-                {
-                    velocity.y += (requiredNetY - yAtNet) / timeToNet;
-                    yAtNet = PredictProjectileY(start.y, velocity.y, timeToNet);
-                }
+            if (yAtNet < requiredNetY)
+            {
+                velocity.y += (requiredNetY - yAtNet) / timeToNet;
+                yAtNet = PredictProjectileY(start.y, velocity.y, timeToNet);
+            }
 
-                if (logServeDiagnostics)
-                {
-                    Debug.Log(
-                        $"Serve diagnostics: spawn={start}, target={target}, timeToNet={timeToNet:0.###}, " +
-                        $"yAtNet={yAtNet:0.###}, minimumNetClearanceHeight={minimumNetClearanceHeight:0.###}, " +
-                        $"finalVelocity={velocity}");
-                }
+            if (logServeDiagnostics)
+            {
+                Debug.Log(
+                    $"Serve diagnostics: spawn={start}, target={target}, timeToNet={timeToNet:0.###}, " +
+                    $"yAtNet={yAtNet:0.###}, minimumNetClearanceHeight={minimumNetClearanceHeight:0.###}, " +
+                    $"finalVelocity={velocity}");
             }
         }
 
         return velocity;
+    }
+
+    private Vector3 GetRandomizedTargetPoint()
+    {
+        if (targetPoint == null) return Vector3.zero;
+
+        if (UseTableRelativeServeTargets())
+        {
+            var localTarget = tableTransform.InverseTransformPoint(targetPoint.position);
+            localTarget.x += Random.Range(-horizontalRandomRange, horizontalRandomRange);
+            var target = tableTransform.TransformPoint(localTarget);
+            target.y += Random.Range(-verticalRandomRange, verticalRandomRange);
+            return target;
+        }
+
+        var worldTarget = targetPoint.position;
+        worldTarget.x += Random.Range(-horizontalRandomRange, horizontalRandomRange);
+        worldTarget.y += Random.Range(-verticalRandomRange, verticalRandomRange);
+        return worldTarget;
+    }
+
+    private Vector3 GetTableBounceTarget(Vector3 target)
+    {
+        if (UseTableRelativeServeTargets())
+        {
+            var localTarget = tableTransform.InverseTransformPoint(target);
+            var localBounce = new Vector3(localTarget.x, 0f, tableBounceLocalZ);
+            var worldBounce = tableTransform.TransformPoint(localBounce);
+            return new Vector3(worldBounce.x, tableBounceWorldY, worldBounce.z);
+        }
+
+        return new Vector3(target.x, tableBounceWorldY, tableBounceWorldZ);
+    }
+
+    private bool TryGetTimeToNet(Vector3 start, Vector3 velocity, float timeToTarget, out float timeToNet)
+    {
+        timeToNet = 0f;
+        if (UseTableRelativeServeTargets())
+        {
+            var localStart = tableTransform.InverseTransformPoint(start);
+            var localVelocity = tableTransform.InverseTransformVector(velocity);
+            if (Mathf.Abs(localVelocity.z) <= 0.001f) return false;
+
+            timeToNet = (netLocalZ - localStart.z) / localVelocity.z;
+        }
+        else
+        {
+            if (Mathf.Abs(velocity.z) <= 0.001f) return false;
+
+            timeToNet = (netWorldZ - start.z) / velocity.z;
+        }
+
+        return timeToNet > 0f && timeToNet < timeToTarget;
+    }
+
+    private bool UseTableRelativeServeTargets()
+    {
+        return useTableRelativeServeTargets && tableTransform != null;
     }
 
     private static float PredictProjectileY(float startY, float velocityY, float time)

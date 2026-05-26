@@ -19,8 +19,11 @@ public class PingPongTableRecenterOnEnter : MonoBehaviour
     public bool syncTableHelpers = true;
     public bool acceptPassiveLockAfterMove = true;
     public float startDelaySeconds = 0.15f;
+    public float lateLinkedObjectSyncSeconds = 2f;
+    public float lateLinkedObjectSyncIntervalSeconds = 0.1f;
 
     private bool _hasRecentered;
+    private Coroutine _lateSyncRoutine;
 
     private void Start()
     {
@@ -51,11 +54,12 @@ public class PingPongTableRecenterOnEnter : MonoBehaviour
             syncTableHelpers,
             acceptPassiveLockAfterMove,
             true,
-            out _);
+            out var report);
 
         if (success)
         {
             _hasRecentered = true;
+            StartLateLinkedObjectSync(report);
         }
 
         return success;
@@ -181,6 +185,7 @@ public class PingPongTableRecenterOnEnter : MonoBehaviour
         report.newTableRotation = tableRoot.rotation;
         report.tableTopY = tableTopY;
         report.yawOffsetDegrees = yawOffsetDegrees;
+        report.syncedLinkedTransforms = ExtractSyncedTransforms(linkedTransforms);
 
         if (logResult)
         {
@@ -284,9 +289,11 @@ public class PingPongTableRecenterOnEnter : MonoBehaviour
         {
             if (spawner == null) continue;
 
+            spawner.tableTransform = tableRoot;
             spawner.tableBounceWorldY = tableTopY + PingPongGeometry.BallRadius;
             spawner.minimumNetClearanceHeight = tableTopY + PingPongGeometry.NetHeight + 0.16f;
-            spawner.netWorldZ = tableRoot.position.z;
+            spawner.netWorldZ = tableRoot.TransformPoint(new Vector3(0f, 0f, spawner.netLocalZ)).z;
+            spawner.tableBounceWorldZ = tableRoot.TransformPoint(new Vector3(0f, 0f, spawner.tableBounceLocalZ)).z;
         }
     }
 
@@ -344,6 +351,92 @@ public class PingPongTableRecenterOnEnter : MonoBehaviour
             item.transform.position = tableRoot.TransformPoint(item.localPositionFromTable);
             item.transform.rotation = tableRoot.rotation * item.localRotationFromTable;
         }
+    }
+
+    private void StartLateLinkedObjectSync(RecenterReport report)
+    {
+        if (lateLinkedObjectSyncSeconds <= 0f || tableRoot == null) return;
+
+        if (_lateSyncRoutine != null)
+        {
+            StopCoroutine(_lateSyncRoutine);
+        }
+
+        _lateSyncRoutine = StartCoroutine(SyncLateLinkedObjects(report));
+    }
+
+    private IEnumerator SyncLateLinkedObjects(RecenterReport report)
+    {
+        var synced = new HashSet<Transform>();
+        if (report.syncedLinkedTransforms != null)
+        {
+            for (var i = 0; i < report.syncedLinkedTransforms.Length; i++)
+            {
+                if (report.syncedLinkedTransforms[i] != null)
+                {
+                    synced.Add(report.syncedLinkedTransforms[i]);
+                }
+            }
+        }
+
+        var elapsed = 0f;
+        var interval = Mathf.Max(0.02f, lateLinkedObjectSyncIntervalSeconds);
+        while (elapsed < lateLinkedObjectSyncSeconds)
+        {
+            SyncNewLinkedTransformsFromPreviousTablePose(report, synced);
+            yield return new WaitForSeconds(interval);
+            elapsed += interval;
+        }
+
+        _lateSyncRoutine = null;
+    }
+
+    private void SyncNewLinkedTransformsFromPreviousTablePose(RecenterReport report, HashSet<Transform> synced)
+    {
+        if (tableRoot == null || synced == null) return;
+
+        var candidates = CaptureLinkedTransforms(tableRoot, syncServeTransforms, syncDifficultyPanel);
+        for (var i = 0; i < candidates.Count; i++)
+        {
+            var linkedTransform = candidates[i].transform;
+            if (linkedTransform == null || synced.Contains(linkedTransform)) continue;
+
+            ApplyTransformFromTablePose(
+                linkedTransform,
+                report.oldTablePosition,
+                report.oldTableRotation,
+                report.newTablePosition,
+                report.newTableRotation);
+            synced.Add(linkedTransform);
+        }
+    }
+
+    private static void ApplyTransformFromTablePose(
+        Transform linkedTransform,
+        Vector3 oldTablePosition,
+        Quaternion oldTableRotation,
+        Vector3 newTablePosition,
+        Quaternion newTableRotation)
+    {
+        if (linkedTransform == null) return;
+
+        var localPosition = Quaternion.Inverse(oldTableRotation) * (linkedTransform.position - oldTablePosition);
+        var localRotation = Quaternion.Inverse(oldTableRotation) * linkedTransform.rotation;
+        linkedTransform.position = newTablePosition + newTableRotation * localPosition;
+        linkedTransform.rotation = newTableRotation * localRotation;
+    }
+
+    private static Transform[] ExtractSyncedTransforms(List<TrackedTransform> tracked)
+    {
+        if (tracked == null || tracked.Count == 0) return null;
+
+        var transforms = new Transform[tracked.Count];
+        for (var i = 0; i < tracked.Count; i++)
+        {
+            transforms[i] = tracked[i].transform;
+        }
+
+        return transforms;
     }
 
     private static Transform FindTransformByName(string objectName)
@@ -428,6 +521,7 @@ public class PingPongTableRecenterOnEnter : MonoBehaviour
         public Quaternion newTableRotation;
         public float tableTopY;
         public float yawOffsetDegrees;
+        public Transform[] syncedLinkedTransforms;
     }
 
     private struct TrackedTransform

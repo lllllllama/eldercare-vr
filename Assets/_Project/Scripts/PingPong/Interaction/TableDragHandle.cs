@@ -16,6 +16,7 @@ public class TableDragHandle : MonoBehaviour
     public Transform[] syncedTransforms;
     public BallSpawner[] syncedSpawners;
     public ControllerTableCollisionLimiter[] syncedControllerLimiters;
+    public bool syncDifficultyPanel = true;
     public float activationRadius = 0.18f;
     public float tableBounceLocalZ = -0.65f;
     public float minimumNetClearanceAboveNet = 0.16f;
@@ -85,13 +86,17 @@ public class TableDragHandle : MonoBehaviour
         SyncHeightDependentValues();
         AcceptTableTransform();
 
-        if (syncedTransforms == null) return;
-        foreach (var syncedTransform in syncedTransforms)
+        if (syncedTransforms != null)
         {
-            if (syncedTransform == null || syncedTransform == tableRoot || syncedTransform.IsChildOf(tableRoot)) continue;
-            if (IsDetachedWorldUiTransform(syncedTransform)) continue;
-            syncedTransform.position += delta;
+            foreach (var syncedTransform in syncedTransforms)
+            {
+                if (syncedTransform == null || syncedTransform == tableRoot || syncedTransform.IsChildOf(tableRoot)) continue;
+                if (IsDetachedWorldUiTransform(syncedTransform)) continue;
+                syncedTransform.position += delta;
+            }
         }
+
+        SyncDifficultyPanel(delta);
     }
 
     public bool LoadSavedPlacement()
@@ -149,12 +154,24 @@ public class TableDragHandle : MonoBehaviour
         {
             if (spawner == null) continue;
 
-            spawner.netWorldZ = tableRoot.position.z;
+            spawner.tableTransform = tableRoot;
+            spawner.netWorldZ = tableRoot.TransformPoint(new Vector3(0f, 0f, spawner.netLocalZ)).z;
             var minimumNetClearanceHeight = tableTopY + PingPongGeometry.NetHeight + minimumNetClearanceAboveNet;
             spawner.minimumNetClearanceHeight = Mathf.Max(spawner.minimumNetClearanceHeight, minimumNetClearanceHeight);
             spawner.tableBounceWorldY = tableTopY + PingPongGeometry.BallRadius;
-            spawner.tableBounceWorldZ = tableRoot.position.z + tableBounceLocalZ;
+            spawner.tableBounceLocalZ = tableBounceLocalZ;
+            spawner.tableBounceWorldZ = tableRoot.TransformPoint(new Vector3(0f, 0f, tableBounceLocalZ)).z;
         }
+    }
+
+    private void SyncDifficultyPanel(Vector3 delta)
+    {
+        if (!syncDifficultyPanel || delta.sqrMagnitude <= 0.0000001f) return;
+
+        var panel = FindTransformByName("DifficultyPanel");
+        if (panel == null || panel == tableRoot || panel.IsChildOf(tableRoot)) return;
+
+        panel.position += delta;
     }
 
     private void SyncControllerLimiters(float tableTopY)
@@ -188,6 +205,21 @@ public class TableDragHandle : MonoBehaviour
         return candidate.name == "WorldSpaceCanvas" ||
                candidate.name == "ElderCareHomeCanvas" ||
                candidate.name.Contains("Canvas");
+    }
+
+    private static Transform FindTransformByName(string objectName)
+    {
+        if (string.IsNullOrEmpty(objectName)) return null;
+
+        foreach (var transform in FindObjectsOfType<Transform>(true))
+        {
+            if (transform != null && transform.name == objectName)
+            {
+                return transform;
+            }
+        }
+
+        return null;
     }
 
     private void AcceptTableTransform()
