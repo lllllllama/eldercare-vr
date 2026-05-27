@@ -713,6 +713,7 @@ MonoBehaviour:
   spawnPoint: {fileID: 216310885}
   targetPoint: {fileID: 1558083805}
   tableTransform: {fileID: 0}
+  autoResolveTableTransform: 1
   ballContainer: {fileID: 2029789589}
   autoStartOnPlay: 0
   serveInterval: 4
@@ -3438,7 +3439,7 @@ MonoBehaviour:
   recenterOnStart: 1
   tableRoot: {fileID: 1991188546}
   headTransform: {fileID: 0}
-  tableDistanceInFront: 1.7
+  tableDistanceInFront: 2.2
   targetTableTopY: 0.76
   preserveCurrentTableTopHeight: 1
   rotateTableToFacePlayer: 1

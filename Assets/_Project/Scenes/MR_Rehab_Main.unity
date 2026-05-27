@@ -1165,7 +1165,7 @@ MonoBehaviour:
   hmdHeightOffsetMeters: -0.1
   placeOnStart: 1
   placeOnEnable: 0
-  recenterDuringStartup: 1
+  recenterDuringStartup: 0
   startupRecenterSeconds: 1.25
   startupRecenterFrames: 18
   clampWorldHeight: 1
@@ -7426,7 +7426,7 @@ MonoBehaviour:
   videoGuideController: {fileID: 902136582}
   trainingAreaRoot: {fileID: 582264891}
   promptCanvas: {fileID: 2088192602}
-  placePromptCanvasWithTrainingArea: 0
+  placePromptCanvasWithTrainingArea: 1
   titleText: {fileID: 1123547464}
   statusText: {fileID: 1655299596}
   timerText: {fileID: 2097182467}

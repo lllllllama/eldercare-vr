@@ -289,7 +289,9 @@ public class PingPongTableRecenterOnEnter : MonoBehaviour
         {
             if (spawner == null) continue;
 
+            spawner.useTableRelativeServeTargets = true;
             spawner.tableTransform = tableRoot;
+            spawner.netLocalZ = 0f;
             spawner.tableBounceWorldY = tableTopY + PingPongGeometry.BallRadius;
             spawner.minimumNetClearanceHeight = tableTopY + PingPongGeometry.NetHeight + 0.16f;
             spawner.netWorldZ = tableRoot.TransformPoint(new Vector3(0f, 0f, spawner.netLocalZ)).z;

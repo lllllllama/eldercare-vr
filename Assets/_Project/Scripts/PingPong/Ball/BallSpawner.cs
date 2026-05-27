@@ -7,6 +7,7 @@ public class BallSpawner : MonoBehaviour
     public Transform spawnPoint;
     public Transform targetPoint;
     public Transform tableTransform;
+    public bool autoResolveTableTransform = true;
     public Transform ballContainer;
     public bool autoStartOnPlay = true;
 
@@ -45,6 +46,8 @@ public class BallSpawner : MonoBehaviour
 
     private void Start()
     {
+        ResolveTableTransform();
+
         if (autoStartOnPlay)
         {
             StartServing();
@@ -91,6 +94,8 @@ public class BallSpawner : MonoBehaviour
     private void SpawnBall()
     {
         if (ballPrefab == null || spawnPoint == null || targetPoint == null) return;
+
+        ResolveTableTransform();
 
         var ballObj = Instantiate(ballPrefab, spawnPoint.position, Quaternion.identity, ballContainer);
         ballObj.transform.localScale = PingPongGeometry.BallPrefabScale;
@@ -216,7 +221,17 @@ public class BallSpawner : MonoBehaviour
 
     private bool UseTableRelativeServeTargets()
     {
-        return useTableRelativeServeTargets && tableTransform != null;
+        if (!useTableRelativeServeTargets) return false;
+
+        ResolveTableTransform();
+        return tableTransform != null;
+    }
+
+    private void ResolveTableTransform()
+    {
+        if (!autoResolveTableTransform || tableTransform != null) return;
+
+        tableTransform = PingPongTableRecenterOnEnter.FindTableRoot();
     }
 
     private static float PredictProjectileY(float startY, float velocityY, float time)

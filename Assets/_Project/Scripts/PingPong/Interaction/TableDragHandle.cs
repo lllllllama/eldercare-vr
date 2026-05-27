@@ -148,7 +148,12 @@ public class TableDragHandle : MonoBehaviour
 
     private void SyncBallSpawners(float tableTopY)
     {
-        if (syncedSpawners == null) return;
+        if (syncedSpawners == null || syncedSpawners.Length == 0)
+        {
+            syncedSpawners = FindObjectsOfType<BallSpawner>(true);
+        }
+
+        if (syncedSpawners == null || syncedSpawners.Length == 0) return;
 
         foreach (var spawner in syncedSpawners)
         {
@@ -156,8 +161,7 @@ public class TableDragHandle : MonoBehaviour
 
             spawner.tableTransform = tableRoot;
             spawner.netWorldZ = tableRoot.TransformPoint(new Vector3(0f, 0f, spawner.netLocalZ)).z;
-            var minimumNetClearanceHeight = tableTopY + PingPongGeometry.NetHeight + minimumNetClearanceAboveNet;
-            spawner.minimumNetClearanceHeight = Mathf.Max(spawner.minimumNetClearanceHeight, minimumNetClearanceHeight);
+            spawner.minimumNetClearanceHeight = tableTopY + PingPongGeometry.NetHeight + minimumNetClearanceAboveNet;
             spawner.tableBounceWorldY = tableTopY + PingPongGeometry.BallRadius;
             spawner.tableBounceLocalZ = tableBounceLocalZ;
             spawner.tableBounceWorldZ = tableRoot.TransformPoint(new Vector3(0f, 0f, tableBounceLocalZ)).z;
@@ -235,6 +239,9 @@ public class TableDragHandle : MonoBehaviour
 
     private void ResolveTableRoot()
     {
+        if (tableRoot != null) return;
+
+        tableRoot = PingPongTableRecenterOnEnter.FindTableRoot();
         if (tableRoot != null) return;
 
         var table = GameObject.Find("Table");
