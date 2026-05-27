@@ -712,6 +712,7 @@ MonoBehaviour:
   ballPrefab: {fileID: 6316526095329316854, guid: 1d81a02c67ee95f4fb9dff6a6da833df, type: 3}
   spawnPoint: {fileID: 216310885}
   targetPoint: {fileID: 1558083805}
+  tableTransform: {fileID: 0}
   ballContainer: {fileID: 2029789589}
   autoStartOnPlay: 0
   serveInterval: 4
@@ -720,9 +721,12 @@ MonoBehaviour:
   upwardArc: 0.55
   minimumNetClearanceHeight: 1.3525
   netWorldZ: 1.7
+  useTableRelativeServeTargets: 1
+  netLocalZ: 0
   bounceOnTableBeforePlayer: 1
   tableBounceWorldY: 1.0699999
   tableBounceWorldZ: 1.0500001
+  tableBounceLocalZ: -0.65
   horizontalRandomRange: 0.08
   verticalRandomRange: 0.02
   topspinRadiansPerSecond: 95
@@ -3224,8 +3228,8 @@ Transform:
   m_GameObject: {fileID: 1099410025}
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0.7071068, z: 0, w: 0.7071068}
-  m_LocalPosition: {x: -0.16, y: 0, z: 0.16000003}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalPosition: {x: -0.2, y: 0, z: 0.15}
+  m_LocalScale: {x: 1.25, y: 1.25, z: 1.25}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 1135663073}
@@ -3244,9 +3248,9 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   visualRoot: {fileID: 1099410026}
-  localPositionOffset: {x: -0.16, y: 0, z: 0.16000003}
+  localPositionOffset: {x: -0.2, y: 0, z: 0.15}
   localRotationOffsetEuler: {x: -0, y: 90, z: 0}
-  localScale: {x: 1, y: 1, z: 1}
+  localScale: {x: 1.25, y: 1.25, z: 1.25}
   applyOnValidate: 1
   applyOnStart: 1
 --- !u!1001 &1135663072
@@ -3445,6 +3449,8 @@ MonoBehaviour:
   syncTableHelpers: 1
   acceptPassiveLockAfterMove: 1
   startDelaySeconds: 0.15
+  lateLinkedObjectSyncSeconds: 2
+  lateLinkedObjectSyncIntervalSeconds: 0.1
 --- !u!1 &1225354589 stripped
 GameObject:
   m_CorrespondingSourceObject: {fileID: 120000, guid: 930e138e55e84ea2a95bc460914d44ff, type: 3}
@@ -4894,6 +4900,7 @@ MonoBehaviour:
   syncedControllerLimiters:
   - {fileID: 620711836}
   - {fileID: 1743836097}
+  syncDifficultyPanel: 1
   activationRadius: 0.2
   tableBounceLocalZ: -0.65
   minimumNetClearanceAboveNet: 0.16
