@@ -712,7 +712,7 @@ MonoBehaviour:
   ballPrefab: {fileID: 6316526095329316854, guid: 1d81a02c67ee95f4fb9dff6a6da833df, type: 3}
   spawnPoint: {fileID: 216310885}
   targetPoint: {fileID: 1558083805}
-  tableTransform: {fileID: 0}
+  tableTransform: {fileID: 1991188546}
   autoResolveTableTransform: 1
   ballContainer: {fileID: 2029789589}
   autoStartOnPlay: 0
