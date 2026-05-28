@@ -743,6 +743,11 @@ MonoBehaviour:
   spawnedBallBounciness: 0.97
   spawnedBallDynamicFriction: 0.003
   spawnedBallStaticFriction: 0.003
+  spawnedBallTableBounceMinUpSpeed: 3
+  spawnedBallTableBounceMaxUpSpeed: 3.15
+  spawnedBallTableBounceUpwardAssist: 0.52
+  spawnedBallTableBounceHorizontalDamping: 0.8
+  spawnedBallTableBounceMaxHorizontalSpeed: 1.45
 --- !u!1 &185255634
 GameObject:
   m_ObjectHideFlags: 0
@@ -2128,7 +2133,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 1, z: 0, w: -0.00000004371139}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_LocalScale: {x: 1.15, y: 1.15, z: 1.15}
   m_ConstrainProportionsScale: 0
   m_Children:
   - {fileID: 2007138945}
@@ -2148,8 +2153,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   visualRoot: {fileID: 596764498}
   localPositionOffset: {x: 0, y: 0, z: 0}
-  localRotationOffsetEuler: {x: 0, y: 180, z: 0}
-  localScale: {x: 1, y: 1, z: 1}
+  localRotationOffsetEuler: {x: -0, y: 180, z: 0}
+  localScale: {x: 1.15, y: 1.15, z: 1.15}
   applyOnValidate: 1
   applyOnStart: 1
 --- !u!1 &620711832
@@ -3584,6 +3589,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 1589856153}
     m_Modifications:
+    - target: {fileID: 114020, guid: 930e138e55e84ea2a95bc460914d44ff, type: 3}
+      propertyPath: positionOffset.z
+      value: -0.05
+      objectReference: {fileID: 0}
     - target: {fileID: 114020, guid: 930e138e55e84ea2a95bc460914d44ff, type: 3}
       propertyPath: controllerTransform
       value: 
