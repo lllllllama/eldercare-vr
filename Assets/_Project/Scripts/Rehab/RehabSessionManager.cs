@@ -661,6 +661,8 @@ namespace PicoElderCare.Rehab
 
         private void ApplyTrainingAreaTransform(Vector3 forward, Vector3 headPosition)
         {
+            _trainingCenter.y = trainingFloorY;
+
             if (trainingAreaRoot != null)
             {
                 trainingAreaRoot.position = _trainingCenter;

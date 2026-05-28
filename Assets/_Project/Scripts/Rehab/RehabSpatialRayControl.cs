@@ -38,6 +38,8 @@ namespace PicoElderCare.Rehab
         public float videoMovePlaneDistanceMeters = 1.8f;
         public float triggerThreshold = 0.65f;
         public float videoColliderDepthMeters = 0.05f;
+        public bool lockTrainingAreaVerticalMovement = true;
+        public bool lockVideoPanelVerticalMovement = true;
 
         private readonly List<InputDevice> _devices = new List<InputDevice>();
         private bool _placementArmed;
@@ -333,7 +335,9 @@ namespace PicoElderCare.Rehab
 
         public void PlaceTrainingAreaAtFloorPoint(Vector3 floorPoint)
         {
-            var center = new Vector3(floorPoint.x, floorY, floorPoint.z);
+            var center = lockTrainingAreaVerticalMovement
+                ? new Vector3(floorPoint.x, floorY, floorPoint.z)
+                : floorPoint;
             var headPosition = GetHeadPosition(center - Vector3.forward);
             var forward = center - headPosition;
             forward.y = 0f;
@@ -377,6 +381,11 @@ namespace PicoElderCare.Rehab
         {
             if (videoLayoutController == null) ResolveReferences();
             if (videoLayoutController == null) return;
+
+            if (lockVideoPanelVerticalMovement)
+            {
+                worldPoint.y = videoLayoutController.PanelPosition.y;
+            }
 
             videoLayoutController.MoveVideoToWorldPoint(worldPoint, GetHeadPosition(Vector3.zero));
         }

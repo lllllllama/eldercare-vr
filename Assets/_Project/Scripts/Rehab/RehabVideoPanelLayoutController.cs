@@ -27,6 +27,7 @@ namespace PicoElderCare.Rehab
         public bool followTrainingAreaRoot = false;
         public bool preserveUserPlacement = true;
         public bool faceUser = true;
+        public bool lockManualMoveHeight = true;
 
         private RehabSessionManager _sessionManager;
         private bool _hasUserPlacement;
@@ -104,6 +105,11 @@ namespace PicoElderCare.Rehab
         {
             ResolveReferences();
             if (panelRoot == null) return;
+
+            if (lockManualMoveHeight)
+            {
+                targetPosition.y = panelRoot.position.y;
+            }
 
             var constrained = ConstrainPanelPosition(targetPosition, headPosition);
             panelRoot.position = constrained;

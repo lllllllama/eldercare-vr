@@ -129,9 +129,9 @@ public class WorldSpaceUiRayDragHandle : MonoBehaviour, IBeginDragHandler, IDrag
         position.x = headPosition.x + horizontal.x;
         position.z = headPosition.z + horizontal.z;
         position.y = ConstrainHeight(position.y, headPosition);
-        if (lockWorldHeight && _hasDragStartHeight)
+        if (lockWorldHeight)
         {
-            position.y = _lockedWorldY;
+            position.y = _hasDragStartHeight ? _lockedWorldY : targetRoot.position.y;
         }
 
         targetRoot.position = position;
