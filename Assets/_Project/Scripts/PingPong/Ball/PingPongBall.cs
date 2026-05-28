@@ -5,20 +5,33 @@ public class PingPongBall : MonoBehaviour
 {
     public const float DefaultMaxAngularVelocity = 180f;
     private const float SurfaceCorrectionSkin = 0.006f;
+    private const float MinimumGameplayTableBounceUpSpeed = 3.0f;
+    private const float MinimumGameplayTableBounceRestitutionFloor = 0.98f;
+    private const float MinimumGameplayTableBounceUpwardAssist = 0.52f;
+    private const float MaximumGameplayTableBounceHorizontalDamping = 0.80f;
+    private const float MaximumGameplayTableBounceHorizontalSpeed = 1.45f;
 
-    public float paddleVelocityMultiplier = 0.85f;
-    public float forwardBoost = 2.2f;
-    public float upwardBoost = 0.25f;
-    public float minimumPaddleHitSpeed = 2.6f;
-    public float heldBallHitSpeed = 3.2f;
+    public float paddleVelocityMultiplier = 1.05f;
+    public float forwardBoost = 2.8f;
+    public float upwardBoost = 0.32f;
+    public float minimumPaddleHitSpeed = 3.0f;
+    public float heldBallHitSpeed = 3.5f;
     public float paddleHitCooldown = 0.12f;
     public float surfaceHitCooldown = 0.035f;
     public float minimumClosingSpeed = 0.15f;
     public float heldBallMinimumSwingSpeed = 0.35f;
-    public float maxSpeed = 9f;
-    public float minimumTableBounceUpSpeed = 1.35f;
-    public float tableBounceRestitutionFloor = 0.93f;
-    public float tableBounceUpwardAssist = 0.12f;
+    public float maxSpeed = 10.5f;
+    public float minimumTableBounceUpSpeed = MinimumGameplayTableBounceUpSpeed;
+    public float tableBounceMaxUpSpeed = 0f;
+    public float tableBounceRestitutionFloor = 0.98f;
+    public float tableBounceUpwardAssist = MinimumGameplayTableBounceUpwardAssist;
+    [Range(0f, 1f)] public float tableBounceHorizontalDamping = MaximumGameplayTableBounceHorizontalDamping;
+    public float tableBounceMaxHorizontalSpeed = MaximumGameplayTableBounceHorizontalSpeed;
+    public bool logPaddleHitDiagnostics = false;
+    public bool logTableBounceDiagnostics = false;
+    public bool logInitialTableBounceDiagnostics = true;
+    public int initialTableBounceDiagnosticsLimit = 5;
+    public bool enforceGameplayBounceTuningFloor = true;
     public bool enableSweptSurfaceFallback = true;
     public LayerMask sweptSurfaceLayers = ~0;
     public bool ignoreNonGameplayColliders = true;
@@ -54,6 +67,7 @@ public class PingPongBall : MonoBehaviour
     private float _lastPaddleHitTime = -1f;
     private float _lastSurfaceHitTime = -1f;
     private float _nextCollisionFilterRefreshTime;
+    private int _initialTableBounceDiagnosticsCount;
 
     public bool IsGrabbed => _activeGrabber != null;
     public bool CanBeGrabbed => !IsGrabbed && Time.time >= _ignoreGrabUntilTime;
@@ -63,6 +77,7 @@ public class PingPongBall : MonoBehaviour
 
     private void Awake()
     {
+        ApplyRuntimeBounceTuningFloor();
         ConfigureRigidbody();
         ConfigureGameplayCollisionFilter(true);
         _sphereCollider = GetComponent<SphereCollider>();
@@ -72,6 +87,8 @@ public class PingPongBall : MonoBehaviour
 
     private void OnEnable()
     {
+        ApplyRuntimeBounceTuningFloor();
+        _initialTableBounceDiagnosticsCount = 0;
         _lastSweepPosition = transform.position;
         _lastSurfaceCollider = null;
         _lastSurfaceHitTime = -1f;
@@ -81,6 +98,45 @@ public class PingPongBall : MonoBehaviour
         {
             _trackingTrail.Clear();
         }
+    }
+
+    private void ApplyRuntimeBounceTuningFloor()
+    {
+        if (!enforceGameplayBounceTuningFloor)
+        {
+            return;
+        }
+
+        minimumTableBounceUpSpeed = Mathf.Max(minimumTableBounceUpSpeed, MinimumGameplayTableBounceUpSpeed);
+        if (tableBounceMaxUpSpeed > 0f && tableBounceMaxUpSpeed < minimumTableBounceUpSpeed)
+        {
+            tableBounceMaxUpSpeed = minimumTableBounceUpSpeed;
+        }
+
+        tableBounceRestitutionFloor = Mathf.Max(tableBounceRestitutionFloor, MinimumGameplayTableBounceRestitutionFloor);
+        tableBounceUpwardAssist = Mathf.Max(tableBounceUpwardAssist, MinimumGameplayTableBounceUpwardAssist);
+        tableBounceHorizontalDamping = Mathf.Min(Mathf.Clamp01(tableBounceHorizontalDamping), MaximumGameplayTableBounceHorizontalDamping);
+        tableBounceMaxHorizontalSpeed = Mathf.Min(Mathf.Max(0f, tableBounceMaxHorizontalSpeed), MaximumGameplayTableBounceHorizontalSpeed);
+    }
+
+    public void ApplyGameplayBounceTuning(
+        float minimumUpSpeed,
+        float maximumUpSpeed,
+        float upwardAssist,
+        float horizontalDamping,
+        float maximumHorizontalSpeed)
+    {
+        enforceGameplayBounceTuningFloor = false;
+        minimumTableBounceUpSpeed = Mathf.Max(0f, minimumUpSpeed);
+        tableBounceMaxUpSpeed = Mathf.Max(0f, maximumUpSpeed);
+        if (tableBounceMaxUpSpeed > 0f && tableBounceMaxUpSpeed < minimumTableBounceUpSpeed)
+        {
+            minimumTableBounceUpSpeed = tableBounceMaxUpSpeed;
+        }
+
+        tableBounceUpwardAssist = Mathf.Max(0f, upwardAssist);
+        tableBounceHorizontalDamping = Mathf.Clamp01(horizontalDamping);
+        tableBounceMaxHorizontalSpeed = Mathf.Max(0f, maximumHorizontalSpeed);
     }
 
     public void ExcludeIgnoredRoomSensingLayerFromSweep()
@@ -545,7 +601,8 @@ public class PingPongBall : MonoBehaviour
         var wasHeld = IsHeld;
         var surfaceVelocity = GetResponsiveSurfaceVelocity(tracker, hitPoint);
         var paddleSpeed = Mathf.Max(tracker.Speed, tracker.RawVelocity.magnitude);
-        if (wasHeld && paddleSpeed < heldBallMinimumSwingSpeed && Vector3.Dot(surfaceVelocity, Vector3.forward) < minimumClosingSpeed)
+        var preferredForward = ResolvePreferredPlayForward(tracker);
+        if (wasHeld && paddleSpeed < heldBallMinimumSwingSpeed && Vector3.Dot(surfaceVelocity, preferredForward) < minimumClosingSpeed)
         {
             return;
         }
@@ -559,14 +616,14 @@ public class PingPongBall : MonoBehaviour
         normal = BlendTowardPaddleFace(normal, tracker.transform, incomingVelocity, surfaceVelocity);
 
         var input = PingPongHitSolver.CreateDefault(incomingVelocity, _rb.angularVelocity, normal, surfaceVelocity);
-        input.normalRestitution = 0.78f;
-        input.tangentialFriction = 0.58f;
-        input.spinTransfer = 0.55f;
+        input.normalRestitution = 0.88f;
+        input.tangentialFriction = 0.52f;
+        input.spinTransfer = 0.48f;
         input.minimumClosingSpeed = minimumClosingSpeed;
         input.minimumSpeed = wasHeld ? heldBallHitSpeed : minimumPaddleHitSpeed;
         input.maximumSpeed = maxSpeed;
         input.upwardBias = upwardBoost;
-        input.preferredForward = Vector3.forward;
+        input.preferredForward = preferredForward;
         input.minimumForwardDot = wasHeld ? 0.38f : 0.08f;
         input.forwardBlend = wasHeld ? 0.82f : 0.55f;
         input.biasTowardPreferredForward = true;
@@ -585,15 +642,29 @@ public class PingPongBall : MonoBehaviour
             1.15f,
             0.35f);
 
-        if (velocity.z < 0.5f)
+        var forwardSpeed = Vector3.Dot(velocity, preferredForward);
+        var desiredForwardSpeed = Mathf.Max(0.5f, forwardBoost);
+        if (forwardSpeed < desiredForwardSpeed)
         {
-            velocity.z = Mathf.Lerp(velocity.z, forwardBoost, 0.45f);
+            velocity += preferredForward * ((desiredForwardSpeed - forwardSpeed) * 0.45f);
         }
 
-        velocity += Vector3.forward * Mathf.Max(0f, Vector3.Dot(surfaceVelocity, Vector3.forward)) * paddleVelocityMultiplier * 0.18f;
+        velocity += preferredForward * Mathf.Max(0f, Vector3.Dot(surfaceVelocity, preferredForward)) * paddleVelocityMultiplier * 0.22f;
         velocity = Vector3.ClampMagnitude(velocity, maxSpeed);
 
         var finalAngularVelocity = Vector3.ClampMagnitude(result.angularVelocity, DefaultMaxAngularVelocity);
+        if (logPaddleHitDiagnostics)
+        {
+            Debug.Log(
+                "Paddle hit diagnostics:\n" +
+                $"- incomingVelocity: {incomingVelocity}\n" +
+                $"- surfaceVelocity: {surfaceVelocity}\n" +
+                $"- preferredForward: {preferredForward}\n" +
+                $"- final velocity: {velocity}\n" +
+                $"- paddleSpeed: {paddleSpeed:0.###}\n" +
+                $"- wasHeld: {wasHeld}");
+        }
+
         if (_activeGrabber != null && _activeGrabber.ForceRelease(this, velocity))
         {
             _activeGrabber = null;
@@ -639,7 +710,8 @@ public class PingPongBall : MonoBehaviour
         }
 
         normal.Normalize();
-        if (Vector3.Dot(normal, _rb.velocity) > 0f)
+        var isTableBounce = surface.surfaceType == PingPongSurfaceType.Table;
+        if (!(isTableBounce && normal.y > 0.5f) && Vector3.Dot(normal, _rb.velocity) > 0f)
         {
             normal = -normal;
         }
@@ -650,16 +722,16 @@ public class PingPongBall : MonoBehaviour
             return;
         }
 
-        var closingSpeed = -Vector3.Dot(_rb.velocity, normal);
-        if (closingSpeed < 0.02f)
+        var incomingVelocity = ResolveSurfaceIncomingVelocity(normal, isTableBounce, out var usedPreviousPhysicsVelocity);
+        var closingSpeed = -Vector3.Dot(incomingVelocity, normal);
+        var minimumClosingSpeedForSurface = isTableBounce && normal.y > 0.5f ? 0.001f : 0.02f;
+        if (closingSpeed < minimumClosingSpeedForSurface)
         {
             CorrectSurfacePenetrationIfNeeded(surface, collider, normal, contactPoint);
             return;
         }
 
-        var incomingVelocity = _rb.velocity;
         var input = PingPongHitSolver.CreateDefault(incomingVelocity, _rb.angularVelocity, normal, Vector3.zero);
-        var isTableBounce = surface.surfaceType == PingPongSurfaceType.Table;
         input.normalRestitution = isTableBounce
             ? Mathf.Max(surface.normalRestitution, tableBounceRestitutionFloor)
             : surface.normalRestitution;
@@ -686,10 +758,39 @@ public class PingPongBall : MonoBehaviour
                 result.velocity,
                 incomingVelocity,
                 Mathf.Max(0f, minimumTableBounceUpSpeed),
+                Mathf.Max(0f, tableBounceMaxUpSpeed),
                 Mathf.Max(0f, tableBounceUpwardAssist),
-                Mathf.Max(0f, maxSpeed))
+                Mathf.Max(0f, maxSpeed),
+                tableBounceHorizontalDamping,
+                tableBounceMaxHorizontalSpeed)
             : result.velocity;
         _rb.angularVelocity = finalAngularVelocity;
+        if (isTableBounce && ShouldLogTableBounceDiagnostics())
+        {
+            Debug.Log(
+                "Table bounce diagnostics:\n" +
+                $"- ball: {name}\n" +
+                $"- collider: {collider.name}\n" +
+                $"- surfaceType: {surface.surfaceType}\n" +
+                $"- incomingVelocity: {incomingVelocity}\n" +
+                $"- currentRbVelocityAtBounce: {_rb.velocity}\n" +
+                $"- lastPhysicsVelocity: {_lastPhysicsVelocity}\n" +
+                $"- usedPreviousPhysicsVelocity: {usedPreviousPhysicsVelocity}\n" +
+                $"- closingSpeed: {closingSpeed:0.###}\n" +
+                $"- result.velocity: {result.velocity}\n" +
+                $"- final _rb.velocity: {_rb.velocity}\n" +
+                $"- finalHorizontalSpeed: {new Vector3(_rb.velocity.x, 0f, _rb.velocity.z).magnitude:0.###}\n" +
+                $"- normal: {normal}\n" +
+                $"- surface.normalRestitution: {surface.normalRestitution:0.###}\n" +
+                $"- minimumTableBounceUpSpeed: {minimumTableBounceUpSpeed:0.###}\n" +
+                $"- tableBounceMaxUpSpeed: {tableBounceMaxUpSpeed:0.###}\n" +
+                $"- tableBounceUpwardAssist: {tableBounceUpwardAssist:0.###}\n" +
+                $"- tableBounceHorizontalDamping: {tableBounceHorizontalDamping:0.###}\n" +
+                $"- tableBounceMaxHorizontalSpeed: {tableBounceMaxHorizontalSpeed:0.###}\n" +
+                $"- tableBounceRestitutionFloor: {tableBounceRestitutionFloor:0.###}\n" +
+                $"- maxSpeed: {maxSpeed:0.###}");
+        }
+
         CorrectSurfacePenetrationIfNeeded(surface, collider, normal, contactPoint);
         _lastSurfaceCollider = collider;
         _lastSurfaceHitTime = Time.time;
@@ -781,20 +882,95 @@ public class PingPongBall : MonoBehaviour
         return surfacePoint + normal.normalized * (GetWorldRadius() + SurfaceCorrectionSkin);
     }
 
+    private Vector3 ResolveSurfaceIncomingVelocity(Vector3 normal, bool isTableBounce, out bool usedPreviousPhysicsVelocity)
+    {
+        usedPreviousPhysicsVelocity = false;
+        var currentVelocity = _rb != null ? _rb.velocity : Vector3.zero;
+        if (!isTableBounce || normal.y <= 0.5f)
+        {
+            return currentVelocity;
+        }
+
+        var currentClosingSpeed = -Vector3.Dot(currentVelocity, normal);
+        var previousClosingSpeed = -Vector3.Dot(_lastPhysicsVelocity, normal);
+        if (previousClosingSpeed > Mathf.Max(0.005f, currentClosingSpeed))
+        {
+            usedPreviousPhysicsVelocity = true;
+            return _lastPhysicsVelocity;
+        }
+
+        return currentVelocity;
+    }
+
+    private bool ShouldLogTableBounceDiagnostics()
+    {
+        if (logTableBounceDiagnostics)
+        {
+            return true;
+        }
+
+        if (!logInitialTableBounceDiagnostics)
+        {
+            return false;
+        }
+
+        var limit = Mathf.Max(0, initialTableBounceDiagnosticsLimit);
+        if (_initialTableBounceDiagnosticsCount >= limit)
+        {
+            return false;
+        }
+
+        _initialTableBounceDiagnosticsCount++;
+        return true;
+    }
+
     public static Vector3 EnsureMinimumTableBounceVelocity(
         Vector3 outgoingVelocity,
         Vector3 incomingVelocity,
         float minimumUpSpeed,
         float upwardAssist,
-        float maximumSpeed)
+        float maximumSpeed,
+        float horizontalDamping = 1f,
+        float maximumHorizontalSpeed = 0f)
     {
-        if (incomingVelocity.y >= -0.02f)
+        return EnsureMinimumTableBounceVelocity(
+            outgoingVelocity,
+            incomingVelocity,
+            minimumUpSpeed,
+            0f,
+            upwardAssist,
+            maximumSpeed,
+            horizontalDamping,
+            maximumHorizontalSpeed);
+    }
+
+    public static Vector3 EnsureMinimumTableBounceVelocity(
+        Vector3 outgoingVelocity,
+        Vector3 incomingVelocity,
+        float minimumUpSpeed,
+        float maximumUpSpeed,
+        float upwardAssist,
+        float maximumSpeed,
+        float horizontalDamping = 1f,
+        float maximumHorizontalSpeed = 0f)
+    {
+        var velocity = outgoingVelocity;
+        var damping = Mathf.Clamp01(horizontalDamping);
+        velocity.x *= damping;
+        velocity.z *= damping;
+        var horizontalVelocity = new Vector3(velocity.x, 0f, velocity.z);
+        if (maximumHorizontalSpeed > 0f && horizontalVelocity.magnitude > maximumHorizontalSpeed)
         {
-            return outgoingVelocity;
+            horizontalVelocity = horizontalVelocity.normalized * maximumHorizontalSpeed;
+            velocity.x = horizontalVelocity.x;
+            velocity.z = horizontalVelocity.z;
         }
 
-        var velocity = outgoingVelocity;
         velocity.y = Mathf.Max(velocity.y + Mathf.Max(0f, upwardAssist), Mathf.Max(0f, minimumUpSpeed));
+        if (maximumUpSpeed > 0f)
+        {
+            velocity.y = Mathf.Min(velocity.y, Mathf.Max(minimumUpSpeed, maximumUpSpeed));
+        }
 
         if (maximumSpeed > 0f && velocity.magnitude > maximumSpeed)
         {
@@ -904,6 +1080,33 @@ public class PingPongBall : MonoBehaviour
         }
 
         return normal;
+    }
+
+    private static Vector3 ResolvePreferredPlayForward(PaddleVelocityTracker tracker)
+    {
+        var table = PingPongTableRecenterOnEnter.FindTableRoot();
+        Vector3 forward;
+
+        if (table != null)
+        {
+            forward = table.forward;
+        }
+        else if (tracker != null)
+        {
+            forward = tracker.transform.forward;
+        }
+        else
+        {
+            forward = Vector3.forward;
+        }
+
+        forward = Vector3.ProjectOnPlane(forward, Vector3.up);
+        if (forward.sqrMagnitude < 0.0001f)
+        {
+            forward = Vector3.forward;
+        }
+
+        return forward.normalized;
     }
 
     private static Vector3 BlendTowardPaddleFace(Vector3 collisionNormal, Transform paddle, Vector3 incomingVelocity, Vector3 surfaceVelocity)

@@ -709,7 +709,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 4ac47ead1cb23ef44a81451f32a4cdbc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  ballPrefab: {fileID: 1000011657678126, guid: 868f4c0cb9a04ff40b3d4f7c07d36153, type: 3}
+  ballPrefab: {fileID: 6316526095329316854, guid: 1d81a02c67ee95f4fb9dff6a6da833df, type: 3}
   spawnPoint: {fileID: 216310885}
   targetPoint: {fileID: 1558083805}
   tableTransform: {fileID: 1991188546}

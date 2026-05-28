@@ -299,10 +299,16 @@ public class PingPongDifficultyController : MonoBehaviour
         var preset = difficulty == PingPongDifficulty.Custom
             ? new DifficultyPreset(GetLabel(difficulty), customSpeed, 4.0f)
             : GetPreset(difficulty);
+        var bounceTuning = GetBounceTuning(difficulty);
 
         if (ballSpawner != null)
         {
             ballSpawner.serveSpeed = preset.speed;
+            ballSpawner.spawnedBallTableBounceMinUpSpeed = bounceTuning.minUpSpeed;
+            ballSpawner.spawnedBallTableBounceMaxUpSpeed = bounceTuning.maxUpSpeed;
+            ballSpawner.spawnedBallTableBounceUpwardAssist = bounceTuning.upwardAssist;
+            ballSpawner.spawnedBallTableBounceHorizontalDamping = bounceTuning.horizontalDamping;
+            ballSpawner.spawnedBallTableBounceMaxHorizontalSpeed = bounceTuning.maxHorizontalSpeed;
             if (controlServeInterval)
             {
                 ballSpawner.serveInterval = preset.interval;
@@ -387,6 +393,21 @@ public class PingPongDifficultyController : MonoBehaviour
         }
     }
 
+    private static BounceTuning GetBounceTuning(PingPongDifficulty difficulty)
+    {
+        switch (difficulty)
+        {
+            case PingPongDifficulty.Easy:
+                return new BounceTuning(3.0f, 3.15f, 0.52f, 0.82f, 1.25f);
+            case PingPongDifficulty.Advanced:
+                return new BounceTuning(3.05f, 3.25f, 0.52f, 0.80f, 1.65f);
+            case PingPongDifficulty.Challenge:
+                return new BounceTuning(3.1f, 3.35f, 0.52f, 0.80f, 1.85f);
+            default:
+                return new BounceTuning(3.0f, 3.15f, 0.52f, 0.80f, 1.45f);
+        }
+    }
+
     private void HandleControllerSpeedButtons()
     {
         if (!enableControllerSpeedButtons) return;
@@ -434,6 +455,29 @@ public class PingPongDifficultyController : MonoBehaviour
             this.label = label;
             this.speed = speed;
             this.interval = interval;
+        }
+    }
+
+    private readonly struct BounceTuning
+    {
+        public readonly float minUpSpeed;
+        public readonly float maxUpSpeed;
+        public readonly float upwardAssist;
+        public readonly float horizontalDamping;
+        public readonly float maxHorizontalSpeed;
+
+        public BounceTuning(
+            float minUpSpeed,
+            float maxUpSpeed,
+            float upwardAssist,
+            float horizontalDamping,
+            float maxHorizontalSpeed)
+        {
+            this.minUpSpeed = minUpSpeed;
+            this.maxUpSpeed = maxUpSpeed;
+            this.upwardAssist = upwardAssist;
+            this.horizontalDamping = horizontalDamping;
+            this.maxHorizontalSpeed = maxHorizontalSpeed;
         }
     }
 

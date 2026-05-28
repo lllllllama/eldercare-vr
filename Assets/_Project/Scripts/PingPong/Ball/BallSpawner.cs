@@ -38,6 +38,11 @@ public class BallSpawner : MonoBehaviour
     [Range(0f, 1f)] public float spawnedBallBounciness = 0.86f;
     [Range(0f, 1f)] public float spawnedBallDynamicFriction = 0.01f;
     [Range(0f, 1f)] public float spawnedBallStaticFriction = 0.01f;
+    public float spawnedBallTableBounceMinUpSpeed = 3.0f;
+    public float spawnedBallTableBounceMaxUpSpeed = 3.15f;
+    public float spawnedBallTableBounceUpwardAssist = 0.52f;
+    [Range(0f, 1f)] public float spawnedBallTableBounceHorizontalDamping = 0.80f;
+    public float spawnedBallTableBounceMaxHorizontalSpeed = 1.45f;
 
     private PhysicMaterial _ballPhysicsMaterial;
     private Coroutine _serveRoutine;
@@ -340,6 +345,12 @@ public class BallSpawner : MonoBehaviour
 
         if (pingPongBall != null)
         {
+            pingPongBall.ApplyGameplayBounceTuning(
+                spawnedBallTableBounceMinUpSpeed,
+                spawnedBallTableBounceMaxUpSpeed,
+                spawnedBallTableBounceUpwardAssist,
+                spawnedBallTableBounceHorizontalDamping,
+                spawnedBallTableBounceMaxHorizontalSpeed);
             pingPongBall.ConfigureGameplayCollisionFilter(true);
         }
 
