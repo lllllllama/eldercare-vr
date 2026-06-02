@@ -323,6 +323,110 @@ public static class PingPongDemoSceneBuilder
         Debug.Log("DifficultyPanel drag handle repaired. Dragging targets DifficultyPanel only.");
     }
 
+    [MenuItem("Tools/PICO ElderCare/PingPong/Repair Unified Control Panel Only")]
+    public static void RepairUnifiedControlPanelOnly()
+    {
+        if (!EnsureEditMode()) return;
+
+        var canvasObject = FindObjectByNameIncludingInactive("WorldSpaceCanvas");
+        if (canvasObject == null)
+        {
+            Debug.LogError("WorldSpaceCanvas not found. Open the ping pong scene before repairing the unified control panel.");
+            return;
+        }
+
+        var scoreManager = Object.FindObjectOfType<ScoreManager>(true);
+        var spawner = Object.FindObjectOfType<BallSpawner>(true);
+        var homeMenu = Object.FindObjectOfType<ElderCareHomeMenu>(true);
+        if (scoreManager == null)
+        {
+            Debug.LogError("ScoreManager not found. Unified control panel repair was not applied.");
+            return;
+        }
+
+        if (spawner == null)
+        {
+            Debug.LogError("BallSpawner not found. Unified control panel repair was not applied.");
+            return;
+        }
+
+        EnsureWorldCanvasRaycasters(canvasObject);
+        ConfigureWorldCanvasInteraction(canvasObject);
+        RemoveLegacyPingPongControlUi(canvasObject.transform);
+
+        scoreManager.ballSpawner = spawner;
+        scoreManager.uiFont = LoadPingPongTmpFont();
+        scoreManager.autoCreateDifficultyControls = false;
+        scoreManager.useUnifiedControlPanel = true;
+        scoreManager.enhanceHudReadability = false;
+        scoreManager.accuracyText = null;
+        scoreManager.lastSpeedText = null;
+        scoreManager.hitText = null;
+        scoreManager.servedText = null;
+        scoreManager.missedText = null;
+        scoreManager.lastSpinText = null;
+
+        var difficultyController = BuildDifficultyControllerState(canvasObject.transform, spawner);
+        var panel = PingPongUnifiedControlPanel.EnsureRuntimePanel(
+            canvasObject.transform,
+            scoreManager,
+            spawner,
+            difficultyController,
+            homeMenu,
+            LoadPingPongTmpFont());
+        if (panel == null)
+        {
+            Debug.LogError("Unified control panel could not be created.");
+            return;
+        }
+
+        if (homeMenu != null)
+        {
+            homeMenu.scoreManager = scoreManager;
+            homeMenu.ballSpawner = spawner;
+            var roots = homeMenu.pingPongGameplayRoots;
+            var hasCanvasRoot = false;
+            if (roots != null)
+            {
+                for (var i = 0; i < roots.Length; i++)
+                {
+                    if (roots[i] == canvasObject)
+                    {
+                        hasCanvasRoot = true;
+                        break;
+                    }
+                }
+            }
+
+            if (!hasCanvasRoot)
+            {
+                var oldLength = roots != null ? roots.Length : 0;
+                var updatedRoots = new GameObject[oldLength + 1];
+                for (var i = 0; i < oldLength; i++)
+                {
+                    updatedRoots[i] = roots[i];
+                }
+
+                updatedRoots[oldLength] = canvasObject;
+                homeMenu.pingPongGameplayRoots = updatedRoots;
+            }
+        }
+        else
+        {
+            Debug.LogWarning("ElderCareHomeMenu not found. The unified panel was repaired, but its Return Home button will need a menu reference.");
+        }
+
+        EditorUtility.SetDirty(canvasObject);
+        EditorUtility.SetDirty(scoreManager);
+        EditorUtility.SetDirty(spawner);
+        if (difficultyController != null) EditorUtility.SetDirty(difficultyController);
+        if (homeMenu != null) EditorUtility.SetDirty(homeMenu);
+        EditorUtility.SetDirty(panel);
+        MarkActiveSceneDirtyAndSaveForBatch();
+
+        Debug.Log("Unified ping pong control panel repaired only. Gameplay table, paddles, balls, serve points, and MR objects were not rebuilt.");
+    }
+
     [MenuItem("Tools/PICO ElderCare/PingPong/Apply PingPong Gameplay Fixes Only")]
     public static void ApplyPingPongGameplayFixesOnly()
     {
@@ -777,14 +881,16 @@ public static class PingPongDemoSceneBuilder
         if (scoreManager == null) return;
         scoreManager.uiFont = LoadPingPongTmpFont();
         scoreManager.ballSpawner = spawner;
-        scoreManager.autoCreateDifficultyControls = true;
+        scoreManager.autoCreateDifficultyControls = false;
+        scoreManager.useUnifiedControlPanel = true;
+        scoreManager.enhanceHudReadability = false;
 
         var feedback = GetOrCreate("HitFeedbackManager", managers.transform);
         var feedbackManager = EnsureComponent<HitFeedbackManager>(feedback);
         if (feedbackManager == null) return;
         SetupFeedbackAudio(feedback, feedbackManager);
 
-        BuildUi(uiRoot.transform, scoreManager, spawner);
+        BuildUi(uiRoot.transform, scoreManager, spawner, out var difficultyController, out var unifiedControlPanel);
         BindController(rightPaddle.GetComponent<PaddleFollower>(), true);
         var leftController = BindController(leftHand.GetComponent<ControllerTransformFollower>(), false);
         var gripState = SetupSimpleGripInteractionState(managers.transform);
@@ -805,13 +911,19 @@ public static class PingPongDemoSceneBuilder
         SetupInitialViewAligner(managers.transform, mixedRealityMode);
         SetupPingPongSpatialSanitizer(managers.transform);
         SetupPingPongTableRecenterOnEnter(managers.transform, table.transform);
-        BuildElderCareHomeMenu(
+        var homeMenu = BuildElderCareHomeMenu(
             uiRoot.transform,
             managers.transform,
             pingPong,
             uiCanvas != null ? uiCanvas.gameObject : null,
             spawner,
-            scoreManager);
+            scoreManager,
+            unifiedControlPanel);
+        if (unifiedControlPanel != null)
+        {
+            unifiedControlPanel.Bind(scoreManager, spawner, difficultyController, homeMenu);
+            EditorUtility.SetDirty(unifiedControlPanel);
+        }
 
         if (mixedRealityMode)
         {
@@ -2815,8 +2927,16 @@ public static class PingPongDemoSceneBuilder
         return net;
     }
 
-    private static void BuildUi(Transform parent, ScoreManager score, BallSpawner spawner)
+    private static void BuildUi(
+        Transform parent,
+        ScoreManager score,
+        BallSpawner spawner,
+        out PingPongDifficultyController difficultyController,
+        out PingPongUnifiedControlPanel unifiedControlPanel)
     {
+        difficultyController = null;
+        unifiedControlPanel = null;
+
         var canvasGo = GetOrCreate("WorldSpaceCanvas", parent);
         var canvas = EnsureComponent<Canvas>(canvasGo);
         if (canvas == null) return;
@@ -2842,6 +2962,26 @@ public static class PingPongDemoSceneBuilder
         score.hudPanelSize = ElderCareUiTheme.PingPongHudSize;
         score.hudPanelColor = WithAlpha(ElderCareUiTheme.PanelStrong, 0.96f);
 
+        score.accuracyText = null;
+        score.lastSpeedText = null;
+        score.hitText = null;
+        score.servedText = null;
+        score.missedText = null;
+        score.lastSpinText = null;
+
+        RemoveLegacyPingPongControlUi(canvasGo.transform);
+        difficultyController = BuildDifficultyControllerState(canvasGo.transform, spawner);
+        unifiedControlPanel = PingPongUnifiedControlPanel.EnsureRuntimePanel(
+            canvasGo.transform,
+            score,
+            spawner,
+            difficultyController,
+            null,
+            LoadPingPongTmpFont());
+        EditorUtility.SetDirty(canvasGo);
+        return;
+
+#if false
         CreateScoreHudBackdrop(canvasGo.transform);
         CreateScoreMetricCard(canvasGo.transform, "AccuracyMetricCard", new Vector2(292f, 142f), new Vector2(-722f, 293f), ElderCareUiTheme.Cyan, 0.16f, 24f);
         CreateScoreMetricCard(canvasGo.transform, "SpeedMetricCard", new Vector2(292f, 142f), new Vector2(-418f, 293f), ElderCareUiTheme.Blue, 0.14f, 24f);
@@ -2858,6 +2998,58 @@ public static class PingPongDemoSceneBuilder
         score.lastSpinText = CreateScoreText(canvasGo.transform, "LastSpinText", "<size=22>旋转</size>  <size=32><b>0</b></size> <size=20>rad/s</size>", new Vector2(-570f, 51f), new Vector2(606f, 58f), ElderCareUiTheme.HudSecondary, FontStyles.Normal, TextAlignmentOptions.Center, ElderCareUiTheme.TextMuted);
 
         BuildDifficultyUi(canvasGo.transform, spawner);
+#endif
+    }
+
+    private static void RemoveLegacyPingPongControlUi(Transform canvasTransform)
+    {
+        if (canvasTransform == null) return;
+
+        RemoveChildIfExists(canvasTransform, "PingPongUnifiedControlPanel");
+        RemoveChildIfExists(canvasTransform, "ScoreHudBackdrop");
+        RemoveChildIfExists(canvasTransform, "AccuracyMetricCard");
+        RemoveChildIfExists(canvasTransform, "SpeedMetricCard");
+        RemoveChildIfExists(canvasTransform, "HitMetricCard");
+        RemoveChildIfExists(canvasTransform, "ServedMetricCard");
+        RemoveChildIfExists(canvasTransform, "MissedMetricCard");
+        RemoveChildIfExists(canvasTransform, "SpinMetricCard");
+        RemoveChildIfExists(canvasTransform, "AccuracyText");
+        RemoveChildIfExists(canvasTransform, "LastSpeedText");
+        RemoveChildIfExists(canvasTransform, "HitText");
+        RemoveChildIfExists(canvasTransform, "ServedText");
+        RemoveChildIfExists(canvasTransform, "MissedText");
+        RemoveChildIfExists(canvasTransform, "LastSpinText");
+        RemoveChildIfExists(canvasTransform, "DifficultyPanel");
+        RemoveChildIfExists(canvasTransform, "BackHomeButton");
+    }
+
+    private static PingPongDifficultyController BuildDifficultyControllerState(Transform canvasTransform, BallSpawner spawner)
+    {
+        if (canvasTransform == null) return null;
+
+        var root = GetOrCreate("PingPongDifficultyControllerState", canvasTransform);
+        ConfigureRect(root, Vector2.zero, Vector2.zero);
+
+        var controller = EnsureComponent<PingPongDifficultyController>(root);
+        if (controller == null) return null;
+
+        controller.ballSpawner = spawner;
+        controller.difficultyText = null;
+        controller.speedText = null;
+        controller.hintText = null;
+        controller.decreaseButton = null;
+        controller.increaseButton = null;
+        controller.resetButton = null;
+        controller.startingDifficulty = PingPongDifficulty.Normal;
+        controller.controlServeInterval = true;
+        controller.enhancePanelReadability = false;
+        controller.displayStandalonePanel = false;
+        controller.showScreenButtons = false;
+        controller.enableControllerSpeedButtons = true;
+        controller.ApplyLoadedDifficulty();
+
+        EditorUtility.SetDirty(root);
+        return controller;
     }
 
     private static void ConfigureWorldCanvasInteraction(GameObject canvasGo)
@@ -3038,7 +3230,8 @@ public static class PingPongDemoSceneBuilder
         GameObject pingPongRoot,
         GameObject scoreCanvas,
         BallSpawner spawner,
-        ScoreManager score)
+        ScoreManager score,
+        PingPongUnifiedControlPanel controlPanel)
     {
         RemoveChildIfExists(uiParent, "ElderCareHomeCanvas");
         RemoveChildIfExists(managerParent, "ElderCareHomeMenu");
@@ -3121,7 +3314,10 @@ public static class PingPongDemoSceneBuilder
         }
 
         var footer = CreateHomeText(canvasRect, "FooterHint", "使用手柄或手势选择功能", new Vector2(0f, -492f), new Vector2(900f, 70f), 30, FontStyle.Normal, new Color(1f, 1f, 1f, 0.62f), TextAnchor.MiddleCenter);
-        CreateGameplayHomeButton(scoreCanvas != null ? scoreCanvas.transform : null, menu);
+        if (scoreCanvas != null)
+        {
+            RemoveChildIfExists(scoreCanvas.transform, "BackHomeButton");
+        }
 
         menu.homeRoot = canvasGo;
         menu.pingPongGameplayRoots = new[] { pingPongRoot, scoreCanvas };
@@ -3135,6 +3331,10 @@ public static class PingPongDemoSceneBuilder
         menu.showHomeOnStart = true;
         menu.clearBallsWhenLeavingPingPong = true;
         menu.placeHomeUiOnShow = true;
+        if (controlPanel != null)
+        {
+            controlPanel.Bind(score, spawner, controlPanel.difficultyController, menu);
+        }
 
         EditorUtility.SetDirty(canvasGo);
         EditorUtility.SetDirty(controllerGo);

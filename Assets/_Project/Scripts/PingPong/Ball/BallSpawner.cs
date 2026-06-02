@@ -46,8 +46,9 @@ public class BallSpawner : MonoBehaviour
 
     private PhysicMaterial _ballPhysicsMaterial;
     private Coroutine _serveRoutine;
+    private bool _servingInEditModeForTests;
 
-    public bool IsServing => _serveRoutine != null;
+    public bool IsServing => _serveRoutine != null || _servingInEditModeForTests;
 
     private void Start()
     {
@@ -61,6 +62,15 @@ public class BallSpawner : MonoBehaviour
 
     public void StartServing()
     {
+        if (IsServing) return;
+
+        if (!Application.isPlaying)
+        {
+            _servingInEditModeForTests = true;
+            PingPongEvents.TrainingStarted();
+            return;
+        }
+
         if (_serveRoutine == null)
         {
             _serveRoutine = StartCoroutine(ServeLoop());
@@ -70,6 +80,12 @@ public class BallSpawner : MonoBehaviour
 
     public void StopServing()
     {
+        if (_servingInEditModeForTests)
+        {
+            _servingInEditModeForTests = false;
+            PingPongEvents.TrainingFinished();
+        }
+
         if (_serveRoutine != null)
         {
             StopCoroutine(_serveRoutine);

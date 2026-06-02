@@ -18,7 +18,8 @@ public class ScoreManager : MonoBehaviour
 
     public TMP_FontAsset uiFont;
     public BallSpawner ballSpawner;
-    public bool autoCreateDifficultyControls = true;
+    public bool autoCreateDifficultyControls = false;
+    public bool useUnifiedControlPanel = true;
     public bool enhanceHudReadability = true;
     public Vector2 hudPanelSize = ElderCareUiTheme.PingPongHudSize;
     public Color hudPanelColor = WithAlpha(ElderCareUiTheme.PanelStrong, 0.96f);
@@ -36,6 +37,13 @@ public class ScoreManager : MonoBehaviour
     private float _lastHitSpeed;
     private float _lastSpinSpeed;
 
+    public int ServedCount => _servedCount;
+    public int HitCount => _hitCount;
+    public int MissedCount => _missedCount;
+    public float LastHitSpeed => _lastHitSpeed;
+    public float LastSpinSpeed => _lastSpinSpeed;
+    public float Accuracy => _servedCount > 0 ? (float)_hitCount / _servedCount * 100f : 0f;
+
     private void OnEnable()
     {
         PingPongEvents.OnBallServed += HandleBallServed;
@@ -43,17 +51,23 @@ public class ScoreManager : MonoBehaviour
         PingPongEvents.OnBallHitDetailed += HandleBallHitDetailed;
         PingPongEvents.OnBallMissed += HandleBallMissed;
         ResolveFontIfNeeded();
-        ApplyFont();
-        EnsureReadableHud();
-        EnsureDisplayCanvasInteraction();
+        if (!useUnifiedControlPanel)
+        {
+            ApplyFont();
+            EnsureReadableHud();
+            EnsureDisplayCanvasInteraction();
+        }
         RefreshUI();
     }
 
     private void Start()
     {
-        EnsureDifficultyControls();
-        EnsureReadableHud();
-        EnsureDisplayCanvasInteraction();
+        if (!useUnifiedControlPanel)
+        {
+            EnsureDifficultyControls();
+            EnsureReadableHud();
+            EnsureDisplayCanvasInteraction();
+        }
     }
 
     private void OnDisable()
@@ -101,7 +115,7 @@ public class ScoreManager : MonoBehaviour
 
     private void RefreshUI()
     {
-        var accuracy = _servedCount > 0 ? (float)_hitCount / _servedCount * 100f : 0f;
+        var accuracy = Accuracy;
 
         if (accuracyText != null) accuracyText.text = FormatPrimaryMetric("命中率", accuracy.ToString("0.0"), "%");
         if (lastSpeedText != null) lastSpeedText.text = FormatPrimaryMetric("回球速度", _lastHitSpeed.ToString("0.0"), "m/s");
@@ -235,6 +249,7 @@ public class ScoreManager : MonoBehaviour
 
     private void EnsureDifficultyControls()
     {
+        if (useUnifiedControlPanel) return;
         if (!autoCreateDifficultyControls) return;
 
         var canvasTransform = ResolveCanvasTransform();

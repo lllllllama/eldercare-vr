@@ -29,6 +29,11 @@ public static class PingPongPhysicsSelfTests
         TableSurfaceCorrectionRaisesEmbeddedBall();
         TableDragHandleDoesNotSyncWorldUiCanvas();
         ScoreCanvasInstallsRayDragHandle();
+        ScoreManagerResetExposesZeroedProperties();
+        BallSpawnerServingStateTransitions();
+        UnifiedPanelServingButtonTogglesState();
+        UnifiedPanelResetDoesNotStopServing();
+        UnifiedPanelHomeButtonCallsShowHome();
         SpatialTablePlacementIsDisabledButManualDragStaysEnabled();
         OpenSpacePlacementWaitsForRoomSensingColliders();
         OpenSpacePlacementAvoidsTableObstacle();
@@ -290,10 +295,11 @@ public static class PingPongPhysicsSelfTests
 
             var background = canvasObject.transform.Find("DifficultyPanel/Background");
             AssertTrue(background != null, "Difficulty panel should expose a visible drag surface.");
-            AssertTrue(background.GetComponent<Image>() != null && background.GetComponent<Image>().raycastTarget, "Difficulty panel background should accept ray hits.");
+            var backgroundGraphic = background.GetComponent<Graphic>();
+            AssertTrue(backgroundGraphic != null && backgroundGraphic.raycastTarget, "Difficulty panel background should accept ray hits.");
             var dragHandle = background.GetComponent<WorldSpaceUiRayDragHandle>();
             AssertTrue(dragHandle != null, "Difficulty panel background should be ray-draggable.");
-            AssertTrue(dragHandle.targetRoot == canvasObject.transform, "Difficulty panel drag should move the detached world UI canvas.");
+            AssertTrue(dragHandle.targetRoot == controller.transform, "Difficulty panel drag should move the difficulty panel only.");
         }
         finally
         {
@@ -406,13 +412,177 @@ public static class PingPongPhysicsSelfTests
 
             var backdrop = rect.Find("ScoreHudBackdrop");
             AssertTrue(backdrop != null, "Score HUD should create a readable backdrop.");
-            AssertTrue(backdrop.GetComponent<Image>() != null && backdrop.GetComponent<Image>().raycastTarget, "Score HUD backdrop should accept ray hits.");
+            var backdropGraphic = backdrop.GetComponent<Graphic>();
+            AssertTrue(backdropGraphic != null && backdropGraphic.raycastTarget, "Score HUD backdrop should accept ray hits.");
             var panelDrag = backdrop.GetComponent<WorldSpaceUiRayDragHandle>();
             AssertTrue(panelDrag != null, "Score HUD backdrop should be ray-draggable.");
             AssertTrue(panelDrag.targetRoot == canvasObject.transform, "Score HUD drag should move the detached world UI canvas.");
         }
         finally
         {
+            Object.DestroyImmediate(canvasObject);
+        }
+    }
+
+    private static void ScoreManagerResetExposesZeroedProperties()
+    {
+        var scoreObject = new GameObject("ScoreManagerProperties");
+        try
+        {
+            var score = scoreObject.AddComponent<ScoreManager>();
+            score.useUnifiedControlPanel = true;
+            SetPrivateField(score, "_servedCount", 1);
+            SetPrivateField(score, "_hitCount", 1);
+            SetPrivateField(score, "_missedCount", 1);
+            SetPrivateField(score, "_lastHitSpeed", 4.2f);
+            SetPrivateField(score, "_lastSpinSpeed", 18f);
+
+            AssertTrue(score.ServedCount == 1, "ScoreManager should expose served count.");
+            AssertTrue(score.HitCount == 1, "ScoreManager should expose hit count.");
+            AssertTrue(score.MissedCount == 1, "ScoreManager should expose missed count.");
+            AssertTrue(score.LastHitSpeed > 4f, "ScoreManager should expose last hit speed.");
+            AssertTrue(score.LastSpinSpeed > 17f, "ScoreManager should expose last spin speed.");
+            AssertTrue(score.Accuracy > 99f, "ScoreManager should expose accuracy as a percentage.");
+
+            score.ResetScore();
+
+            AssertTrue(score.ServedCount == 0, "ResetScore should clear served count.");
+            AssertTrue(score.HitCount == 0, "ResetScore should clear hit count.");
+            AssertTrue(score.MissedCount == 0, "ResetScore should clear missed count.");
+            AssertTrue(score.LastHitSpeed == 0f, "ResetScore should clear last hit speed.");
+            AssertTrue(score.LastSpinSpeed == 0f, "ResetScore should clear last spin speed.");
+            AssertTrue(score.Accuracy == 0f, "ResetScore should clear accuracy.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(scoreObject);
+        }
+    }
+
+    private static void BallSpawnerServingStateTransitions()
+    {
+        var spawnerObject = new GameObject("BallSpawnerState");
+        try
+        {
+            var spawner = spawnerObject.AddComponent<BallSpawner>();
+            AssertTrue(!spawner.IsServing, "BallSpawner should start idle.");
+
+            spawner.StartServing();
+            AssertTrue(spawner.IsServing, "StartServing should mark the spawner as serving.");
+
+            spawner.StopServing();
+            AssertTrue(!spawner.IsServing, "StopServing should mark the spawner as stopped.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(spawnerObject);
+        }
+    }
+
+    private static void UnifiedPanelServingButtonTogglesState()
+    {
+        var canvasObject = new GameObject("UnifiedPanelCanvas", typeof(RectTransform), typeof(Canvas));
+        var scoreObject = new GameObject("UnifiedPanelScore");
+        var spawnerObject = new GameObject("UnifiedPanelSpawner");
+        var difficultyObject = new GameObject("UnifiedPanelDifficulty");
+        try
+        {
+            var score = scoreObject.AddComponent<ScoreManager>();
+            score.useUnifiedControlPanel = true;
+            var spawner = spawnerObject.AddComponent<BallSpawner>();
+            var difficulty = difficultyObject.AddComponent<PingPongDifficultyController>();
+            difficulty.ballSpawner = spawner;
+            difficulty.displayStandalonePanel = false;
+            difficulty.enhancePanelReadability = false;
+            difficulty.ApplyLoadedDifficulty();
+
+            var panel = PingPongUnifiedControlPanel.EnsureRuntimePanel(canvasObject.transform, score, spawner, difficulty, null, null);
+            AssertTrue(panel != null && panel.servingToggleButton != null, "Unified panel should create a serving toggle button.");
+            AssertTrue(panel.titleText != null && panel.titleText.text == "\u4e52\u4e53\u7403\u8bad\u7ec3", "Unified panel should show a readable Chinese title.");
+            AssertTrue(panel.resetButton != null && panel.resetButton.gameObject.activeSelf, "Unified panel should show the reset button.");
+            AssertTrue(panel.homeButton != null && panel.homeButton.gameObject.activeSelf, "Unified panel should show the home button.");
+
+            panel.servingToggleButton.onClick.Invoke();
+            AssertTrue(spawner.IsServing, "Unified panel serving button should start serving.");
+
+            panel.servingToggleButton.onClick.Invoke();
+            AssertTrue(!spawner.IsServing, "Unified panel serving button should stop serving.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(difficultyObject);
+            Object.DestroyImmediate(spawnerObject);
+            Object.DestroyImmediate(scoreObject);
+            Object.DestroyImmediate(canvasObject);
+        }
+    }
+
+    private static void UnifiedPanelResetDoesNotStopServing()
+    {
+        var canvasObject = new GameObject("UnifiedPanelResetCanvas", typeof(RectTransform), typeof(Canvas));
+        var scoreObject = new GameObject("UnifiedPanelResetScore");
+        var spawnerObject = new GameObject("UnifiedPanelResetSpawner");
+        try
+        {
+            var score = scoreObject.AddComponent<ScoreManager>();
+            score.useUnifiedControlPanel = true;
+            var spawner = spawnerObject.AddComponent<BallSpawner>();
+            var panel = PingPongUnifiedControlPanel.EnsureRuntimePanel(canvasObject.transform, score, spawner, null, null, null);
+
+            PingPongEvents.BallServed(new BallServedInfo(scoreObject, Vector3.zero, Vector3.forward, Vector3.zero, PingPongServeProfile.Basic));
+            spawner.StartServing();
+            panel.resetButton.onClick.Invoke();
+
+            AssertTrue(spawner.IsServing, "Unified panel reset button should not stop serving.");
+            AssertTrue(score.ServedCount == 0 && score.HitCount == 0 && score.MissedCount == 0, "Unified panel reset button should reset score data.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(spawnerObject);
+            Object.DestroyImmediate(scoreObject);
+            Object.DestroyImmediate(canvasObject);
+        }
+    }
+
+    private static void UnifiedPanelHomeButtonCallsShowHome()
+    {
+        var canvasObject = new GameObject("UnifiedPanelHomeCanvas", typeof(RectTransform), typeof(Canvas));
+        var homeRoot = new GameObject("HomeRoot");
+        var pingPongRoot = new GameObject("PingPongRoot");
+        var scoreObject = new GameObject("UnifiedPanelHomeScore");
+        var spawnerObject = new GameObject("UnifiedPanelHomeSpawner");
+        var menuObject = new GameObject("UnifiedPanelHomeMenu");
+        try
+        {
+            homeRoot.SetActive(false);
+            pingPongRoot.SetActive(true);
+
+            var score = scoreObject.AddComponent<ScoreManager>();
+            score.useUnifiedControlPanel = true;
+            var spawner = spawnerObject.AddComponent<BallSpawner>();
+            spawner.StartServing();
+
+            var menu = menuObject.AddComponent<ElderCareHomeMenu>();
+            menu.homeRoot = homeRoot;
+            menu.pingPongGameplayRoots = new[] { pingPongRoot, canvasObject };
+            menu.ballSpawner = spawner;
+            menu.scoreManager = score;
+            menu.placeHomeUiOnShow = false;
+
+            var panel = PingPongUnifiedControlPanel.EnsureRuntimePanel(canvasObject.transform, score, spawner, null, menu, null);
+            panel.homeButton.onClick.Invoke();
+
+            AssertTrue(homeRoot.activeSelf, "Unified panel home button should call ShowHome and show the home root.");
+            AssertTrue(!pingPongRoot.activeSelf, "Unified panel home button should call ShowHome and hide gameplay roots.");
+            AssertTrue(!spawner.IsServing, "ShowHome should remain responsible for stopping serving.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(menuObject);
+            Object.DestroyImmediate(spawnerObject);
+            Object.DestroyImmediate(scoreObject);
+            Object.DestroyImmediate(pingPongRoot);
+            Object.DestroyImmediate(homeRoot);
             Object.DestroyImmediate(canvasObject);
         }
     }
@@ -635,6 +805,17 @@ public static class PingPongPhysicsSelfTests
         {
             throw new System.Exception(message);
         }
+    }
+
+    private static void SetPrivateField(object target, string fieldName, object value)
+    {
+        var field = target.GetType().GetField(fieldName, BindingFlags.Instance | BindingFlags.NonPublic);
+        if (field == null)
+        {
+            throw new System.Exception($"Missing private field {fieldName}.");
+        }
+
+        field.SetValue(target, value);
     }
 
     private static bool IsChildActive(Transform parent, string path)

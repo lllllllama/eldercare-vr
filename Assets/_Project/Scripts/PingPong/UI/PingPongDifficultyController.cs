@@ -36,17 +36,19 @@ public class PingPongDifficultyController : MonoBehaviour
     [Range(1.5f, 5.0f)] public float customSpeed = 3.1f;
     public bool controlServeInterval = true;
     public bool enhancePanelReadability = true;
+    public bool displayStandalonePanel = true;
     public bool showScreenButtons = false;
     public bool enableControllerSpeedButtons = true;
     public XRNode controllerButtonNode = XRNode.RightHand;
 
     private readonly List<InputDevice> _buttonDevices = new List<InputDevice>();
     private PingPongDifficulty _difficulty;
+    private bool _difficultyInitialized;
     private bool _buttonsWired;
     private bool _wasAcceleratePressed;
     private bool _wasDeceleratePressed;
 
-    public PingPongDifficulty CurrentDifficulty => _difficulty;
+    public PingPongDifficulty CurrentDifficulty => _difficultyInitialized ? _difficulty : LoadDifficulty();
     public float CurrentSpeed => ballSpawner != null ? ballSpawner.serveSpeed : GetPreset(startingDifficulty).speed;
 
     public static PingPongDifficultyController EnsureRuntimePanel(Transform canvasTransform, BallSpawner spawner, TMP_FontAsset fontAsset)
@@ -106,6 +108,7 @@ public class PingPongDifficultyController : MonoBehaviour
         controller.increaseButton = null;
         controller.startingDifficulty = PingPongDifficulty.Normal;
         controller.controlServeInterval = true;
+        controller.displayStandalonePanel = true;
         controller.showScreenButtons = false;
         controller.enableControllerSpeedButtons = true;
         controller.RebindButtons();
@@ -207,6 +210,7 @@ public class PingPongDifficultyController : MonoBehaviour
 
     public void ApplyReadabilityLayout()
     {
+        if (!displayStandalonePanel) return;
         if (!enhancePanelReadability) return;
 
         var rootRect = transform as RectTransform;
@@ -296,6 +300,7 @@ public class PingPongDifficultyController : MonoBehaviour
     private void ApplyDifficulty(PingPongDifficulty difficulty, bool persist)
     {
         _difficulty = difficulty;
+        _difficultyInitialized = true;
         var preset = difficulty == PingPongDifficulty.Custom
             ? new DifficultyPreset(GetLabel(difficulty), customSpeed, 4.0f)
             : GetPreset(difficulty);
