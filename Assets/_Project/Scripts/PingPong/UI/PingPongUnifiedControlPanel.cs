@@ -330,15 +330,27 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
         var canvas = rootRect != null ? rootRect.GetComponentInParent<Canvas>(true) : null;
         var canvasTransform = canvas != null ? canvas.transform : rootRect != null ? rootRect.parent : null;
         var placer = canvasTransform != null ? canvasTransform.GetComponent<ComfortWorldSpaceUIPlacer>() : null;
-        var surfaceDrag = WorldSpaceUiRayDragHandle.EnsureOnSurface(background, rootRect, placer);
-        if (surfaceDrag != null)
+
+        // Background 只负责显示，不参与拖动，避免按钮误触。
+        if (background != null)
         {
-            surfaceDrag.targetRoot = rootRect;
-            surfaceDrag.lockWorldHeight = true;
+            background.raycastTarget = false;
+
+            var oldBackgroundDrag = background.GetComponent<WorldSpaceUiRayDragHandle>();
+            if (oldBackgroundDrag != null)
+            {
+                DestroyComponent(oldBackgroundDrag);
+            }
         }
 
+        // 上半部分作为唯一拖动区域。
         var handle = GetOrCreateChild(rootRect, "DragHandle");
-        var handleRect = ConfigureRect(handle, new Vector2(480f, 34f), new Vector2(0f, 344f));
+        var handleRect = ConfigureRect(
+            handle,
+            new Vector2(PanelSize.x, PanelSize.y * 0.5f),
+            new Vector2(0f, PanelSize.y * 0.25f)
+        );
+
         handleRect.SetAsLastSibling();
 
         var image = handle.GetComponent<Image>();
@@ -347,8 +359,9 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
             image = handle.AddComponent<Image>();
         }
 
+        // 保持可射线命中，但视觉上接近隐藏。
         image.raycastTarget = true;
-        image.color = new Color(0.35f, 0.95f, 1f, 0.42f);
+        image.color = new Color(0.35f, 0.75f, 0.9f, 0.05f);
 
         var drag = handle.GetComponent<WorldSpaceUiRayDragHandle>();
         if (drag == null)
@@ -361,7 +374,7 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
         drag.headTransform = placer != null ? placer.headTransform : Camera.main != null ? Camera.main.transform : null;
         drag.handleGraphic = image;
         drag.normalColor = image.color;
-        drag.activeColor = new Color(0.68f, 1f, 1f, 0.76f);
+        drag.activeColor = new Color(0.68f, 1f, 1f, 0.18f);
         drag.minDistanceMeters = 0.9f;
         drag.maxDistanceMeters = 3.8f;
         drag.lockWorldHeight = true;

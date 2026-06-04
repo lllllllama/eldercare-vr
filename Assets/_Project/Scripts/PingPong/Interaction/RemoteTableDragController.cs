@@ -29,7 +29,7 @@ public class RemoteTableDragController : MonoBehaviour
     public float maxDistanceFromUser = 3.0f;
     public bool controlServing = true;
     public bool clearBallsWhenDragging = true;
-    public bool resumeServingOnRelease = true;
+    public bool resumeServingOnRelease = false;
 
     private readonly List<InputDevice> _devices = new List<InputDevice>();
     private readonly RaycastHit[] _raycastHits = new RaycastHit[24];
