@@ -1130,6 +1130,8 @@ MonoBehaviour:
   videoMovePlaneDistanceMeters: 1.8
   triggerThreshold: 0.65
   videoColliderDepthMeters: 0.05
+  lockTrainingAreaVerticalMovement: 1
+  lockVideoPanelVerticalMovement: 1
 --- !u!1 &290964135
 GameObject:
   m_ObjectHideFlags: 0
@@ -3418,30 +3420,96 @@ MonoBehaviour:
   debugBackground: {fileID: 0}
   debugBorder: {fileID: 0}
   bindings:
-  - movementId: 
-    movementName: "\u53CC\u624B\u6258\u5929\u7406\u4E09\u7126"
-    videoClip: {fileID: 32900000, guid: 24a7134dc85b3d9479fd068db4b9e0ab, type: 3}
-  - movementId: 
-    movementName: "\u5DE6\u53F3\u5F00\u5F13\u4F3C\u5C04\u96D5"
-    videoClip: {fileID: 32900000, guid: 3c75b8d41e22fb146a46c0878090ba94, type: 3}
-  - movementId: 
-    movementName: "\u8C03\u7406\u813E\u80C3\u987B\u5355\u4E3E"
-    videoClip: {fileID: 32900000, guid: ab34b5e6150b82245b2c577b749b57c8, type: 3}
-  - movementId: 
-    movementName: "\u4E94\u52B3\u4E03\u4F24\u5F80\u540E\u77A7"
-    videoClip: {fileID: 32900000, guid: 7a5e7559c42430c4ebccb19da2f39d20, type: 3}
-  - movementId: 
-    movementName: "\u6447\u5934\u6446\u5C3E\u53BB\u5FC3\u706B"
-    videoClip: {fileID: 32900000, guid: ff4df7da3ebd006469c6711763483da3, type: 3}
-  - movementId: 
+  - movementId: Baduanjin_Guoti_00_WujiZhuang
+    movementName: "\u65E0\u6781\u6869"
+    videoClip: {fileID: 32900000, guid: d7acb81c5acb7a747bf570df8e1839ef, type: 3}
+  - movementId: Baduanjin_Guoti_01_BaoqiuZhuang
+    movementName: "\u62B1\u7403\u6869\uFF08\u9884\u5907\u52BF\uFF09"
+    videoClip: {fileID: 32900000, guid: 0be80af07f651314aa293022131c0f21, type: 3}
+  - movementId: Baduanjin_Guoti_02_LiangshouTuotian
+    movementName: "\u4E24\u624B\u6258\u5929\u7406\u4E09\u7126\uFF086 \u6B21\uFF09"
+    videoClip: {fileID: 32900000, guid: 97e93313704a83342add5866efe2db83, type: 3}
+  - movementId: Baduanjin_Guoti_03_YouKaigong
+    movementName: "\u53F3\u5F00\u5F13"
+    videoClip: {fileID: 32900000, guid: 80e8f3ba663548143a9f45903b9ae20a, type: 3}
+  - movementId: Baduanjin_Guoti_04_YouKaigongBingbu
+    movementName: "\u53F3\u5F00\u5DE5\u5E76\u6B65"
+    videoClip: {fileID: 32900000, guid: 8484b5336da827c49bd4d20d2dddf9b0, type: 3}
+  - movementId: Baduanjin_Guoti_05_ZuoKaigong
+    movementName: "\u5DE6\u5F00\u5DE5"
+    videoClip: {fileID: 32900000, guid: c7f28963201989a4398d7b0d6489f1fc, type: 3}
+  - movementId: Baduanjin_Guoti_06_ZuoKaigongBingbu
+    movementName: "\u5DE6\u5F00\u5F13\u5E76\u6B65"
+    videoClip: {fileID: 32900000, guid: 8dd1a4b6e94a8c248a93356fa1b04528, type: 3}
+  - movementId: Baduanjin_Guoti_07_YouShangju
+    movementName: "\u53F3\u4E0A\u4E3E"
+    videoClip: {fileID: 32900000, guid: 1035b12c7b575594bbc4225296f514b3, type: 3}
+  - movementId: Baduanjin_Guoti_08_YouXialuo
+    movementName: "\u53F3\u4E0B\u843D"
+    videoClip: {fileID: 32900000, guid: af2dd155c3ae3da47a877e600baa518f, type: 3}
+  - movementId: Baduanjin_Guoti_09_ZuoShangju
+    movementName: "\u5DE6\u4E0A\u4E3E"
+    videoClip: {fileID: 32900000, guid: 9378fa978ffb65240bf50837c1c6ebdd, type: 3}
+  - movementId: Baduanjin_Guoti_10_ZuoXialuo
+    movementName: "\u5DE6\u4E0B\u843D"
+    videoClip: {fileID: 32900000, guid: 1f39c258ca6ae1841baee89d4fc245f9, type: 3}
+  - movementId: Baduanjin_Guoti_11_YouHouqiao
+    movementName: "\u53F3\u540E\u77A7"
+    videoClip: {fileID: 32900000, guid: f70a469f41a5d474bb3c4fc9f7e7f630, type: 3}
+  - movementId: Baduanjin_Guoti_12_YouHouqiaoZhuanzheng
+    movementName: "\u53F3\u540E\u77A7\u8F6C\u6B63"
+    videoClip: {fileID: 32900000, guid: e4cda0310a5bfae498782841a640304e, type: 3}
+  - movementId: Baduanjin_Guoti_13_ZuoHouqiao
+    movementName: "\u5DE6\u540E\u77A7"
+    videoClip: {fileID: 32900000, guid: b49254d00da2b934b870fa917d2f9e1f, type: 3}
+  - movementId: Baduanjin_Guoti_14_ZuoHouqiaoZhuanzheng
+    movementName: "\u5DE6\u540E\u77A7\u8F6C\u6B63"
+    videoClip: {fileID: 32900000, guid: 957be647c77687d4b840f38a2926b882, type: 3}
+  - movementId: Baduanjin_Guoti_15_ShangtuoXiaan
+    movementName: "\u4E0A\u6258\u4E0B\u6309"
+    videoClip: {fileID: 32900000, guid: 73330f37a8a2cd949bf687e8d5fd7b64, type: 3}
+  - movementId: Baduanjin_Guoti_16_YouxuanYaotouBaiwei
+    movementName: "\u53F3\u65CB\u6447\u5934\u6446\u5C3E"
+    videoClip: {fileID: 32900000, guid: 840c5421cbd5a244db97aa90a0de2e5b, type: 3}
+  - movementId: Baduanjin_Guoti_17_ZuoxuanYaotouBaiwei
+    movementName: "\u5DE6\u65CB\u6447\u5934\u6446\u5C3E"
+    videoClip: {fileID: 32900000, guid: 74a3beadc7fa7304f848ce84cb18526b, type: 3}
+  - movementId: Baduanjin_Guoti_18_LiangshouPanzu
     movementName: "\u4E24\u624B\u6500\u8DB3\u56FA\u80BE\u8170"
-    videoClip: {fileID: 32900000, guid: 15707cd9ee9a9014580ade6bb5586a8d, type: 3}
-  - movementId: 
-    movementName: "\u6512\u62F3\u6012\u76EE\u589E\u6C14\u529B"
-    videoClip: {fileID: 32900000, guid: 823a733c7df74dc40a8da9e5eef1cc7d, type: 3}
-  - movementId: 
-    movementName: "\u80CC\u540E\u4E03\u98A0\u767E\u75C5\u6D88"
-    videoClip: {fileID: 32900000, guid: c7a58afda2d241d478e660345831d258, type: 3}
+    videoClip: {fileID: 32900000, guid: 02fa7afce87f170449cfa680457ccf3b, type: 3}
+  - movementId: Baduanjin_Guoti_19_TaishouFanchuan
+    movementName: "\u62AC\u624B\u53CD\u7A7F"
+    videoClip: {fileID: 32900000, guid: b1378f827ef70c148879496ceabe15cb, type: 3}
+  - movementId: Baduanjin_Guoti_20_FanchuanPanzu
+    movementName: "\u53CD\u7A7F\u6500\u8DB3"
+    videoClip: {fileID: 32900000, guid: e4c75869d5419de44ad13e39213361f3, type: 3}
+  - movementId: Baduanjin_Guoti_21_PanzuJushou
+    movementName: "\u6500\u8DB3\u4E3E\u624B"
+    videoClip: {fileID: 32900000, guid: 89d203f705a04c745a1871ba1201edd8, type: 3}
+  - movementId: Baduanjin_Guoti_22_JushouXiaanFuwei
+    movementName: "\u4E3E\u624B\u4E0B\u6309\u590D\u4F4D"
+    videoClip: {fileID: 32900000, guid: 6ab9ac02b1d4ae741b3c2600e2698607, type: 3}
+  - movementId: Baduanjin_Guoti_23_CuanquanMabu
+    movementName: "\u6512\u62F3\u9A6C\u6B65"
+    videoClip: {fileID: 32900000, guid: c140411d92341f0478bc01ada030ee4c, type: 3}
+  - movementId: Baduanjin_Guoti_24_ChuquanShouquan
+    movementName: "\u51FA\u62F3\u6536\u62F3"
+    videoClip: {fileID: 32900000, guid: d7c7adf5a0735aa418f4718a282e7066, type: 3}
+  - movementId: Baduanjin_Guoti_25_HuanshouChuquanShouquan
+    movementName: "\u6362\u624B\u51FA\u62F3\u6536\u62F3"
+    videoClip: {fileID: 32900000, guid: 97f28c6c558b42544bdf0c93432d0c17, type: 3}
+  - movementId: Baduanjin_Guoti_26_JieshuFuwei
+    movementName: "\u7ED3\u675F\u590D\u4F4D"
+    videoClip: {fileID: 32900000, guid: 1ad7b83890f8e164bb29c5548c9028ed, type: 3}
+  - movementId: Baduanjin_Guoti_27_Tizhong
+    movementName: "\u63D0\u8E35"
+    videoClip: {fileID: 32900000, guid: acf89e288abb72246911c9cdd726e124, type: 3}
+  - movementId: Baduanjin_Guoti_28_ShuangshouBaofu
+    movementName: "\u53CC\u624B\u62B1\u8179"
+    videoClip: {fileID: 32900000, guid: c37b02ea242bd994ab1496859aaebece, type: 3}
+  - movementId: Baduanjin_Guoti_29_ShoushiTiaoxi
+    movementName: "\u6536\u52BF\u8C03\u606F"
+    videoClip: {fileID: 32900000, guid: a33411cee0c30bc42826d1b25b027c91, type: 3}
 --- !u!82 &902136583
 AudioSource:
   m_ObjectHideFlags: 0
@@ -3608,6 +3676,7 @@ MonoBehaviour:
   followTrainingAreaRoot: 0
   preserveUserPlacement: 1
   faceUser: 1
+  lockManualMoveHeight: 1
 --- !u!1 &903063625
 GameObject:
   m_ObjectHideFlags: 0
@@ -7432,6 +7501,7 @@ MonoBehaviour:
   timerText: {fileID: 2097182467}
   debugText: {fileID: 1894153881}
   sessionDurationSeconds: 300
+  useGuotiDetailedBaduanjin: 1
   useVideoDurationForMovement: 1
   defaultMovementDurationSeconds: 25
   minMovementDurationSeconds: 10

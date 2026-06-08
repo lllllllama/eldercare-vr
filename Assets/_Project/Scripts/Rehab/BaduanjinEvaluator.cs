@@ -82,6 +82,49 @@ namespace PicoElderCare.Rehab
                     return EvaluateGentlePunch(sample);
                 case RehabMovementId.Baduanjin_HeelRaiseFinish:
                     return EvaluateHeelRaiseOrSeatedFinish(sample);
+                case RehabMovementId.Baduanjin_Guoti_00_WujiZhuang:
+                case RehabMovementId.Baduanjin_Guoti_01_BaoqiuZhuang:
+                case RehabMovementId.Baduanjin_Guoti_28_ShuangshouBaofu:
+                case RehabMovementId.Baduanjin_Guoti_29_ShoushiTiaoxi:
+                    return EvaluateStableStandingOrBreathing(sample);
+                case RehabMovementId.Baduanjin_Guoti_02_LiangshouTuotian:
+                    return EvaluateTwoHandsLiftHeaven(sample);
+                case RehabMovementId.Baduanjin_Guoti_03_YouKaigong:
+                case RehabMovementId.Baduanjin_Guoti_04_YouKaigongBingbu:
+                    return EvaluateDrawBow(sample, 1);
+                case RehabMovementId.Baduanjin_Guoti_05_ZuoKaigong:
+                case RehabMovementId.Baduanjin_Guoti_06_ZuoKaigongBingbu:
+                    return EvaluateDrawBow(sample, 0);
+                case RehabMovementId.Baduanjin_Guoti_07_YouShangju:
+                case RehabMovementId.Baduanjin_Guoti_08_YouXialuo:
+                    return EvaluateSingleRaise(sample, 1);
+                case RehabMovementId.Baduanjin_Guoti_09_ZuoShangju:
+                case RehabMovementId.Baduanjin_Guoti_10_ZuoXialuo:
+                    return EvaluateSingleRaise(sample, 0);
+                case RehabMovementId.Baduanjin_Guoti_11_YouHouqiao:
+                case RehabMovementId.Baduanjin_Guoti_12_YouHouqiaoZhuanzheng:
+                    return EvaluateLookBack(sample, 1, deltaTime);
+                case RehabMovementId.Baduanjin_Guoti_13_ZuoHouqiao:
+                case RehabMovementId.Baduanjin_Guoti_14_ZuoHouqiaoZhuanzheng:
+                    return EvaluateLookBack(sample, 0, deltaTime);
+                case RehabMovementId.Baduanjin_Guoti_15_ShangtuoXiaan:
+                case RehabMovementId.Baduanjin_Guoti_17_ZuoxuanYaotouBaiwei:
+                    return EvaluateGentleSway(sample, 0);
+                case RehabMovementId.Baduanjin_Guoti_16_YouxuanYaotouBaiwei:
+                    return EvaluateGentleSway(sample, 1);
+                case RehabMovementId.Baduanjin_Guoti_18_LiangshouPanzu:
+                case RehabMovementId.Baduanjin_Guoti_19_TaishouFanchuan:
+                case RehabMovementId.Baduanjin_Guoti_20_FanchuanPanzu:
+                case RehabMovementId.Baduanjin_Guoti_21_PanzuJushou:
+                case RehabMovementId.Baduanjin_Guoti_22_JushouXiaanFuwei:
+                    return EvaluateReachDown(sample);
+                case RehabMovementId.Baduanjin_Guoti_23_CuanquanMabu:
+                case RehabMovementId.Baduanjin_Guoti_24_ChuquanShouquan:
+                case RehabMovementId.Baduanjin_Guoti_25_HuanshouChuquanShouquan:
+                case RehabMovementId.Baduanjin_Guoti_26_JieshuFuwei:
+                    return EvaluateGentlePunch(sample);
+                case RehabMovementId.Baduanjin_Guoti_27_Tizhong:
+                    return EvaluateHeelRaiseOrSeatedFinish(sample);
                 default:
                     return Invalid("当前动作尚未接入八段锦判定");
             }
@@ -136,6 +179,11 @@ namespace PicoElderCare.Rehab
                     "康复简化版：轻微提踵或坐姿收尾，不做震脚。",
                     new MovementStepDefinition("轻提踵收尾", "轻微抬高身体或双手放松收尾，保持稳定", 1.5f, 25f))
             };
+        }
+
+        private BaduanjinStepEvaluation EvaluateStableStandingOrBreathing(RehabPoseSample sample)
+        {
+            return Result(sample.IsValid, "\u4fdd\u6301\u7a33\u5b9a\u7ad9\u7acb\u6216\u81ea\u7136\u8c03\u606f", 1f, 1f);
         }
 
         private BaduanjinStepEvaluation EvaluateTwoHandsLiftHeaven(RehabPoseSample sample)

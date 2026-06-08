@@ -12,19 +12,18 @@ public static class RehabVideoGuideSceneRepair
     private const string RenderTexturePath = "Assets/_Project/RenderTextures/RehabVideoRT.renderTexture";
     private const string VideoMaterialPath = "Assets/_Project/Materials/RehabVideoMaterial.mat";
 
-    private static readonly string[] BaduanjinMovementNames =
+    private static readonly string[] LegacyBaduanjinMovementNames =
     {
-        "双手托天理三焦",
-        "左右开弓似射雕",
-        "调理脾胃须单举",
-        "五劳七伤往后瞧",
-        "摇头摆尾去心火",
-        "两手攀足固肾腰",
-        "攒拳怒目增气力",
-        "背后七颠百病消"
+        "\u4e24\u624b\u6258\u5929\u7406\u4e09\u7126",
+        "\u5de6\u53f3\u5f00\u5f13\u4f3c\u5c04\u96d5",
+        "\u8c03\u7406\u813e\u80c3\u987b\u5355\u4e3e",
+        "\u4e94\u52b3\u4e03\u4f24\u5f80\u540e\u77a7",
+        "\u6447\u5934\u6446\u5c3e\u53bb\u5fc3\u706b",
+        "\u4e24\u624b\u6500\u8db3\u56fa\u80be\u8170",
+        "\u6512\u62f3\u6012\u76ee\u589e\u6c14\u529b",
+        "\u80cc\u540e\u4e03\u98a0\u767e\u75c5\u6d88"
     };
-
-    private static readonly string[] BaduanjinVideoPaths =
+    private static readonly string[] LegacyBaduanjinVideoPaths =
     {
         "Assets/_Project/Videos/Rehab/Baduanjin/01_shuangshoutuotian.mp4",
         "Assets/_Project/Videos/Rehab/Baduanjin/02_zuoyoukaigong.mp4",
@@ -34,6 +33,108 @@ public static class RehabVideoGuideSceneRepair
         "Assets/_Project/Videos/Rehab/Baduanjin/06_liangshoupanzu.mp4",
         "Assets/_Project/Videos/Rehab/Baduanjin/07_cuanquannumu.mp4",
         "Assets/_Project/Videos/Rehab/Baduanjin/08_beihouqidian.mp4"
+    };
+
+    private static readonly RehabMovementId[] BaduanjinMovementIds =
+    {
+        RehabMovementId.Baduanjin_Guoti_00_WujiZhuang,
+        RehabMovementId.Baduanjin_Guoti_01_BaoqiuZhuang,
+        RehabMovementId.Baduanjin_Guoti_02_LiangshouTuotian,
+        RehabMovementId.Baduanjin_Guoti_03_YouKaigong,
+        RehabMovementId.Baduanjin_Guoti_04_YouKaigongBingbu,
+        RehabMovementId.Baduanjin_Guoti_05_ZuoKaigong,
+        RehabMovementId.Baduanjin_Guoti_06_ZuoKaigongBingbu,
+        RehabMovementId.Baduanjin_Guoti_07_YouShangju,
+        RehabMovementId.Baduanjin_Guoti_08_YouXialuo,
+        RehabMovementId.Baduanjin_Guoti_09_ZuoShangju,
+        RehabMovementId.Baduanjin_Guoti_10_ZuoXialuo,
+        RehabMovementId.Baduanjin_Guoti_11_YouHouqiao,
+        RehabMovementId.Baduanjin_Guoti_12_YouHouqiaoZhuanzheng,
+        RehabMovementId.Baduanjin_Guoti_13_ZuoHouqiao,
+        RehabMovementId.Baduanjin_Guoti_14_ZuoHouqiaoZhuanzheng,
+        RehabMovementId.Baduanjin_Guoti_15_ShangtuoXiaan,
+        RehabMovementId.Baduanjin_Guoti_16_YouxuanYaotouBaiwei,
+        RehabMovementId.Baduanjin_Guoti_17_ZuoxuanYaotouBaiwei,
+        RehabMovementId.Baduanjin_Guoti_18_LiangshouPanzu,
+        RehabMovementId.Baduanjin_Guoti_19_TaishouFanchuan,
+        RehabMovementId.Baduanjin_Guoti_20_FanchuanPanzu,
+        RehabMovementId.Baduanjin_Guoti_21_PanzuJushou,
+        RehabMovementId.Baduanjin_Guoti_22_JushouXiaanFuwei,
+        RehabMovementId.Baduanjin_Guoti_23_CuanquanMabu,
+        RehabMovementId.Baduanjin_Guoti_24_ChuquanShouquan,
+        RehabMovementId.Baduanjin_Guoti_25_HuanshouChuquanShouquan,
+        RehabMovementId.Baduanjin_Guoti_26_JieshuFuwei,
+        RehabMovementId.Baduanjin_Guoti_27_Tizhong,
+        RehabMovementId.Baduanjin_Guoti_28_ShuangshouBaofu,
+        RehabMovementId.Baduanjin_Guoti_29_ShoushiTiaoxi
+    };
+
+    private static readonly string[] BaduanjinMovementNames =
+    {
+        "\u65e0\u6781\u6869",
+        "\u62b1\u7403\u6869\uff08\u9884\u5907\u52bf\uff09",
+        "\u4e24\u624b\u6258\u5929\u7406\u4e09\u7126\uff086 \u6b21\uff09",
+        "\u53f3\u5f00\u5f13",
+        "\u53f3\u5f00\u5de5\u5e76\u6b65",
+        "\u5de6\u5f00\u5de5",
+        "\u5de6\u5f00\u5f13\u5e76\u6b65",
+        "\u53f3\u4e0a\u4e3e",
+        "\u53f3\u4e0b\u843d",
+        "\u5de6\u4e0a\u4e3e",
+        "\u5de6\u4e0b\u843d",
+        "\u53f3\u540e\u77a7",
+        "\u53f3\u540e\u77a7\u8f6c\u6b63",
+        "\u5de6\u540e\u77a7",
+        "\u5de6\u540e\u77a7\u8f6c\u6b63",
+        "\u4e0a\u6258\u4e0b\u6309",
+        "\u53f3\u65cb\u6447\u5934\u6446\u5c3e",
+        "\u5de6\u65cb\u6447\u5934\u6446\u5c3e",
+        "\u4e24\u624b\u6500\u8db3\u56fa\u80be\u8170",
+        "\u62ac\u624b\u53cd\u7a7f",
+        "\u53cd\u7a7f\u6500\u8db3",
+        "\u6500\u8db3\u4e3e\u624b",
+        "\u4e3e\u624b\u4e0b\u6309\u590d\u4f4d",
+        "\u6512\u62f3\u9a6c\u6b65",
+        "\u51fa\u62f3\u6536\u62f3",
+        "\u6362\u624b\u51fa\u62f3\u6536\u62f3",
+        "\u7ed3\u675f\u590d\u4f4d",
+        "\u63d0\u8e35",
+        "\u53cc\u624b\u62b1\u8179",
+        "\u6536\u52bf\u8c03\u606f"
+    };
+
+    private static readonly string[] BaduanjinVideoPaths =
+    {
+        "Assets/_Project/Videos/Rehab/Baduanjin/GuotiDetailed/00_wuji_zhuang.mp4",
+        "Assets/_Project/Videos/Rehab/Baduanjin/GuotiDetailed/01_baoqiu_zhuang.mp4",
+        "Assets/_Project/Videos/Rehab/Baduanjin/GuotiDetailed/02_liangshou_tuotian.mp4",
+        "Assets/_Project/Videos/Rehab/Baduanjin/GuotiDetailed/03_you_kaigong.mp4",
+        "Assets/_Project/Videos/Rehab/Baduanjin/GuotiDetailed/04_you_kaigong_bingbu.mp4",
+        "Assets/_Project/Videos/Rehab/Baduanjin/GuotiDetailed/05_zuo_kaigong.mp4",
+        "Assets/_Project/Videos/Rehab/Baduanjin/GuotiDetailed/06_zuo_kaigong_bingbu.mp4",
+        "Assets/_Project/Videos/Rehab/Baduanjin/GuotiDetailed/07_you_shangju.mp4",
+        "Assets/_Project/Videos/Rehab/Baduanjin/GuotiDetailed/08_you_xialuo.mp4",
+        "Assets/_Project/Videos/Rehab/Baduanjin/GuotiDetailed/09_zuo_shangju.mp4",
+        "Assets/_Project/Videos/Rehab/Baduanjin/GuotiDetailed/10_zuo_xialuo.mp4",
+        "Assets/_Project/Videos/Rehab/Baduanjin/GuotiDetailed/11_you_houqiao.mp4",
+        "Assets/_Project/Videos/Rehab/Baduanjin/GuotiDetailed/12_you_houqiao_zhuanzheng.mp4",
+        "Assets/_Project/Videos/Rehab/Baduanjin/GuotiDetailed/13_zuo_houqiao.mp4",
+        "Assets/_Project/Videos/Rehab/Baduanjin/GuotiDetailed/14_zuo_houqiao_zhuanzheng.mp4",
+        "Assets/_Project/Videos/Rehab/Baduanjin/GuotiDetailed/15_shangtuo_xiaan.mp4",
+        "Assets/_Project/Videos/Rehab/Baduanjin/GuotiDetailed/16_youxuan_yaotou_baiwei.mp4",
+        "Assets/_Project/Videos/Rehab/Baduanjin/GuotiDetailed/17_zuoxuan_yaotou_baiwei.mp4",
+        "Assets/_Project/Videos/Rehab/Baduanjin/GuotiDetailed/18_liangshou_panzu.mp4",
+        "Assets/_Project/Videos/Rehab/Baduanjin/GuotiDetailed/19_taishou_fanchuan.mp4",
+        "Assets/_Project/Videos/Rehab/Baduanjin/GuotiDetailed/20_fanchuan_panzu.mp4",
+        "Assets/_Project/Videos/Rehab/Baduanjin/GuotiDetailed/21_panzu_jushou.mp4",
+        "Assets/_Project/Videos/Rehab/Baduanjin/GuotiDetailed/22_jushou_xiaan_fuwei.mp4",
+        "Assets/_Project/Videos/Rehab/Baduanjin/GuotiDetailed/23_cuanquan_mabu.mp4",
+        "Assets/_Project/Videos/Rehab/Baduanjin/GuotiDetailed/24_chuquan_shouquan.mp4",
+        "Assets/_Project/Videos/Rehab/Baduanjin/GuotiDetailed/25_huanshou_chuquan_shouquan.mp4",
+        "Assets/_Project/Videos/Rehab/Baduanjin/GuotiDetailed/26_jieshu_fuwei.mp4",
+        "Assets/_Project/Videos/Rehab/Baduanjin/GuotiDetailed/27_tizhong.mp4",
+        "Assets/_Project/Videos/Rehab/Baduanjin/GuotiDetailed/28_shuangshou_baofu.mp4",
+        "Assets/_Project/Videos/Rehab/Baduanjin/GuotiDetailed/29_shoushi_tiaoxi.mp4"
     };
 
     [MenuItem("Tools/PICO ElderCare/Repair Rehab Baduanjin Video Guide")]
@@ -314,22 +415,29 @@ public static class RehabVideoGuideSceneRepair
 
     private static RehabMovementVideoBinding[] CreateBaduanjinBindings(RehabMovementVideoBinding[] existingBindings)
     {
-        var bindings = new RehabMovementVideoBinding[BaduanjinMovementNames.Length];
-        for (var i = 0; i < BaduanjinMovementNames.Length; i++)
+        var count = Mathf.Min(
+            BaduanjinMovementIds.Length,
+            Mathf.Min(BaduanjinMovementNames.Length, BaduanjinVideoPaths.Length));
+        var bindings = new RehabMovementVideoBinding[count];
+        for (var i = 0; i < count; i++)
         {
-            var existing = FindExistingBinding(existingBindings, BaduanjinMovementNames[i], i);
             var clip = AssetDatabase.LoadAssetAtPath<VideoClip>(BaduanjinVideoPaths[i]);
             if (clip == null)
             {
-                Debug.LogWarning($"Missing Baduanjin video clip: {BaduanjinVideoPaths[i]}");
+                Debug.LogWarning($"Missing detailed Baduanjin video clip: {BaduanjinVideoPaths[i]}");
             }
 
             bindings[i] = new RehabMovementVideoBinding
             {
-                movementId = existing != null ? existing.movementId : string.Empty,
+                movementId = BaduanjinMovementIds[i].ToString(),
                 movementName = BaduanjinMovementNames[i],
-                videoClip = clip != null ? clip : existing != null ? existing.videoClip : null
+                videoClip = clip
             };
+        }
+
+        if (count != 30)
+        {
+            Debug.LogWarning($"Detailed Baduanjin binding catalog expected 30 entries, but generated {count}.");
         }
 
         return bindings;

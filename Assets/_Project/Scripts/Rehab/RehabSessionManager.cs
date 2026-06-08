@@ -34,6 +34,7 @@ namespace PicoElderCare.Rehab
         public TMP_Text debugText;
 
         public float sessionDurationSeconds = 300f;
+        [SerializeField] private bool useGuotiDetailedBaduanjin = true;
         [SerializeField] private bool useVideoDurationForMovement = true;
         [SerializeField] private float defaultMovementDurationSeconds = 25f;
         [SerializeField] private float minMovementDurationSeconds = 10f;
@@ -275,7 +276,9 @@ namespace PicoElderCare.Rehab
                     break;
                 default:
                     movementEvaluator.trainingMode = RehabTrainingMode.Baduanjin;
-                    movementEvaluator.movementDefinitions = BaduanjinEvaluator.CreateDefaultMovements();
+                    movementEvaluator.movementDefinitions = useGuotiDetailedBaduanjin
+                        ? BaduanjinGuotiDetailedCatalog.CreateMovements()
+                        : BaduanjinEvaluator.CreateDefaultMovements();
                     break;
             }
 
