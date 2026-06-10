@@ -2858,6 +2858,7 @@ public static class PingPongDemoSceneBuilder
         safety.resumeStableSeconds = 0.5f;
         safety.tableCenterHeightAboveFloor = PingPongGeometry.TableTopHeight - PingPongGeometry.TableThickness * 0.5f;
         safety.controlServing = true;
+        safety.allowAutomaticResumeServing = false;
         safety.clearBallsOnBlock = true;
         safety.moveRigWhenInside = false;
         safety.moveTableWhenInside = false;
@@ -4109,11 +4110,12 @@ public static class PingPongDemoSceneBuilder
             tablePlacer.ballSpawners = Object.FindObjectsOfType<BallSpawner>(true);
             tablePlacer.autoPlaceOnStart = false;
             tablePlacer.clearSavedPlacementOnStart = true;
-            tablePlacer.controlServing = false;
+            tablePlacer.controlServing = true;
+            tablePlacer.allowAutomaticResumeServing = false;
             tablePlacer.clearBallsWhenTableMoves = true;
-            tablePlacer.startServingAfterClearPlacement = true;
-            tablePlacer.startServingAfterManualPlacement = true;
-            tablePlacer.startServingAfterConfirmedPlacementOnly = true;
+            tablePlacer.startServingAfterClearPlacement = false;
+            tablePlacer.startServingAfterManualPlacement = false;
+            tablePlacer.startServingAfterConfirmedPlacementOnly = false;
             tablePlacer.disableSpatialTablePlacementForNow = true;
             tablePlacer.requireRoomSensingColliderForAutoPlacement = true;
             tablePlacer.minimumRoomSensingColliderCount = 1;
@@ -4183,8 +4185,9 @@ public static class PingPongDemoSceneBuilder
         remoteDrag.minDistanceFromUser = 0.7f;
         remoteDrag.maxDistanceFromUser = 3.0f;
         remoteDrag.controlServing = true;
+        remoteDrag.allowAutomaticResumeServing = false;
         remoteDrag.clearBallsWhenDragging = true;
-        remoteDrag.resumeServingOnRelease = true;
+        remoteDrag.resumeServingOnRelease = false;
         EditorUtility.SetDirty(remoteObject);
         return remoteDrag;
     }

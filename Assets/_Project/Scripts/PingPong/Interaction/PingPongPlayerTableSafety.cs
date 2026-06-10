@@ -31,6 +31,7 @@ public class PingPongPlayerTableSafety : MonoBehaviour
     public float resumeStableSeconds = 0.5f;
     public float tableCenterHeightAboveFloor = PingPongGeometry.TableTopHeight - PingPongGeometry.TableThickness * 0.5f;
     public bool controlServing = true;
+    public bool allowAutomaticResumeServing = false;
     public bool clearBallsOnBlock = true;
     public bool moveRigWhenInside = false;
     public bool moveTableWhenInside = false;
@@ -231,7 +232,7 @@ public class PingPongPlayerTableSafety : MonoBehaviour
             spawner.StopServing();
             if (clearBallsOnBlock)
             {
-                spawner.ClearBalls();
+                spawner.ClearBallsWithoutScoring();
             }
         }
 
@@ -241,6 +242,11 @@ public class PingPongPlayerTableSafety : MonoBehaviour
     private void ResumeServingAfterSafety()
     {
         if (!_servingStoppedBySafety) return;
+        if (!controlServing || !allowAutomaticResumeServing)
+        {
+            _servingStoppedBySafety = false;
+            return;
+        }
 
         var spawners = ResolveBallSpawners();
         foreach (var spawner in spawners)

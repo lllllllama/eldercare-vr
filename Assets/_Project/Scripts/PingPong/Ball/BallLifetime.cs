@@ -42,6 +42,11 @@ public class BallLifetime : MonoBehaviour
         Destroy(gameObject);
     }
 
+    public void SuppressMissReport()
+    {
+        _missedReported = true;
+    }
+
     private void ReportMissed(PingPongMissReason reason)
     {
         if (_missedReported) return;

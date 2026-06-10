@@ -15,6 +15,7 @@ public class ElderCareHomeMenu : MonoBehaviour
     public bool showHomeOnStart = true;
     public bool clearBallsWhenLeavingPingPong = true;
     public bool placeHomeUiOnShow = true;
+    public bool startServingWhenOpeningPingPong = false;
 
     private Font _runtimeFont;
 
@@ -108,7 +109,10 @@ public class ElderCareHomeMenu : MonoBehaviour
         if (ballSpawner != null)
         {
             ballSpawner.ClearBalls();
-            ballSpawner.StartServing();
+            if (startServingWhenOpeningPingPong)
+            {
+                ballSpawner.StartServing();
+            }
         }
 
         if (initialViewAligner != null)

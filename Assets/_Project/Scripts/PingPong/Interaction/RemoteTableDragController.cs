@@ -28,6 +28,7 @@ public class RemoteTableDragController : MonoBehaviour
     public float minDistanceFromUser = 0.7f;
     public float maxDistanceFromUser = 3.0f;
     public bool controlServing = true;
+    public bool allowAutomaticResumeServing = false;
     public bool clearBallsWhenDragging = true;
     public bool resumeServingOnRelease = false;
 
@@ -166,7 +167,7 @@ public class RemoteTableDragController : MonoBehaviour
         LockTableUprightYawOnly();
         SimpleGripInteractionState.End(interactionState, SimpleGripInteractionMode.RemoteTableDrag);
 
-        if (resumeServingOnRelease)
+        if (CanResumeServing && resumeServingOnRelease)
         {
             StartServing();
         }
@@ -315,7 +316,7 @@ public class RemoteTableDragController : MonoBehaviour
             spawner.StopServing();
             if (clearBalls)
             {
-                spawner.ClearBalls();
+                spawner.ClearBallsWithoutScoring();
             }
         }
 
@@ -324,7 +325,7 @@ public class RemoteTableDragController : MonoBehaviour
 
     private void StartServing()
     {
-        if (!controlServing || !_servingSuppressed) return;
+        if (!CanResumeServing || !_servingSuppressed) return;
 
         var spawners = ResolveBallSpawners();
         foreach (var spawner in spawners)
@@ -352,6 +353,8 @@ public class RemoteTableDragController : MonoBehaviour
         ballSpawners = FindObjectsOfType<BallSpawner>(true);
         return ballSpawners;
     }
+
+    private bool CanResumeServing => allowAutomaticResumeServing && controlServing;
 
     private bool IsGripPressed()
     {

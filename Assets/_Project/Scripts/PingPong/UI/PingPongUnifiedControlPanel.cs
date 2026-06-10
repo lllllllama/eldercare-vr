@@ -136,6 +136,7 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
         if (ballSpawner.IsServing)
         {
             ballSpawner.StopServing();
+            ballSpawner.ClearBallsWithoutScoring();
         }
         else
         {

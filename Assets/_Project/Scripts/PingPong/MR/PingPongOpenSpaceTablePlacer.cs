@@ -20,10 +20,11 @@ public class PingPongOpenSpaceTablePlacer : MonoBehaviour
     public bool autoPlaceOnStart = true;
     public bool clearSavedPlacementOnStart = true;
     public bool controlServing = true;
+    public bool allowAutomaticResumeServing = false;
     public bool clearBallsWhenTableMoves = true;
-    public bool startServingAfterClearPlacement = true;
-    public bool startServingAfterManualPlacement = true;
-    public bool startServingAfterConfirmedPlacementOnly = true;
+    public bool startServingAfterClearPlacement = false;
+    public bool startServingAfterManualPlacement = false;
+    public bool startServingAfterConfirmedPlacementOnly = false;
     public bool disableSpatialTablePlacementForNow = true;
     public bool requireRoomSensingColliderForAutoPlacement = true;
     public int minimumRoomSensingColliderCount = 1;
@@ -187,7 +188,7 @@ public class PingPongOpenSpaceTablePlacer : MonoBehaviour
         MoveTable(targetPosition, true);
         _searching = false;
 
-        if (startServingAfterClearPlacement)
+        if (CanResumeServing && startServingAfterClearPlacement)
         {
             StartServing();
         }
@@ -247,7 +248,7 @@ public class PingPongOpenSpaceTablePlacer : MonoBehaviour
             spawner.StopServing();
             if (clearBalls)
             {
-                spawner.ClearBalls();
+                spawner.ClearBallsWithoutScoring();
             }
         }
 
@@ -256,7 +257,7 @@ public class PingPongOpenSpaceTablePlacer : MonoBehaviour
 
     private void StartServing()
     {
-        if (!controlServing || !_servingSuppressed) return;
+        if (!CanResumeServing || !_servingSuppressed) return;
 
         var spawners = ResolveBallSpawners();
         foreach (var spawner in spawners)
@@ -468,8 +469,9 @@ public class PingPongOpenSpaceTablePlacer : MonoBehaviour
         remoteTableDragController.minDistanceFromUser = 0.7f;
         remoteTableDragController.maxDistanceFromUser = maxUserTableDistanceMeters;
         remoteTableDragController.controlServing = controlServing;
+        remoteTableDragController.allowAutomaticResumeServing = allowAutomaticResumeServing;
         remoteTableDragController.clearBallsWhenDragging = clearBallsWhenTableMoves;
-        remoteTableDragController.resumeServingOnRelease = startServingAfterManualPlacement;
+        remoteTableDragController.resumeServingOnRelease = CanResumeServing && startServingAfterManualPlacement;
     }
 
     private void DisableSpatialTableControls()
@@ -494,6 +496,8 @@ public class PingPongOpenSpaceTablePlacer : MonoBehaviour
             remoteTableDragController.enabled = enableRemoteDrag;
         }
     }
+
+    private bool CanResumeServing => allowAutomaticResumeServing && controlServing;
 
     private static void PrepareRoomSensingTemplates()
     {

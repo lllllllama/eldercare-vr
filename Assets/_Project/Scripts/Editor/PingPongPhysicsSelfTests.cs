@@ -34,6 +34,7 @@ public static class PingPongPhysicsSelfTests
         UnifiedPanelServingButtonTogglesState();
         UnifiedPanelResetDoesNotStopServing();
         UnifiedPanelHomeButtonCallsShowHome();
+        ServingAutomationStaysPanelControlled();
         SpatialTablePlacementIsDisabledButManualDragStaysEnabled();
         OpenSpacePlacementWaitsForRoomSensingColliders();
         OpenSpacePlacementAvoidsTableObstacle();
@@ -587,6 +588,128 @@ public static class PingPongPhysicsSelfTests
         }
     }
 
+    private static void ServingAutomationStaysPanelControlled()
+    {
+        var canvasObject = new GameObject("PanelOnlyServingCanvas", typeof(RectTransform), typeof(Canvas));
+        var scoreObject = new GameObject("PanelOnlyServingScore");
+        var spawnerObject = new GameObject("PanelOnlyServingSpawner");
+        var ballContainerObject = new GameObject("PanelOnlyBallContainer");
+        var menuObject = new GameObject("PanelOnlyServingMenu");
+        var homeRoot = new GameObject("PanelOnlyHomeRoot");
+        var pingPongRoot = new GameObject("PanelOnlyPingPongRoot");
+        var tableObject = new GameObject("PanelOnlyTable");
+        var hmdObject = new GameObject("PanelOnlyHmd");
+        var controllerObject = new GameObject("PanelOnlyController");
+        var remoteDragObject = new GameObject("PanelOnlyRemoteDrag");
+        var safetyObject = new GameObject("PanelOnlySafety");
+        var existingGripState = Object.FindObjectOfType<SimpleGripInteractionState>(true);
+        try
+        {
+            var score = scoreObject.AddComponent<ScoreManager>();
+            score.useUnifiedControlPanel = true;
+
+            var spawner = spawnerObject.AddComponent<BallSpawner>();
+            spawner.ballContainer = ballContainerObject.transform;
+            AssertTrue(!spawner.autoStartOnPlay, "BallSpawner should not auto-start serving on play.");
+
+            var menu = menuObject.AddComponent<ElderCareHomeMenu>();
+            menu.homeRoot = homeRoot;
+            menu.pingPongGameplayRoots = new[] { pingPongRoot };
+            menu.ballSpawner = spawner;
+            menu.scoreManager = score;
+            menu.placeHomeUiOnShow = false;
+            menu.StartPingPongModule();
+            AssertTrue(!spawner.IsServing, "Opening PingPong should leave serving stopped until the unified panel button is pressed.");
+
+            var panel = PingPongUnifiedControlPanel.EnsureRuntimePanel(canvasObject.transform, score, spawner, null, menu, null);
+            panel.servingToggleButton.onClick.Invoke();
+            AssertTrue(spawner.IsServing, "Unified panel serving button should start serving.");
+
+            var missedBeforePanelPause = score.MissedCount;
+            AddLifetimeBall(ballContainerObject.transform, "PanelPauseCleanupBall");
+            panel.servingToggleButton.onClick.Invoke();
+            AssertTrue(!spawner.IsServing, "Unified panel serving button should pause serving.");
+            AssertTrue(ballContainerObject.transform.childCount == 0, "Unified panel pause should clear existing balls.");
+            AssertTrue(score.MissedCount == missedBeforePanelPause, "Unified panel pause cleanup should not count cleared balls as missed.");
+
+            panel.servingToggleButton.onClick.Invoke();
+            AssertTrue(spawner.IsServing, "Unified panel serving button should resume serving after panel pause.");
+
+            var missedBeforeRemoteDrag = score.MissedCount;
+            AddLifetimeBall(ballContainerObject.transform, "RemoteDragCleanupBall");
+            var remoteDrag = remoteDragObject.AddComponent<RemoteTableDragController>();
+            remoteDrag.tableRoot = tableObject.transform;
+            remoteDrag.controllerTransform = controllerObject.transform;
+            remoteDrag.ballSpawners = new[] { spawner };
+            remoteDrag.controlServing = true;
+            remoteDrag.allowAutomaticResumeServing = false;
+            remoteDrag.resumeServingOnRelease = true;
+            InvokePrivateMethod(remoteDrag, "BeginRemoteDrag");
+            InvokePrivateMethod(remoteDrag, "EndRemoteDrag");
+            AssertTrue(!spawner.IsServing, "Remote table drag should pause serving.");
+            AssertTrue(ballContainerObject.transform.childCount == 0, "Remote table drag pause should clear existing balls.");
+            AssertTrue(score.MissedCount == missedBeforeRemoteDrag, "Remote table drag cleanup should not count cleared balls as missed.");
+
+            panel.servingToggleButton.onClick.Invoke();
+            AssertTrue(spawner.IsServing, "Unified panel should resume serving after remote table drag paused it.");
+
+            var missedBeforeSafety = score.MissedCount;
+            AddLifetimeBall(ballContainerObject.transform, "SafetyCleanupBall");
+            var safety = safetyObject.AddComponent<PingPongPlayerTableSafety>();
+            safety.tableTransform = tableObject.transform;
+            safety.hmdTransform = hmdObject.transform;
+            safety.ballSpawners = new[] { spawner };
+            safety.controlServing = true;
+            safety.allowAutomaticResumeServing = false;
+            safety.resumeStableSeconds = 0f;
+            safety.createRuntimePrompt = false;
+            safety.createRuntimeBoundary = false;
+            hmdObject.transform.position = tableObject.transform.position;
+            InvokePrivateMethod(safety, "LateUpdate");
+            AssertTrue(!spawner.IsServing, "Table safety should pause serving when the HMD enters the boundary.");
+            AssertTrue(ballContainerObject.transform.childCount == 0, "Table safety pause should clear existing balls.");
+            AssertTrue(score.MissedCount == missedBeforeSafety, "Table safety cleanup should not count cleared balls as missed.");
+
+            hmdObject.transform.position = tableObject.transform.position + Vector3.right * 3f;
+            InvokePrivateMethod(safety, "LateUpdate");
+            AssertTrue(!spawner.IsServing, "Leaving the table safety boundary should not auto-resume serving.");
+
+            panel.servingToggleButton.onClick.Invoke();
+            AssertTrue(spawner.IsServing, "Unified panel should resume serving after safety paused it.");
+        }
+        finally
+        {
+            if (existingGripState == null)
+            {
+                var generatedGripState = Object.FindObjectOfType<SimpleGripInteractionState>(true);
+                if (generatedGripState != null)
+                {
+                    Object.DestroyImmediate(generatedGripState.gameObject);
+                }
+            }
+
+            Object.DestroyImmediate(safetyObject);
+            Object.DestroyImmediate(remoteDragObject);
+            Object.DestroyImmediate(controllerObject);
+            Object.DestroyImmediate(hmdObject);
+            Object.DestroyImmediate(tableObject);
+            Object.DestroyImmediate(pingPongRoot);
+            Object.DestroyImmediate(homeRoot);
+            Object.DestroyImmediate(menuObject);
+            Object.DestroyImmediate(ballContainerObject);
+            Object.DestroyImmediate(spawnerObject);
+            Object.DestroyImmediate(scoreObject);
+            Object.DestroyImmediate(canvasObject);
+        }
+    }
+
+    private static void AddLifetimeBall(Transform container, string name)
+    {
+        var ball = new GameObject(name);
+        ball.transform.SetParent(container, false);
+        ball.AddComponent<BallLifetime>();
+    }
+
     private static TextMeshProUGUI CreateTestScoreText(Transform parent, string name, Vector2 anchoredPosition)
     {
         var textObject = new GameObject(name, typeof(RectTransform));
@@ -816,6 +939,17 @@ public static class PingPongPhysicsSelfTests
         }
 
         field.SetValue(target, value);
+    }
+
+    private static void InvokePrivateMethod(object target, string methodName)
+    {
+        var method = target.GetType().GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic);
+        if (method == null)
+        {
+            throw new System.Exception($"Missing private method {methodName}.");
+        }
+
+        method.Invoke(target, null);
     }
 
     private static bool IsChildActive(Transform parent, string path)

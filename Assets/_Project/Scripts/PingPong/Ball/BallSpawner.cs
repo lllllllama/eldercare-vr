@@ -9,7 +9,7 @@ public class BallSpawner : MonoBehaviour
     public Transform tableTransform;
     public bool autoResolveTableTransform = true;
     public Transform ballContainer;
-    public bool autoStartOnPlay = true;
+    public bool autoStartOnPlay = false;
 
     public float serveInterval = 4.0f;
     public float serveSpeed = 3.1f;
@@ -96,10 +96,37 @@ public class BallSpawner : MonoBehaviour
 
     public void ClearBalls()
     {
+        ClearBallsWithoutScoring();
+    }
+
+    public void ClearBallsWithoutScoring()
+    {
+        ClearBalls(suppressMissReports: true);
+    }
+
+    private void ClearBalls(bool suppressMissReports)
+    {
         if (ballContainer == null) return;
         for (int i = ballContainer.childCount - 1; i >= 0; i--)
         {
-            Destroy(ballContainer.GetChild(i).gameObject);
+            var ball = ballContainer.GetChild(i).gameObject;
+            if (suppressMissReports)
+            {
+                var lifetime = ball.GetComponent<BallLifetime>();
+                if (lifetime != null)
+                {
+                    lifetime.SuppressMissReport();
+                }
+            }
+
+            if (Application.isPlaying)
+            {
+                Destroy(ball);
+            }
+            else
+            {
+                DestroyImmediate(ball);
+            }
         }
     }
 

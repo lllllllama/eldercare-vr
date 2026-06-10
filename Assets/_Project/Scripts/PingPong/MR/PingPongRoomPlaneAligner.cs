@@ -303,11 +303,12 @@ public class PingPongRoomPlaneAligner : MonoBehaviour
         placer.ballSpawners = FindObjectsOfType<BallSpawner>(true);
         placer.autoPlaceOnStart = false;
         placer.clearSavedPlacementOnStart = true;
-        placer.controlServing = false;
+        placer.controlServing = true;
+        placer.allowAutomaticResumeServing = false;
         placer.clearBallsWhenTableMoves = true;
-        placer.startServingAfterClearPlacement = true;
-        placer.startServingAfterManualPlacement = true;
-        placer.startServingAfterConfirmedPlacementOnly = true;
+        placer.startServingAfterClearPlacement = false;
+        placer.startServingAfterManualPlacement = false;
+        placer.startServingAfterConfirmedPlacementOnly = false;
         placer.disableSpatialTablePlacementForNow = true;
         placer.requireRoomSensingColliderForAutoPlacement = true;
         placer.minimumRoomSensingColliderCount = 1;
