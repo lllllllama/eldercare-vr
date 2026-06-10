@@ -324,7 +324,7 @@ public class PingPongRoomPlaneAligner : MonoBehaviour
         placer.minimumFloorBelowHeadMeters = minimumFloorBelowHeadMeters;
         placer.searchDurationSeconds = 8f;
         placer.searchIntervalSeconds = 0.5f;
-        placer.enableRemoteDrag = false;
+        placer.enableRemoteDrag = true;
         placer.remoteDragControllerNode = XRNode.LeftHand;
         placer.remoteGrabSelectableRadiusMeters = 2.35f;
         placer.remoteGrabMaxDistanceMeters = 8f;

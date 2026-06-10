@@ -429,12 +429,14 @@ public class PingPongOpenSpaceTablePlacer : MonoBehaviour
         {
             if (remoteTableDragController != null)
             {
-                remoteTableDragController.enableRemoteDrag = false;
-                remoteTableDragController.enabled = false;
+                remoteTableDragController.SetRemoteDragEnabled(false);
+                remoteTableDragController.enabled = true;
             }
 
             return;
         }
+        var wasRemoteDragEnabled = remoteTableDragController != null && remoteTableDragController.IsRemoteDragEnabled;
+
         if (remoteTableDragController == null)
         {
             remoteTableDragController = GetComponent<RemoteTableDragController>();
@@ -450,8 +452,6 @@ public class PingPongOpenSpaceTablePlacer : MonoBehaviour
         }
 
         remoteTableDragController.enabled = true;
-        remoteTableDragController.disableRemoteTableDragForNow = false;
-        remoteTableDragController.enableRemoteDrag = true;
         remoteTableDragController.tableRoot = tableRoot;
         remoteTableDragController.tableDragHandle = tableDragHandle;
         remoteTableDragController.controllerTransform = remoteDragControllerTransform;
@@ -472,6 +472,7 @@ public class PingPongOpenSpaceTablePlacer : MonoBehaviour
         remoteTableDragController.allowAutomaticResumeServing = allowAutomaticResumeServing;
         remoteTableDragController.clearBallsWhenDragging = clearBallsWhenTableMoves;
         remoteTableDragController.resumeServingOnRelease = CanResumeServing && startServingAfterManualPlacement;
+        remoteTableDragController.SetRemoteDragEnabled(wasRemoteDragEnabled);
     }
 
     private void DisableSpatialTableControls()
@@ -491,9 +492,12 @@ public class PingPongOpenSpaceTablePlacer : MonoBehaviour
 
         if (remoteTableDragController != null)
         {
-            remoteTableDragController.enableRemoteDrag = enableRemoteDrag;
-            remoteTableDragController.disableRemoteTableDragForNow = !enableRemoteDrag;
-            remoteTableDragController.enabled = enableRemoteDrag;
+            if (!enableRemoteDrag)
+            {
+                remoteTableDragController.SetRemoteDragEnabled(false);
+            }
+
+            remoteTableDragController.enabled = true;
         }
     }
 

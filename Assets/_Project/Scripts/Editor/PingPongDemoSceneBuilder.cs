@@ -367,11 +367,13 @@ public static class PingPongDemoSceneBuilder
         scoreManager.lastSpinText = null;
 
         var difficultyController = BuildDifficultyControllerState(canvasObject.transform, spawner);
+        var remoteTableDrag = Object.FindObjectOfType<RemoteTableDragController>(true);
         var panel = PingPongUnifiedControlPanel.EnsureRuntimePanel(
             canvasObject.transform,
             scoreManager,
             spawner,
             difficultyController,
+            remoteTableDrag,
             homeMenu,
             LoadPingPongTmpFont());
         if (panel == null)
@@ -907,6 +909,7 @@ public static class PingPongDemoSceneBuilder
             tableBlocker != null ? tableBlocker.transform : null,
             mixedRealityMode,
             net != null ? net.transform : null);
+        var remoteTableDrag = SetupRemoteTableDragController(managers.transform, table.transform, dragHandle, leftBallGrabber, gripState);
         SetupPlayerTableSafety(tableBlocker, table.transform, spawner, dragHandle, playerBodyProxy);
         SetupInitialViewAligner(managers.transform, mixedRealityMode);
         SetupPingPongSpatialSanitizer(managers.transform);
@@ -921,13 +924,19 @@ public static class PingPongDemoSceneBuilder
             unifiedControlPanel);
         if (unifiedControlPanel != null)
         {
-            unifiedControlPanel.Bind(scoreManager, spawner, difficultyController, homeMenu);
+            unifiedControlPanel.Bind(scoreManager, spawner, difficultyController, remoteTableDrag, homeMenu);
             EditorUtility.SetDirty(unifiedControlPanel);
         }
 
         if (mixedRealityMode)
         {
             SetupMixedRealityMode(managers.transform, environment.transform, table.transform, dragHandle, leftBallGrabber, gripState);
+            remoteTableDrag = Object.FindObjectOfType<RemoteTableDragController>(true);
+            if (unifiedControlPanel != null)
+            {
+                unifiedControlPanel.Bind(scoreManager, spawner, difficultyController, remoteTableDrag, homeMenu);
+                EditorUtility.SetDirty(unifiedControlPanel);
+            }
         }
 
         EditorUtility.SetDirty(table);
@@ -3046,7 +3055,7 @@ public static class PingPongDemoSceneBuilder
         controller.enhancePanelReadability = false;
         controller.displayStandalonePanel = false;
         controller.showScreenButtons = false;
-        controller.enableControllerSpeedButtons = true;
+        controller.enableControllerSpeedButtons = false;
         controller.ApplyLoadedDifficulty();
 
         EditorUtility.SetDirty(root);
@@ -3102,7 +3111,7 @@ public static class PingPongDemoSceneBuilder
         var title = CreateDifficultyText(rootRect, "Title", "发球速度", new Vector2(0f, 72f), new Vector2(480f, 44f), ElderCareUiTheme.Subtitle, FontStyles.Bold, ElderCareUiTheme.TextPrimary, TextAlignmentOptions.Center);
         var difficulty = CreateDifficultyText(rootRect, "DifficultyText", "当前难度：标准", new Vector2(0f, 24f), new Vector2(480f, 42f), ElderCareUiTheme.Body, FontStyles.Bold, ElderCareUiTheme.Cyan, TextAlignmentOptions.Center);
         var speed = CreateDifficultyText(rootRect, "SpeedText", "发球速度 3.0 m/s", new Vector2(0f, -20f), new Vector2(480f, 44f), ElderCareUiTheme.Body, FontStyles.Bold, ElderCareUiTheme.TextPrimary, TextAlignmentOptions.Center);
-        var hint = CreateDifficultyText(rootRect, "HintText", "A 加速 / B 减速 · 下次发球生效", new Vector2(0f, -82f), new Vector2(500f, 40f), ElderCareUiTheme.BodySmall, FontStyles.Normal, ElderCareUiTheme.TextSecondary, TextAlignmentOptions.Center);
+        var hint = CreateDifficultyText(rootRect, "HintText", "使用面板按钮调整难度", new Vector2(0f, -82f), new Vector2(500f, 40f), ElderCareUiTheme.BodySmall, FontStyles.Normal, ElderCareUiTheme.TextSecondary, TextAlignmentOptions.Center);
 
         var decrease = CreateDifficultyButton(rootRect, "DecreaseButton", "-", new Vector2(-166f, -66f), new Vector2(104f, 68f));
         var reset = CreateDifficultyButton(rootRect, "ResetButton", "标准", new Vector2(0f, -66f), new Vector2(150f, 68f));
@@ -3114,7 +3123,7 @@ public static class PingPongDemoSceneBuilder
         ConfigureDifficultyText(title, "发球速度", new Vector2(0f, 72f), new Vector2(480f, 44f), ElderCareUiTheme.Subtitle, FontStyles.Bold, ElderCareUiTheme.TextPrimary);
         ConfigureDifficultyText(difficulty, "当前难度：标准", new Vector2(0f, 24f), new Vector2(480f, 42f), ElderCareUiTheme.Body, FontStyles.Bold, ElderCareUiTheme.Cyan);
         ConfigureDifficultyText(speed, "发球速度 3.0 m/s", new Vector2(0f, -20f), new Vector2(480f, 44f), ElderCareUiTheme.Body, FontStyles.Bold, ElderCareUiTheme.TextPrimary);
-        ConfigureDifficultyText(hint, "A 加速 / B 减速 · 下次发球生效", new Vector2(0f, -82f), new Vector2(500f, 40f), ElderCareUiTheme.BodySmall, FontStyles.Normal, ElderCareUiTheme.TextSecondary);
+        ConfigureDifficultyText(hint, "使用面板按钮调整难度", new Vector2(0f, -82f), new Vector2(500f, 40f), ElderCareUiTheme.BodySmall, FontStyles.Normal, ElderCareUiTheme.TextSecondary);
 
         controller.ballSpawner = spawner;
         controller.difficultyText = difficulty;
@@ -3126,7 +3135,7 @@ public static class PingPongDemoSceneBuilder
         controller.startingDifficulty = PingPongDifficulty.Normal;
         controller.controlServeInterval = true;
         controller.showScreenButtons = false;
-        controller.enableControllerSpeedButtons = true;
+        controller.enableControllerSpeedButtons = false;
 
         var motion = EnsureComponent<TechModuleCardMotion>(root);
         if (motion != null)
@@ -3185,7 +3194,7 @@ public static class PingPongDemoSceneBuilder
         ConfigureDifficultyText(title, "发球速度", new Vector2(0f, 86f), new Vector2(480f, 54f), 34f);
         ConfigureDifficultyText(difficulty, "难度：标准", new Vector2(0f, 36f), new Vector2(480f, 48f), 28f);
         ConfigureDifficultyText(speed, "速度 3.0 m/s", new Vector2(0f, -8f), new Vector2(480f, 46f), 26f);
-        ConfigureDifficultyText(hint, "A 加速 / B 减速", new Vector2(0f, -86f), new Vector2(500f, 44f), 22f);
+        ConfigureDifficultyText(hint, "使用面板按钮调整难度", new Vector2(0f, -86f), new Vector2(500f, 44f), 22f);
 
         controller.ballSpawner = spawner;
         controller.difficultyText = difficulty;
@@ -3197,7 +3206,7 @@ public static class PingPongDemoSceneBuilder
         controller.startingDifficulty = PingPongDifficulty.Normal;
         controller.controlServeInterval = true;
         controller.showScreenButtons = false;
-        controller.enableControllerSpeedButtons = true;
+        controller.enableControllerSpeedButtons = false;
 
         var motion = EnsureComponent<TechModuleCardMotion>(root);
         if (motion != null)
@@ -4164,8 +4173,8 @@ public static class PingPongDemoSceneBuilder
         var remoteDrag = EnsureComponent<RemoteTableDragController>(remoteObject);
         if (remoteDrag == null) return null;
 
-        remoteDrag.enableRemoteDrag = true;
-        remoteDrag.disableRemoteTableDragForNow = false;
+        remoteDrag.enableRemoteDrag = false;
+        remoteDrag.disableRemoteTableDragForNow = true;
         remoteDrag.tableRoot = table;
         remoteDrag.tableDragHandle = dragHandle;
         remoteDrag.controllerTransform = dragHandle != null ? dragHandle.controllerTransform : null;
@@ -4188,6 +4197,7 @@ public static class PingPongDemoSceneBuilder
         remoteDrag.allowAutomaticResumeServing = false;
         remoteDrag.clearBallsWhenDragging = true;
         remoteDrag.resumeServingOnRelease = false;
+        remoteDrag.SetRemoteDragEnabled(false);
         EditorUtility.SetDirty(remoteObject);
         return remoteDrag;
     }

@@ -18,13 +18,16 @@ public static class PingPongPhysicsSelfTests
         ContactPlacementChangesLateralDirection();
         ServeProfilesCreateOppositeSpin();
         DifficultyPresetsIncreaseServeSpeed();
+        DifficultyCannotGoBelowNormal();
+        SavedEasyDifficultyNormalizesToNormal();
+        ControllerButtonsDisabledByDefault();
         AerodynamicsDragAndTopspinAreDirectional();
         RigidbodySpinLimitCoversServeSpin();
         ControllerBallGrabberReportsNearbyBall();
         SimpleGripStatePreventsModeOverlap();
         TableDragHandleDisablesLocalInteraction();
         TableHeightNormalizesToStandardHeight();
-        DifficultyPanelUsesControllerButtonsOnly();
+        DifficultyPanelUsesUnifiedControlsOnly();
         BallGeometryUsesElderReadableSize();
         TableSurfaceCorrectionRaisesEmbeddedBall();
         TableDragHandleDoesNotSyncWorldUiCanvas();
@@ -34,6 +37,10 @@ public static class PingPongPhysicsSelfTests
         UnifiedPanelServingButtonTogglesState();
         UnifiedPanelResetDoesNotStopServing();
         UnifiedPanelHomeButtonCallsShowHome();
+        UnifiedPanelDifficultyButtonsChangeDifficulty();
+        TableDragToggleControlsRemoteDrag();
+        RemoteDragDoesNotResumeServingOnRelease();
+        UnifiedPanelButtonsDoNotBreakExistingServingResetHome();
         ServingAutomationStaysPanelControlled();
         SpatialTablePlacementIsDisabledButManualDragStaysEnabled();
         OpenSpacePlacementWaitsForRoomSensingColliders();
@@ -146,10 +153,74 @@ public static class PingPongPhysicsSelfTests
         var advanced = PingPongDifficultyController.GetSpeed(PingPongDifficulty.Advanced);
         var challenge = PingPongDifficultyController.GetSpeed(PingPongDifficulty.Challenge);
 
-        AssertTrue(easy < normal, "Easy difficulty should be slower than normal.");
+        AssertTrue(Mathf.Abs(easy - normal) < 0.001f, "Easy difficulty should normalize to the normal speed.");
         AssertTrue(normal < advanced, "Advanced difficulty should be faster than normal.");
         AssertTrue(advanced < challenge, "Challenge difficulty should be the fastest preset.");
-        AssertTrue(PingPongDifficultyController.GetServeInterval(PingPongDifficulty.Easy) > PingPongDifficultyController.GetServeInterval(PingPongDifficulty.Challenge), "Easy difficulty should leave more time between serves.");
+        AssertTrue(Mathf.Abs(PingPongDifficultyController.GetServeInterval(PingPongDifficulty.Easy) - PingPongDifficultyController.GetServeInterval(PingPongDifficulty.Normal)) < 0.001f, "Easy difficulty should normalize to the normal serve interval.");
+        AssertTrue(PingPongDifficultyController.GetServeInterval(PingPongDifficulty.Normal) > PingPongDifficultyController.GetServeInterval(PingPongDifficulty.Challenge), "Normal difficulty should leave more time between serves than challenge.");
+        AssertTrue(PingPongDifficultyController.GetLabel(PingPongDifficulty.Easy) == "\u6807\u51c6", "Easy difficulty should display as standard.");
+    }
+
+    private static void DifficultyCannotGoBelowNormal()
+    {
+        var controllerObject = new GameObject("DifficultyClampController");
+        try
+        {
+            var controller = controllerObject.AddComponent<PingPongDifficultyController>();
+            controller.rememberDifficulty = false;
+            controller.startingDifficulty = PingPongDifficulty.Normal;
+            controller.ApplyLoadedDifficulty();
+
+            controller.DecreaseDifficulty();
+            controller.DecreaseDifficulty();
+            controller.DecreaseDifficulty();
+
+            AssertTrue(controller.CurrentDifficulty == PingPongDifficulty.Normal, "Difficulty should not decrease below normal.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(controllerObject);
+        }
+    }
+
+    private static void SavedEasyDifficultyNormalizesToNormal()
+    {
+        var controllerObject = new GameObject("SavedEasyDifficultyController");
+        var prefsKey = "PicoElderCare.PingPong.Tests.SavedEasy";
+        try
+        {
+            PlayerPrefs.SetInt(prefsKey, (int)PingPongDifficulty.Easy);
+            var controller = controllerObject.AddComponent<PingPongDifficultyController>();
+            controller.playerPrefsKey = prefsKey;
+            controller.rememberDifficulty = true;
+            controller.startingDifficulty = PingPongDifficulty.Challenge;
+            controller.ApplyLoadedDifficulty();
+
+            AssertTrue(controller.CurrentDifficulty == PingPongDifficulty.Normal, "Saved Easy difficulty should normalize to normal.");
+        }
+        finally
+        {
+            PlayerPrefs.DeleteKey(prefsKey);
+            Object.DestroyImmediate(controllerObject);
+        }
+    }
+
+    private static void ControllerButtonsDisabledByDefault()
+    {
+        var controllerObject = new GameObject("ControllerButtonsDefaultController");
+        try
+        {
+            var controller = controllerObject.AddComponent<PingPongDifficultyController>();
+            AssertTrue(!controller.enableControllerSpeedButtons, "Controller A/B difficulty buttons should be disabled by default.");
+
+            controller.enableControllerSpeedButtons = true;
+            InvokePrivateMethod(controller, "HandleControllerSpeedButtons");
+            AssertTrue(!controller.enableControllerSpeedButtons, "Controller A/B difficulty buttons should stay disabled even if old scene data enables them.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(controllerObject);
+        }
     }
 
     private static void AerodynamicsDragAndTopspinAreDirectional()
@@ -279,7 +350,7 @@ public static class PingPongPhysicsSelfTests
         }
     }
 
-    private static void DifficultyPanelUsesControllerButtonsOnly()
+    private static void DifficultyPanelUsesUnifiedControlsOnly()
     {
         var canvasObject = new GameObject("DifficultyCanvas", typeof(RectTransform));
         var spawnerObject = new GameObject("BallSpawner");
@@ -290,7 +361,7 @@ public static class PingPongPhysicsSelfTests
 
             AssertTrue(controller != null, "Difficulty panel should be created.");
             AssertTrue(!controller.showScreenButtons, "Difficulty panel should hide +/- screen buttons.");
-            AssertTrue(controller.enableControllerSpeedButtons, "Difficulty panel should use controller A/B buttons.");
+            AssertTrue(!controller.enableControllerSpeedButtons, "Difficulty panel should not use controller A/B buttons by default.");
             AssertTrue(!IsChildActive(canvasObject.transform, "DifficultyPanel/DecreaseButton"), "Decrease screen button should be inactive.");
             AssertTrue(!IsChildActive(canvasObject.transform, "DifficultyPanel/IncreaseButton"), "Increase screen button should be inactive.");
 
@@ -588,6 +659,193 @@ public static class PingPongPhysicsSelfTests
         }
     }
 
+    private static void UnifiedPanelDifficultyButtonsChangeDifficulty()
+    {
+        var canvasObject = new GameObject("UnifiedPanelDifficultyCanvas", typeof(RectTransform), typeof(Canvas));
+        var scoreObject = new GameObject("UnifiedPanelDifficultyScore");
+        var spawnerObject = new GameObject("UnifiedPanelDifficultySpawner");
+        var difficultyObject = new GameObject("UnifiedPanelDifficultyController");
+        try
+        {
+            var score = scoreObject.AddComponent<ScoreManager>();
+            score.useUnifiedControlPanel = true;
+
+            var spawner = spawnerObject.AddComponent<BallSpawner>();
+            var difficulty = difficultyObject.AddComponent<PingPongDifficultyController>();
+            difficulty.ballSpawner = spawner;
+            difficulty.rememberDifficulty = false;
+            difficulty.displayStandalonePanel = false;
+            difficulty.enhancePanelReadability = false;
+            difficulty.ApplyLoadedDifficulty();
+
+            var normalSpeed = spawner.serveSpeed;
+            var panel = PingPongUnifiedControlPanel.EnsureRuntimePanel(canvasObject.transform, score, spawner, difficulty, null, null);
+            AssertTrue(panel.difficultyDownButton != null && panel.difficultyUpButton != null, "Unified panel should create difficulty buttons.");
+
+            panel.difficultyUpButton.onClick.Invoke();
+            AssertTrue(difficulty.CurrentDifficulty == PingPongDifficulty.Advanced, "Unified panel increase button should switch to advanced difficulty.");
+            AssertTrue(spawner.serveSpeed > normalSpeed, "Unified panel increase button should update serve speed immediately.");
+            AssertTrue(panel.difficultyText.text.Contains("\u8fdb\u9636"), "Unified panel should refresh the advanced difficulty label.");
+
+            panel.difficultyUpButton.onClick.Invoke();
+            AssertTrue(difficulty.CurrentDifficulty == PingPongDifficulty.Challenge, "Unified panel increase button should clamp at challenge difficulty.");
+
+            panel.difficultyDownButton.onClick.Invoke();
+            AssertTrue(difficulty.CurrentDifficulty == PingPongDifficulty.Advanced, "Unified panel decrease button should step down from challenge.");
+            AssertTrue(panel.serveSpeedText.text.Contains(spawner.serveSpeed.ToString("0.0")), "Unified panel should refresh the serve speed text after difficulty changes.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(difficultyObject);
+            Object.DestroyImmediate(spawnerObject);
+            Object.DestroyImmediate(scoreObject);
+            Object.DestroyImmediate(canvasObject);
+        }
+    }
+
+    private static void TableDragToggleControlsRemoteDrag()
+    {
+        var canvasObject = new GameObject("UnifiedPanelDragCanvas", typeof(RectTransform), typeof(Canvas));
+        var scoreObject = new GameObject("UnifiedPanelDragScore");
+        var spawnerObject = new GameObject("UnifiedPanelDragSpawner");
+        var ballContainerObject = new GameObject("UnifiedPanelDragBallContainer");
+        var remoteObject = new GameObject("UnifiedPanelRemoteDrag");
+        try
+        {
+            var score = scoreObject.AddComponent<ScoreManager>();
+            var spawner = spawnerObject.AddComponent<BallSpawner>();
+            spawner.ballContainer = ballContainerObject.transform;
+            var remoteDrag = remoteObject.AddComponent<RemoteTableDragController>();
+            remoteDrag.ballSpawners = new[] { spawner };
+            remoteDrag.controlServing = true;
+            remoteDrag.clearBallsWhenDragging = true;
+            remoteDrag.SetRemoteDragEnabled(false);
+
+            var panel = PingPongUnifiedControlPanel.EnsureRuntimePanel(canvasObject.transform, score, spawner, null, remoteDrag, null, null);
+            AssertTrue(panel.tableDragToggleButton != null, "Unified panel should create a table drag toggle button.");
+            AssertTrue(!remoteDrag.IsRemoteDragEnabled, "Remote table drag should start disabled.");
+
+            spawner.StartServing();
+            var missedBeforeDragToggle = score.MissedCount;
+            AddLifetimeBall(ballContainerObject.transform, "DragModeCleanupBall");
+            panel.tableDragToggleButton.onClick.Invoke();
+            AssertTrue(remoteDrag.IsRemoteDragEnabled, "Unified panel table drag button should enable remote table drag.");
+            AssertTrue(!spawner.IsServing, "Enabling remote table drag should immediately stop serving.");
+            AssertTrue(ballContainerObject.transform.childCount == 0, "Enabling remote table drag should immediately clear existing balls.");
+            AssertTrue(score.MissedCount == missedBeforeDragToggle, "Enabling remote table drag should not count cleared balls as missed.");
+
+            panel.tableDragToggleButton.onClick.Invoke();
+            AssertTrue(!remoteDrag.IsRemoteDragEnabled, "Unified panel table drag button should disable remote table drag.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(remoteObject);
+            Object.DestroyImmediate(ballContainerObject);
+            Object.DestroyImmediate(spawnerObject);
+            Object.DestroyImmediate(scoreObject);
+            Object.DestroyImmediate(canvasObject);
+        }
+    }
+
+    private static void RemoteDragDoesNotResumeServingOnRelease()
+    {
+        var spawnerObject = new GameObject("RemoteDragNoResumeSpawner");
+        var remoteObject = new GameObject("RemoteDragNoResumeController");
+        var tableObject = new GameObject("RemoteDragNoResumeTable");
+        var controllerObject = new GameObject("RemoteDragNoResumeHand");
+        var existingGripState = Object.FindObjectOfType<SimpleGripInteractionState>(true);
+        try
+        {
+            var spawner = spawnerObject.AddComponent<BallSpawner>();
+            spawner.StartServing();
+
+            var remoteDrag = remoteObject.AddComponent<RemoteTableDragController>();
+            remoteDrag.tableRoot = tableObject.transform;
+            remoteDrag.controllerTransform = controllerObject.transform;
+            remoteDrag.ballSpawners = new[] { spawner };
+            remoteDrag.controlServing = true;
+            remoteDrag.allowAutomaticResumeServing = true;
+            remoteDrag.clearBallsWhenDragging = false;
+            remoteDrag.resumeServingOnRelease = false;
+            remoteDrag.SetRemoteDragEnabled(true);
+
+            InvokePrivateMethod(remoteDrag, "BeginRemoteDrag");
+            InvokePrivateMethod(remoteDrag, "EndRemoteDrag");
+
+            AssertTrue(!spawner.IsServing, "Remote table drag should not resume serving when resumeServingOnRelease is false.");
+
+            spawner.StartServing();
+            remoteDrag.resumeServingOnRelease = true;
+            remoteDrag.SetRemoteDragEnabled(true);
+            InvokePrivateMethod(remoteDrag, "BeginRemoteDrag");
+            remoteDrag.SetRemoteDragEnabled(false);
+            AssertTrue(!spawner.IsServing, "Disabling remote table drag during a drag should not resume serving.");
+        }
+        finally
+        {
+            if (existingGripState == null)
+            {
+                var generatedGripState = Object.FindObjectOfType<SimpleGripInteractionState>(true);
+                if (generatedGripState != null)
+                {
+                    Object.DestroyImmediate(generatedGripState.gameObject);
+                }
+            }
+
+            Object.DestroyImmediate(controllerObject);
+            Object.DestroyImmediate(tableObject);
+            Object.DestroyImmediate(remoteObject);
+            Object.DestroyImmediate(spawnerObject);
+        }
+    }
+
+    private static void UnifiedPanelButtonsDoNotBreakExistingServingResetHome()
+    {
+        var canvasObject = new GameObject("UnifiedPanelRegressionCanvas", typeof(RectTransform), typeof(Canvas));
+        var homeRoot = new GameObject("UnifiedPanelRegressionHome");
+        var gameplayRoot = new GameObject("UnifiedPanelRegressionGameplay");
+        var scoreObject = new GameObject("UnifiedPanelRegressionScore");
+        var spawnerObject = new GameObject("UnifiedPanelRegressionSpawner");
+        var menuObject = new GameObject("UnifiedPanelRegressionMenu");
+        try
+        {
+            homeRoot.SetActive(false);
+            gameplayRoot.SetActive(true);
+
+            var score = scoreObject.AddComponent<ScoreManager>();
+            score.useUnifiedControlPanel = true;
+            var spawner = spawnerObject.AddComponent<BallSpawner>();
+            var menu = menuObject.AddComponent<ElderCareHomeMenu>();
+            menu.homeRoot = homeRoot;
+            menu.pingPongGameplayRoots = new[] { gameplayRoot };
+            menu.ballSpawner = spawner;
+            menu.scoreManager = score;
+            menu.placeHomeUiOnShow = false;
+
+            var panel = PingPongUnifiedControlPanel.EnsureRuntimePanel(canvasObject.transform, score, spawner, null, null, menu, null);
+            panel.servingToggleButton.onClick.Invoke();
+            AssertTrue(spawner.IsServing, "Unified panel serving button should still start serving.");
+
+            PingPongEvents.BallServed(new BallServedInfo(scoreObject, Vector3.zero, Vector3.forward, Vector3.zero, PingPongServeProfile.Basic));
+            panel.resetButton.onClick.Invoke();
+            AssertTrue(spawner.IsServing, "Unified panel reset button should still leave serving active.");
+            AssertTrue(score.ServedCount == 0, "Unified panel reset button should still reset served count.");
+
+            panel.homeButton.onClick.Invoke();
+            AssertTrue(homeRoot.activeSelf, "Unified panel home button should still call ShowHome.");
+            AssertTrue(!spawner.IsServing, "ShowHome should still own stopping serving.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(menuObject);
+            Object.DestroyImmediate(spawnerObject);
+            Object.DestroyImmediate(scoreObject);
+            Object.DestroyImmediate(gameplayRoot);
+            Object.DestroyImmediate(homeRoot);
+            Object.DestroyImmediate(canvasObject);
+        }
+    }
+
     private static void ServingAutomationStaysPanelControlled()
     {
         var canvasObject = new GameObject("PanelOnlyServingCanvas", typeof(RectTransform), typeof(Canvas));
@@ -737,8 +995,9 @@ public static class PingPongPhysicsSelfTests
             var remoteDrag = remoteDragObject.AddComponent<RemoteTableDragController>();
 
             AssertTrue(placer.disableSpatialTablePlacementForNow, "Open-space table placement should be disabled until placement calibration is re-enabled intentionally.");
-            AssertTrue(remoteDrag.enableRemoteDrag, "Manual remote table drag should stay available even while automatic spatial placement is disabled.");
-            AssertTrue(!remoteDrag.disableRemoteTableDragForNow, "Manual remote table drag should not be tied to automatic table calibration.");
+            AssertTrue(!remoteDrag.IsRemoteDragEnabled, "Remote table drag should stay disabled until the unified panel toggle enables it.");
+            remoteDrag.SetRemoteDragEnabled(true);
+            AssertTrue(remoteDrag.IsRemoteDragEnabled, "Remote table drag should still be available when explicitly enabled by UI.");
         }
         finally
         {

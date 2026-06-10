@@ -5,8 +5,8 @@ using UnityEngine.XR;
 [DefaultExecutionOrder(-40)]
 public class RemoteTableDragController : MonoBehaviour
 {
-    public bool enableRemoteDrag = true;
-    public bool disableRemoteTableDragForNow = false;
+    public bool enableRemoteDrag = false;
+    public bool disableRemoteTableDragForNow = true;
     public Transform tableRoot;
     public TableDragHandle tableDragHandle;
     public Transform controllerTransform;
@@ -47,6 +47,47 @@ public class RemoteTableDragController : MonoBehaviour
     public bool IsDragging
     {
         get { return _dragging; }
+    }
+
+    public bool IsRemoteDragEnabled
+    {
+        get { return enableRemoteDrag && !disableRemoteTableDragForNow; }
+    }
+
+    public void SetRemoteDragEnabled(bool enabled)
+    {
+        var wasEnabled = IsRemoteDragEnabled;
+        enableRemoteDrag = enabled;
+        disableRemoteTableDragForNow = !enabled;
+
+        if (enabled)
+        {
+            if (!wasEnabled && controlServing)
+            {
+                StopServing(clearBallsWhenDragging);
+            }
+
+            _wasGripPressed = false;
+            return;
+        }
+
+        if (!enabled)
+        {
+            if (_dragging)
+            {
+                var previousResumeServingOnRelease = resumeServingOnRelease;
+                resumeServingOnRelease = false;
+                EndRemoteDrag();
+                resumeServingOnRelease = previousResumeServingOnRelease;
+            }
+
+            _wasGripPressed = false;
+        }
+    }
+
+    public void ToggleRemoteDragEnabled()
+    {
+        SetRemoteDragEnabled(!IsRemoteDragEnabled);
     }
 
     private void Awake()
@@ -435,9 +476,9 @@ public class RemoteTableDragController : MonoBehaviour
 
     private void NormalizeManualDragSwitches()
     {
-        if (enableRemoteDrag)
+        if (!enableRemoteDrag)
         {
-            disableRemoteTableDragForNow = false;
+            disableRemoteTableDragForNow = true;
         }
     }
 

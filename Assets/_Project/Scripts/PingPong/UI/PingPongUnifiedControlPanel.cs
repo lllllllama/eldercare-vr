@@ -6,15 +6,18 @@ using UnityEngine.UI;
 public class PingPongUnifiedControlPanel : MonoBehaviour
 {
     private const string RuntimePanelName = "PingPongUnifiedControlPanel";
-    private static readonly Vector2 PanelSize = new Vector2(820f, 760f);
+    private static readonly Vector2 PanelSize = new Vector2(820f, 860f);
     private static readonly Vector2 PanelPosition = new Vector2(-500f, 120f);
-    private static readonly Vector2 ButtonSize = new Vector2(230f, 82f);
+    private static readonly Vector2 ButtonSize = new Vector2(230f, 76f);
 
     private const string TitleLabel = "\u4e52\u4e53\u7403\u8bad\u7ec3";
     private const string StatusPrefix = "\u72b6\u6001\uff1a";
     private const string StatusTraining = "\u8bad\u7ec3\u4e2d";
     private const string StatusPaused = "\u5df2\u6682\u505c";
     private const string StatusWaiting = "\u7b49\u5f85\u5f00\u59cb";
+    private const string TableDragPrefix = "\u62d6\u684c\uff1a";
+    private const string TableDragEnabled = "\u5f00\u542f";
+    private const string TableDragDisabled = "\u5173\u95ed";
     private const string AccuracyLabel = "\u547d\u4e2d\u7387";
     private const string HitLabel = "\u547d\u4e2d";
     private const string ServedLabel = "\u53d1\u7403";
@@ -27,7 +30,11 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
     private const string ResumeServingLabel = "\u7ee7\u7eed\u53d1\u7403";
     private const string ResetScoreLabel = "\u91cd\u7f6e\u6570\u636e";
     private const string ReturnHomeLabel = "\u8fd4\u56de\u4e3b\u9875";
-    private const string DifficultyEasyLabel = "\u8f7b\u677e";
+    private const string DifficultyDownLabel = "\u964d\u4f4e\u96be\u5ea6";
+    private const string DifficultyUpLabel = "\u63d0\u9ad8\u96be\u5ea6";
+    private const string TableDragTurnOnLabel = "\u5f00\u542f\u62d6\u684c";
+    private const string TableDragTurnOffLabel = "\u5173\u95ed\u62d6\u684c";
+    private const string TableDragUnavailableLabel = "\u62d6\u684c\u4e0d\u53ef\u7528";
     private const string DifficultyNormalLabel = "\u6807\u51c6";
     private const string DifficultyAdvancedLabel = "\u8fdb\u9636";
     private const string DifficultyChallengeLabel = "\u6311\u6218";
@@ -36,6 +43,7 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
     public ScoreManager scoreManager;
     public BallSpawner ballSpawner;
     public PingPongDifficultyController difficultyController;
+    public RemoteTableDragController tableDragController;
     public ElderCareHomeMenu homeMenu;
     public TMP_FontAsset uiFont;
 
@@ -49,6 +57,9 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
     public TMP_Text spinText;
     public TMP_Text difficultyText;
     public TMP_Text serveSpeedText;
+    public Button difficultyDownButton;
+    public Button difficultyUpButton;
+    public Button tableDragToggleButton;
     public Button servingToggleButton;
     public Button resetButton;
     public Button homeButton;
@@ -63,6 +74,18 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
         ScoreManager scoreManager,
         BallSpawner ballSpawner,
         PingPongDifficultyController difficultyController,
+        ElderCareHomeMenu homeMenu,
+        TMP_FontAsset fontAsset)
+    {
+        return EnsureRuntimePanel(canvasTransform, scoreManager, ballSpawner, difficultyController, null, homeMenu, fontAsset);
+    }
+
+    public static PingPongUnifiedControlPanel EnsureRuntimePanel(
+        Transform canvasTransform,
+        ScoreManager scoreManager,
+        BallSpawner ballSpawner,
+        PingPongDifficultyController difficultyController,
+        RemoteTableDragController tableDragController,
         ElderCareHomeMenu homeMenu,
         TMP_FontAsset fontAsset)
     {
@@ -84,6 +107,7 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
         panel.scoreManager = scoreManager;
         panel.ballSpawner = ballSpawner;
         panel.difficultyController = difficultyController;
+        panel.tableDragController = tableDragController;
         panel.homeMenu = homeMenu;
         panel.uiFont = fontAsset != null ? fontAsset : panel.uiFont;
         panel.ResolveReferences();
@@ -121,9 +145,15 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
 
     public void Bind(ScoreManager score, BallSpawner spawner, PingPongDifficultyController difficulty, ElderCareHomeMenu menu)
     {
+        Bind(score, spawner, difficulty, null, menu);
+    }
+
+    public void Bind(ScoreManager score, BallSpawner spawner, PingPongDifficultyController difficulty, RemoteTableDragController tableDrag, ElderCareHomeMenu menu)
+    {
         scoreManager = score;
         ballSpawner = spawner;
         difficultyController = difficulty;
+        tableDragController = tableDrag;
         homeMenu = menu;
         RefreshDisplay();
     }
@@ -167,6 +197,37 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
         }
     }
 
+    public void ToggleTableDrag()
+    {
+        ResolveReferences();
+        if (tableDragController == null) return;
+
+        tableDragController.ToggleRemoteDragEnabled();
+        RefreshDisplay();
+    }
+
+    public void IncreaseDifficulty()
+    {
+        ResolveReferences();
+        if (difficultyController != null)
+        {
+            difficultyController.IncreaseDifficulty();
+        }
+
+        RefreshDisplay();
+    }
+
+    public void DecreaseDifficulty()
+    {
+        ResolveReferences();
+        if (difficultyController != null)
+        {
+            difficultyController.DecreaseDifficulty();
+        }
+
+        RefreshDisplay();
+    }
+
     public void RefreshDisplay()
     {
         ResolveReferences();
@@ -178,7 +239,7 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
         }
 
         SetText(titleText, TitleLabel);
-        SetText(statusText, StatusPrefix + ResolveStatusText(serving));
+        SetText(statusText, $"{StatusPrefix}{ResolveStatusText(serving)}   {TableDragPrefix}{ResolveTableDragStatusText()}");
         SetText(accuracyText, $"{AccuracyLabel}\n<size=52><b>{ReadAccuracy():0.0}%</b></size>");
         SetText(hitText, $"{HitLabel}\n<size=42><b>{ReadHitCount()}</b></size>");
         SetText(servedText, $"{ServedLabel}\n<size=42><b>{ReadServedCount()}</b></size>");
@@ -188,6 +249,7 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
         SetText(difficultyText, DifficultyPrefix + ResolveDifficultyLabel());
         SetText(serveSpeedText, $"{ServeSpeedPrefix}{ResolveServeSpeed():0.0} m/s");
         SetButtonLabel(servingToggleButton, serving ? PauseServingLabel : ResumeServingLabel);
+        RefreshTableDragButton();
     }
 
     private string ResolveStatusText(bool serving)
@@ -196,6 +258,13 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
         return _hasStartedServing || ReadServedCount() > 0 || ReadHitCount() > 0 || ReadMissedCount() > 0
             ? StatusPaused
             : StatusWaiting;
+    }
+
+    private string ResolveTableDragStatusText()
+    {
+        return tableDragController != null && tableDragController.IsRemoteDragEnabled
+            ? TableDragEnabled
+            : TableDragDisabled;
     }
 
     private int ReadServedCount() => scoreManager != null ? scoreManager.ServedCount : 0;
@@ -217,7 +286,7 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
         switch (difficulty)
         {
             case PingPongDifficulty.Easy:
-                return DifficultyEasyLabel;
+                return DifficultyNormalLabel;
             case PingPongDifficulty.Advanced:
                 return DifficultyAdvancedLabel;
             case PingPongDifficulty.Challenge:
@@ -235,6 +304,21 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
         return ballSpawner != null ? ballSpawner.serveSpeed : PingPongDifficultyController.GetSpeed(PingPongDifficulty.Normal);
     }
 
+    private void RefreshTableDragButton()
+    {
+        if (tableDragToggleButton == null) return;
+
+        if (tableDragController == null)
+        {
+            tableDragToggleButton.interactable = false;
+            SetButtonLabel(tableDragToggleButton, TableDragUnavailableLabel);
+            return;
+        }
+
+        tableDragToggleButton.interactable = true;
+        SetButtonLabel(tableDragToggleButton, tableDragController.IsRemoteDragEnabled ? TableDragTurnOffLabel : TableDragTurnOnLabel);
+    }
+
     private void ResolveReferences()
     {
         if (scoreManager == null)
@@ -250,6 +334,11 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
         if (difficultyController == null)
         {
             difficultyController = FindSceneObject<PingPongDifficultyController>();
+        }
+
+        if (tableDragController == null)
+        {
+            tableDragController = FindSceneObject<RemoteTableDragController>();
         }
 
         if (homeMenu == null)
@@ -282,24 +371,30 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
         outline.effectColor = WithAlpha(ElderCareUiTheme.PanelStroke, 0.68f);
         outline.effectDistance = new Vector2(2.5f, -2.5f);
 
-        titleText = ConfigureText(GetOrCreateChild(transform, "Title"), TitleLabel, new Vector2(700f, 58f), new Vector2(0f, 326f), ElderCareUiTheme.Title, FontStyles.Bold, ElderCareUiTheme.TextPrimary);
-        statusText = ConfigureText(GetOrCreateChild(transform, "StatusText"), StatusPrefix + StatusWaiting, new Vector2(700f, 46f), new Vector2(0f, 268f), ElderCareUiTheme.Body, FontStyles.Bold, ElderCareUiTheme.Gold);
+        titleText = ConfigureText(GetOrCreateChild(transform, "Title"), TitleLabel, new Vector2(700f, 58f), new Vector2(0f, 376f), ElderCareUiTheme.Title, FontStyles.Bold, ElderCareUiTheme.TextPrimary);
+        statusText = ConfigureText(GetOrCreateChild(transform, "StatusText"), StatusPrefix + StatusWaiting, new Vector2(760f, 46f), new Vector2(0f, 318f), ElderCareUiTheme.Body, FontStyles.Bold, ElderCareUiTheme.Gold);
 
-        accuracyText = ConfigureMetric("AccuracyMetric", AccuracyLabel, new Vector2(-225f, 178f), ElderCareUiTheme.Cyan, true);
-        speedText = ConfigureMetric("SpeedMetric", HitSpeedLabel, new Vector2(225f, 178f), ElderCareUiTheme.Blue, true);
-        hitText = ConfigureMetric("HitMetric", HitLabel, new Vector2(-260f, 58f), ElderCareUiTheme.Green, false);
-        servedText = ConfigureMetric("ServedMetric", ServedLabel, new Vector2(0f, 58f), ElderCareUiTheme.Cyan, false);
-        missedText = ConfigureMetric("MissedMetric", MissedLabel, new Vector2(260f, 58f), ElderCareUiTheme.Orange, false);
-        spinText = ConfigureMetric("SpinMetric", SpinSpeedLabel, new Vector2(0f, -74f), ElderCareUiTheme.Violet, true);
+        accuracyText = ConfigureMetric("AccuracyMetric", AccuracyLabel, new Vector2(-225f, 228f), ElderCareUiTheme.Cyan, true);
+        speedText = ConfigureMetric("SpeedMetric", HitSpeedLabel, new Vector2(225f, 228f), ElderCareUiTheme.Blue, true);
+        hitText = ConfigureMetric("HitMetric", HitLabel, new Vector2(-260f, 108f), ElderCareUiTheme.Green, false);
+        servedText = ConfigureMetric("ServedMetric", ServedLabel, new Vector2(0f, 108f), ElderCareUiTheme.Cyan, false);
+        missedText = ConfigureMetric("MissedMetric", MissedLabel, new Vector2(260f, 108f), ElderCareUiTheme.Orange, false);
+        spinText = ConfigureMetric("SpinMetric", SpinSpeedLabel, new Vector2(0f, -24f), ElderCareUiTheme.Violet, true);
 
-        difficultyText = ConfigureText(GetOrCreateChild(transform, "DifficultyText"), DifficultyPrefix + GetDifficultyLabel(PingPongDifficulty.Normal), new Vector2(360f, 48f), new Vector2(-190f, -188f), ElderCareUiTheme.Body, FontStyles.Bold, ElderCareUiTheme.Cyan);
-        serveSpeedText = ConfigureText(GetOrCreateChild(transform, "ServeSpeedText"), ServeSpeedPrefix + "3.1 m/s", new Vector2(360f, 48f), new Vector2(200f, -188f), ElderCareUiTheme.Body, FontStyles.Bold, ElderCareUiTheme.TextPrimary);
+        difficultyText = ConfigureText(GetOrCreateChild(transform, "DifficultyText"), DifficultyPrefix + GetDifficultyLabel(PingPongDifficulty.Normal), new Vector2(360f, 48f), new Vector2(-190f, -158f), ElderCareUiTheme.Body, FontStyles.Bold, ElderCareUiTheme.Cyan);
+        serveSpeedText = ConfigureText(GetOrCreateChild(transform, "ServeSpeedText"), ServeSpeedPrefix + "3.1 m/s", new Vector2(360f, 48f), new Vector2(200f, -158f), ElderCareUiTheme.Body, FontStyles.Bold, ElderCareUiTheme.TextPrimary);
 
-        servingToggleButton = ConfigureButton(GetOrCreateChild(transform, "ServingToggleButton"), ResumeServingLabel, new Vector2(-260f, -306f), ButtonSize, ElderCareUiTheme.Cyan);
-        resetButton = ConfigureButton(GetOrCreateChild(transform, "ResetButton"), ResetScoreLabel, new Vector2(0f, -306f), ButtonSize, ElderCareUiTheme.Green);
-        homeButton = ConfigureButton(GetOrCreateChild(transform, "HomeButton"), ReturnHomeLabel, new Vector2(260f, -306f), ButtonSize, ElderCareUiTheme.Orange);
+        difficultyDownButton = ConfigureButton(GetOrCreateChild(transform, "DifficultyDownButton"), DifficultyDownLabel, new Vector2(-260f, -276f), ButtonSize, ElderCareUiTheme.Blue);
+        difficultyUpButton = ConfigureButton(GetOrCreateChild(transform, "DifficultyUpButton"), DifficultyUpLabel, new Vector2(0f, -276f), ButtonSize, ElderCareUiTheme.Cyan);
+        tableDragToggleButton = ConfigureButton(GetOrCreateChild(transform, "TableDragToggleButton"), TableDragTurnOnLabel, new Vector2(260f, -276f), ButtonSize, ElderCareUiTheme.Violet);
+        servingToggleButton = ConfigureButton(GetOrCreateChild(transform, "ServingToggleButton"), ResumeServingLabel, new Vector2(-260f, -366f), ButtonSize, ElderCareUiTheme.Cyan);
+        resetButton = ConfigureButton(GetOrCreateChild(transform, "ResetButton"), ResetScoreLabel, new Vector2(0f, -366f), ButtonSize, ElderCareUiTheme.Green);
+        homeButton = ConfigureButton(GetOrCreateChild(transform, "HomeButton"), ReturnHomeLabel, new Vector2(260f, -366f), ButtonSize, ElderCareUiTheme.Orange);
 
         ConfigureDrag(rootRect, background);
+        difficultyDownButton.transform.SetAsLastSibling();
+        difficultyUpButton.transform.SetAsLastSibling();
+        tableDragToggleButton.transform.SetAsLastSibling();
         servingToggleButton.transform.SetAsLastSibling();
         resetButton.transform.SetAsLastSibling();
         homeButton.transform.SetAsLastSibling();
@@ -332,7 +427,6 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
         var canvasTransform = canvas != null ? canvas.transform : rootRect != null ? rootRect.parent : null;
         var placer = canvasTransform != null ? canvasTransform.GetComponent<ComfortWorldSpaceUIPlacer>() : null;
 
-        // Background 只负责显示，不参与拖动，避免按钮误触。
         if (background != null)
         {
             background.raycastTarget = false;
@@ -344,14 +438,11 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
             }
         }
 
-        // 上半部分作为唯一拖动区域。
         var handle = GetOrCreateChild(rootRect, "DragHandle");
         var handleRect = ConfigureRect(
             handle,
             new Vector2(PanelSize.x, PanelSize.y * 0.5f),
-            new Vector2(0f, PanelSize.y * 0.25f)
-        );
-
+            new Vector2(0f, PanelSize.y * 0.25f));
         handleRect.SetAsLastSibling();
 
         var image = handle.GetComponent<Image>();
@@ -360,7 +451,6 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
             image = handle.AddComponent<Image>();
         }
 
-        // 保持可射线命中，但视觉上接近隐藏。
         image.raycastTarget = true;
         image.color = new Color(0.35f, 0.75f, 0.9f, 0.05f);
 
@@ -439,6 +529,9 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
     {
         if (_buttonsWired) return;
 
+        if (difficultyDownButton != null) difficultyDownButton.onClick.AddListener(DecreaseDifficulty);
+        if (difficultyUpButton != null) difficultyUpButton.onClick.AddListener(IncreaseDifficulty);
+        if (tableDragToggleButton != null) tableDragToggleButton.onClick.AddListener(ToggleTableDrag);
         if (servingToggleButton != null) servingToggleButton.onClick.AddListener(ToggleServing);
         if (resetButton != null) resetButton.onClick.AddListener(ResetScore);
         if (homeButton != null) homeButton.onClick.AddListener(ReturnHome);
@@ -449,6 +542,9 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
     {
         if (!_buttonsWired) return;
 
+        if (difficultyDownButton != null) difficultyDownButton.onClick.RemoveListener(DecreaseDifficulty);
+        if (difficultyUpButton != null) difficultyUpButton.onClick.RemoveListener(IncreaseDifficulty);
+        if (tableDragToggleButton != null) tableDragToggleButton.onClick.RemoveListener(ToggleTableDrag);
         if (servingToggleButton != null) servingToggleButton.onClick.RemoveListener(ToggleServing);
         if (resetButton != null) resetButton.onClick.RemoveListener(ResetScore);
         if (homeButton != null) homeButton.onClick.RemoveListener(ReturnHome);
