@@ -18,6 +18,11 @@ public static class PingPongPhysicsSelfTests
         ContactPlacementChangesLateralDirection();
         ServeProfilesCreateOppositeSpin();
         DifficultyPresetsIncreaseServeSpeed();
+        ServeVariationNormalProfileIsConservative();
+        ServeVariationAdvancedIsWiderThanNormal();
+        ServeVariationChallengeIsWiderThanAdvanced();
+        ServeTargetClampsInsideTable();
+        CalculateServeVelocityUsesPerServeSpeed();
         DifficultyCannotGoBelowNormal();
         SavedEasyDifficultyNormalizesToNormal();
         ControllerButtonsDisabledByDefault();
@@ -34,6 +39,7 @@ public static class PingPongPhysicsSelfTests
         ScoreCanvasInstallsRayDragHandle();
         ScoreManagerResetExposesZeroedProperties();
         BallSpawnerServingStateTransitions();
+        ExistingServeLoopStillStartsAndStops();
         UnifiedPanelServingButtonTogglesState();
         UnifiedPanelResetDoesNotStopServing();
         UnifiedPanelHomeButtonCallsShowHome();
@@ -159,6 +165,141 @@ public static class PingPongPhysicsSelfTests
         AssertTrue(Mathf.Abs(PingPongDifficultyController.GetServeInterval(PingPongDifficulty.Easy) - PingPongDifficultyController.GetServeInterval(PingPongDifficulty.Normal)) < 0.001f, "Easy difficulty should normalize to the normal serve interval.");
         AssertTrue(PingPongDifficultyController.GetServeInterval(PingPongDifficulty.Normal) > PingPongDifficultyController.GetServeInterval(PingPongDifficulty.Challenge), "Normal difficulty should leave more time between serves than challenge.");
         AssertTrue(PingPongDifficultyController.GetLabel(PingPongDifficulty.Easy) == "\u6807\u51c6", "Easy difficulty should display as standard.");
+    }
+
+    private static void ServeVariationNormalProfileIsConservative()
+    {
+        var spawnerObject = new GameObject("ServeVariationNormalSpawner");
+        try
+        {
+            var spawner = spawnerObject.AddComponent<BallSpawner>();
+            spawner.ApplyServeVariationProfile(PingPongDifficulty.Normal);
+
+            AssertTrue(spawner.enableServePathVariation, "Normal serve variation should be enabled.");
+            AssertTrue(spawner.serveTargetLateralRandomRange <= 0.10f, "Normal lateral variation should stay conservative.");
+            AssertTrue(spawner.serveTargetDepthRandomRange <= 0.05f, "Normal depth variation should stay conservative.");
+            AssertTrue(spawner.serveYawRandomDegrees <= 2f, "Normal yaw variation should stay conservative.");
+            AssertTrue(spawner.serveSpeedJitter <= 0.05f, "Normal speed jitter should stay conservative.");
+            AssertTrue(spawner.serveSpinRandomness <= 0.05f, "Normal spin randomness should stay conservative.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(spawnerObject);
+        }
+    }
+
+    private static void ServeVariationAdvancedIsWiderThanNormal()
+    {
+        var spawnerObject = new GameObject("ServeVariationAdvancedSpawner");
+        try
+        {
+            var spawner = spawnerObject.AddComponent<BallSpawner>();
+            spawner.ApplyServeVariationProfile(PingPongDifficulty.Normal);
+            var normalLateral = spawner.serveTargetLateralRandomRange;
+            var normalDepth = spawner.serveTargetDepthRandomRange;
+            var normalYaw = spawner.serveYawRandomDegrees;
+            var normalSpeedJitter = spawner.serveSpeedJitter;
+
+            spawner.ApplyServeVariationProfile(PingPongDifficulty.Advanced);
+            AssertTrue(spawner.serveTargetLateralRandomRange >= normalLateral, "Advanced lateral variation should be at least normal.");
+            AssertTrue(spawner.serveTargetDepthRandomRange >= normalDepth, "Advanced depth variation should be at least normal.");
+            AssertTrue(spawner.serveYawRandomDegrees >= normalYaw, "Advanced yaw variation should be at least normal.");
+            AssertTrue(spawner.serveSpeedJitter >= normalSpeedJitter, "Advanced speed jitter should be at least normal.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(spawnerObject);
+        }
+    }
+
+    private static void ServeVariationChallengeIsWiderThanAdvanced()
+    {
+        var spawnerObject = new GameObject("ServeVariationChallengeSpawner");
+        try
+        {
+            var spawner = spawnerObject.AddComponent<BallSpawner>();
+            spawner.ApplyServeVariationProfile(PingPongDifficulty.Advanced);
+            var advancedLateral = spawner.serveTargetLateralRandomRange;
+            var advancedDepth = spawner.serveTargetDepthRandomRange;
+            var advancedYaw = spawner.serveYawRandomDegrees;
+            var advancedSpeedJitter = spawner.serveSpeedJitter;
+            var advancedSpinRandomness = spawner.serveSpinRandomness;
+
+            spawner.ApplyServeVariationProfile(PingPongDifficulty.Challenge);
+            AssertTrue(spawner.serveTargetLateralRandomRange >= advancedLateral, "Challenge lateral variation should be at least advanced.");
+            AssertTrue(spawner.serveTargetDepthRandomRange >= advancedDepth, "Challenge depth variation should be at least advanced.");
+            AssertTrue(spawner.serveYawRandomDegrees >= advancedYaw, "Challenge yaw variation should be at least advanced.");
+            AssertTrue(spawner.serveSpeedJitter >= advancedSpeedJitter, "Challenge speed jitter should be at least advanced.");
+            AssertTrue(spawner.serveSpinRandomness >= advancedSpinRandomness, "Challenge spin randomness should be at least advanced.");
+            AssertTrue(spawner.serveSpeedJitter <= 0.20f, "Challenge speed jitter should stay below the stability cap.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(spawnerObject);
+        }
+    }
+
+    private static void ServeTargetClampsInsideTable()
+    {
+        var spawnerObject = new GameObject("ServeTargetClampSpawner");
+        var tableObject = new GameObject("ServeTargetClampTable");
+        var spawnObject = new GameObject("ServeTargetClampSpawn");
+        var targetObject = new GameObject("ServeTargetClampTarget");
+        try
+        {
+            tableObject.transform.position = PingPongGeometry.TableCenter;
+            spawnObject.transform.position = tableObject.transform.TransformPoint(new Vector3(0f, 0.5f, PingPongGeometry.TableLength * 0.5f + 0.5f));
+            targetObject.transform.position = tableObject.transform.TransformPoint(new Vector3(0.7f, 0.45f, -PingPongGeometry.TableLength * 0.5f + 0.02f));
+
+            var spawner = spawnerObject.AddComponent<BallSpawner>();
+            spawner.autoResolveTableTransform = false;
+            spawner.tableTransform = tableObject.transform;
+            spawner.spawnPoint = spawnObject.transform;
+            spawner.targetPoint = targetObject.transform;
+            spawner.useTableRelativeServeTargets = true;
+            spawner.ApplyServeVariationProfile(PingPongDifficulty.Challenge);
+
+            var maxAbsX = PingPongGeometry.TableWidth * 0.5f - spawner.serveEdgeSafetyMargin + 0.001f;
+            var minZ = -PingPongGeometry.TableLength * 0.5f + spawner.serveEdgeSafetyMargin - 0.001f;
+            var maxZ = PingPongGeometry.TableLength * 0.5f - spawner.serveEdgeSafetyMargin + 0.001f;
+            for (var i = 0; i < 80; i++)
+            {
+                var target = InvokePrivateMethod<Vector3>(spawner, "GetDifficultyAwareServeTarget");
+                var local = tableObject.transform.InverseTransformPoint(target);
+                AssertTrue(Mathf.Abs(local.x) <= maxAbsX, "Serve variation target x should stay inside the table safety margin.");
+                AssertTrue(local.z >= minZ && local.z <= maxZ, "Serve variation target z should stay inside the table safety margin.");
+            }
+        }
+        finally
+        {
+            Object.DestroyImmediate(targetObject);
+            Object.DestroyImmediate(spawnObject);
+            Object.DestroyImmediate(tableObject);
+            Object.DestroyImmediate(spawnerObject);
+        }
+    }
+
+    private static void CalculateServeVelocityUsesPerServeSpeed()
+    {
+        var spawnerObject = new GameObject("PerServeSpeedSpawner");
+        try
+        {
+            var spawner = spawnerObject.AddComponent<BallSpawner>();
+            spawner.useTableRelativeServeTargets = false;
+            var start = new Vector3(0f, 1.2f, 3f);
+            var target = new Vector3(0.15f, PingPongGeometry.TableTopHeight + PingPongGeometry.BallRadius, 0.8f);
+
+            var slow = InvokePrivateMethod<Vector3>(spawner, "CalculateServeVelocity", start, target, 2.4f);
+            var fast = InvokePrivateMethod<Vector3>(spawner, "CalculateServeVelocity", start, target, 4.2f);
+            var slowHorizontal = new Vector3(slow.x, 0f, slow.z).magnitude;
+            var fastHorizontal = new Vector3(fast.x, 0f, fast.z).magnitude;
+
+            AssertTrue(fastHorizontal > slowHorizontal + 0.1f, "CalculateServeVelocity should use the per-serve speed argument.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(spawnerObject);
+        }
     }
 
     private static void DifficultyCannotGoBelowNormal()
@@ -547,6 +688,34 @@ public static class PingPongPhysicsSelfTests
         }
         finally
         {
+            Object.DestroyImmediate(spawnerObject);
+        }
+    }
+
+    private static void ExistingServeLoopStillStartsAndStops()
+    {
+        var spawnerObject = new GameObject("ExistingServeLoopSpawner");
+        var ballContainerObject = new GameObject("ExistingServeLoopBallContainer");
+        try
+        {
+            var spawner = spawnerObject.AddComponent<BallSpawner>();
+            spawner.ballContainer = ballContainerObject.transform;
+
+            spawner.StartServing();
+            AssertTrue(spawner.IsServing, "Existing StartServing behavior should remain intact.");
+
+            AddLifetimeBall(ballContainerObject.transform, "ExistingServeLoopBall");
+            AssertTrue(ballContainerObject.transform.childCount == 1, "Test setup should add one ball to the container.");
+
+            spawner.ClearBalls();
+            AssertTrue(ballContainerObject.transform.childCount == 0, "Existing ClearBalls behavior should still clear spawned balls.");
+
+            spawner.StopServing();
+            AssertTrue(!spawner.IsServing, "Existing StopServing behavior should remain intact.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(ballContainerObject);
             Object.DestroyImmediate(spawnerObject);
         }
     }
@@ -1209,6 +1378,17 @@ public static class PingPongPhysicsSelfTests
         }
 
         method.Invoke(target, null);
+    }
+
+    private static T InvokePrivateMethod<T>(object target, string methodName, params object[] args)
+    {
+        var method = target.GetType().GetMethod(methodName, BindingFlags.Instance | BindingFlags.NonPublic);
+        if (method == null)
+        {
+            throw new System.Exception($"Missing private method {methodName}.");
+        }
+
+        return (T)method.Invoke(target, args);
     }
 
     private static bool IsChildActive(Transform parent, string path)

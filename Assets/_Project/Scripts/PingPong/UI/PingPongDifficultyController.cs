@@ -343,6 +343,8 @@ public class PingPongDifficultyController : MonoBehaviour
             ballSpawner.spawnedBallTableBounceUpwardAssist = bounceTuning.upwardAssist;
             ballSpawner.spawnedBallTableBounceHorizontalDamping = bounceTuning.horizontalDamping;
             ballSpawner.spawnedBallTableBounceMaxHorizontalSpeed = bounceTuning.maxHorizontalSpeed;
+            // Custom difficulty preserves any Inspector-tuned serve variation values.
+            ballSpawner.ApplyServeVariationProfile(difficulty);
             if (controlServeInterval)
             {
                 ballSpawner.serveInterval = preset.interval;
