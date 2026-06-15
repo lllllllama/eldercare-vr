@@ -29,9 +29,9 @@ public class BallSpawner : MonoBehaviour
     [Header("Serve Path Variation")]
     public bool enableServePathVariation = true;
     public bool useDifficultyServeVariation = true;
-    public float serveTargetLateralRandomRange = 0.10f;
+    public float serveTargetLateralRandomRange = 0.18f;
     public float serveTargetDepthRandomRange = 0.05f;
-    public float serveYawRandomDegrees = 2.0f;
+    public float serveYawRandomDegrees = 2.5f;
     [Range(0f, 0.35f)] public float serveSpeedJitter = 0.05f;
     public float serveEdgeSafetyMargin = 0.18f;
     public bool drawServeVariationGizmos = true;
@@ -134,27 +134,27 @@ public class BallSpawner : MonoBehaviour
         switch (difficulty)
         {
             case PingPongDifficulty.Advanced:
-                serveTargetLateralRandomRange = 0.22f;
+                serveTargetLateralRandomRange = 0.28f;
                 serveTargetDepthRandomRange = 0.12f;
-                serveYawRandomDegrees = 4f;
+                serveYawRandomDegrees = 4.5f;
                 serveSpeedJitter = 0.10f;
                 serveSpinRandomness = 0.10f;
                 serveEdgeSafetyMargin = 0.18f;
                 sidespinRadiansPerSecond = Mathf.Min(maxServeSpin, 56f);
                 break;
             case PingPongDifficulty.Challenge:
-                serveTargetLateralRandomRange = 0.32f;
+                serveTargetLateralRandomRange = 0.38f;
                 serveTargetDepthRandomRange = 0.18f;
-                serveYawRandomDegrees = 5.5f;
+                serveYawRandomDegrees = 6.0f;
                 serveSpeedJitter = 0.14f;
                 serveSpinRandomness = 0.16f;
                 serveEdgeSafetyMargin = 0.16f;
                 sidespinRadiansPerSecond = Mathf.Min(maxServeSpin, 62f);
                 break;
             default:
-                serveTargetLateralRandomRange = 0.10f;
+                serveTargetLateralRandomRange = 0.18f;
                 serveTargetDepthRandomRange = 0.05f;
-                serveYawRandomDegrees = 2f;
+                serveYawRandomDegrees = 2.5f;
                 serveSpeedJitter = 0.05f;
                 serveSpinRandomness = 0.05f;
                 serveEdgeSafetyMargin = 0.20f;
@@ -324,7 +324,8 @@ public class BallSpawner : MonoBehaviour
         {
             var baseLocalTarget = tableTransform.InverseTransformPoint(targetPoint.position);
             var localTarget = baseLocalTarget;
-            localTarget.x += Random.Range(-profile.lateralRange, profile.lateralRange);
+            var balancedBaseLocalX = ResolveBalancedBaseLocalX(baseLocalTarget.x, profile);
+            localTarget.x = balancedBaseLocalX + Random.Range(-profile.lateralRange, profile.lateralRange);
             localTarget.z += Random.Range(-profile.depthRange, profile.depthRange);
             localTarget = ApplyYawOffsetAsTargetShift(localTarget, profile);
             localTarget.x = ClampLocalXInsideTable(localTarget.x, profile.edgeMargin);
@@ -332,7 +333,7 @@ public class BallSpawner : MonoBehaviour
 
             var target = tableTransform.TransformPoint(localTarget);
             target.y += Random.Range(-verticalRandomRange, verticalRandomRange);
-            RememberServeTarget(target, localTarget, true, Mathf.Abs(localTarget.x - baseLocalTarget.x));
+            RememberServeTarget(target, localTarget, true, Mathf.Abs(localTarget.x - balancedBaseLocalX));
             return target;
         }
 
@@ -353,6 +354,12 @@ public class BallSpawner : MonoBehaviour
         var halfWidth = PingPongGeometry.TableWidth * 0.5f;
         var safeHalfWidth = Mathf.Max(0.05f, halfWidth - Mathf.Max(0f, margin));
         return Mathf.Clamp(localX, -safeHalfWidth, safeHalfWidth);
+    }
+
+    private float ResolveBalancedBaseLocalX(float baseLocalX, ServeVariationProfile profile)
+    {
+        var centerPull = Mathf.Max(0f, profile.lateralRange) * 0.5f;
+        return Mathf.MoveTowards(baseLocalX, 0f, centerPull);
     }
 
     private float ClampLocalZInsideServeZone(float localZ, float baseLocalZ, float margin)

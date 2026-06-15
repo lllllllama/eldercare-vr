@@ -271,9 +271,9 @@ public static class PingPongDemoSceneBuilder
             spawner.verticalRandomRange = 0.02f;
             spawner.enableServePathVariation = true;
             spawner.useDifficultyServeVariation = true;
-            spawner.serveTargetLateralRandomRange = 0.10f;
+            spawner.serveTargetLateralRandomRange = 0.18f;
             spawner.serveTargetDepthRandomRange = 0.05f;
-            spawner.serveYawRandomDegrees = 2f;
+            spawner.serveYawRandomDegrees = 2.5f;
             spawner.serveSpeedJitter = 0.05f;
             spawner.serveEdgeSafetyMargin = 0.20f;
             spawner.drawServeVariationGizmos = true;
@@ -872,9 +872,9 @@ public static class PingPongDemoSceneBuilder
         spawner.verticalRandomRange = 0.02f;
         spawner.enableServePathVariation = true;
         spawner.useDifficultyServeVariation = true;
-        spawner.serveTargetLateralRandomRange = 0.10f;
+        spawner.serveTargetLateralRandomRange = 0.18f;
         spawner.serveTargetDepthRandomRange = 0.05f;
-        spawner.serveYawRandomDegrees = 2f;
+        spawner.serveYawRandomDegrees = 2.5f;
         spawner.serveSpeedJitter = 0.05f;
         spawner.serveEdgeSafetyMargin = 0.20f;
         spawner.drawServeVariationGizmos = true;

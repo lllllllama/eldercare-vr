@@ -22,6 +22,7 @@ public static class PingPongPhysicsSelfTests
         ServeVariationAdvancedIsWiderThanNormal();
         ServeVariationChallengeIsWiderThanAdvanced();
         ServeTargetClampsInsideTable();
+        ServeVariationBalancesRightBiasedTargetAcrossCenter();
         CalculateServeVelocityUsesPerServeSpeed();
         DifficultyCannotGoBelowNormal();
         SavedEasyDifficultyNormalizesToNormal();
@@ -176,9 +177,9 @@ public static class PingPongPhysicsSelfTests
             spawner.ApplyServeVariationProfile(PingPongDifficulty.Normal);
 
             AssertTrue(spawner.enableServePathVariation, "Normal serve variation should be enabled.");
-            AssertTrue(spawner.serveTargetLateralRandomRange <= 0.10f, "Normal lateral variation should stay conservative.");
+            AssertTrue(spawner.serveTargetLateralRandomRange <= 0.18f, "Normal lateral variation should stay noticeable but conservative.");
             AssertTrue(spawner.serveTargetDepthRandomRange <= 0.05f, "Normal depth variation should stay conservative.");
-            AssertTrue(spawner.serveYawRandomDegrees <= 2f, "Normal yaw variation should stay conservative.");
+            AssertTrue(spawner.serveYawRandomDegrees <= 2.5f, "Normal yaw variation should stay conservative.");
             AssertTrue(spawner.serveSpeedJitter <= 0.05f, "Normal speed jitter should stay conservative.");
             AssertTrue(spawner.serveSpinRandomness <= 0.05f, "Normal spin randomness should stay conservative.");
         }
@@ -269,6 +270,49 @@ public static class PingPongPhysicsSelfTests
                 AssertTrue(Mathf.Abs(local.x) <= maxAbsX, "Serve variation target x should stay inside the table safety margin.");
                 AssertTrue(local.z >= minZ && local.z <= maxZ, "Serve variation target z should stay inside the table safety margin.");
             }
+        }
+        finally
+        {
+            Object.DestroyImmediate(targetObject);
+            Object.DestroyImmediate(spawnObject);
+            Object.DestroyImmediate(tableObject);
+            Object.DestroyImmediate(spawnerObject);
+        }
+    }
+
+    private static void ServeVariationBalancesRightBiasedTargetAcrossCenter()
+    {
+        var spawnerObject = new GameObject("ServeTargetBalanceSpawner");
+        var tableObject = new GameObject("ServeTargetBalanceTable");
+        var spawnObject = new GameObject("ServeTargetBalanceSpawn");
+        var targetObject = new GameObject("ServeTargetBalanceTarget");
+        try
+        {
+            tableObject.transform.position = PingPongGeometry.TableCenter;
+            spawnObject.transform.position = tableObject.transform.TransformPoint(new Vector3(0f, 0.5f, PingPongGeometry.TableLength * 0.5f + 0.5f));
+            targetObject.transform.position = tableObject.transform.TransformPoint(new Vector3(0.2f, 0.45f, -0.9f));
+
+            var spawner = spawnerObject.AddComponent<BallSpawner>();
+            spawner.autoResolveTableTransform = false;
+            spawner.tableTransform = tableObject.transform;
+            spawner.spawnPoint = spawnObject.transform;
+            spawner.targetPoint = targetObject.transform;
+            spawner.useTableRelativeServeTargets = true;
+            spawner.ApplyServeVariationProfile(PingPongDifficulty.Normal);
+
+            Random.InitState(20260615);
+            var minLocalX = float.MaxValue;
+            var maxLocalX = float.MinValue;
+            for (var i = 0; i < 160; i++)
+            {
+                var target = InvokePrivateMethod<Vector3>(spawner, "GetDifficultyAwareServeTarget");
+                var local = tableObject.transform.InverseTransformPoint(target);
+                minLocalX = Mathf.Min(minLocalX, local.x);
+                maxLocalX = Mathf.Max(maxLocalX, local.x);
+            }
+
+            AssertTrue(minLocalX < -0.03f, "Normal serve variation should reach the left side when the base target is right-biased.");
+            AssertTrue(maxLocalX > 0.20f, "Normal serve variation should still keep right-side coverage.");
         }
         finally
         {
