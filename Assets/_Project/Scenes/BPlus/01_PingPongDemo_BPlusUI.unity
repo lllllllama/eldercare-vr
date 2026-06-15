@@ -221,7 +221,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 4227456717
   m_fontColor: {r: 0.8032, g: 0.8704, b: 0.9784, a: 0.98480004}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -234,7 +234,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -1097,6 +1097,7 @@ MonoBehaviour:
   maxDistanceMeters: 3.4
   minHeightFromHead: -0.45
   maxHeightFromHead: 0.55
+  lockWorldHeight: 1
   lockHeightToComfortOffset: 1
   lockedHeightToleranceMeters: 0.08
 --- !u!114 &107832528
@@ -1331,6 +1332,8 @@ MonoBehaviour:
   ballPrefab: {fileID: 6316526095329316854, guid: 1d81a02c67ee95f4fb9dff6a6da833df, type: 3}
   spawnPoint: {fileID: 216310885}
   targetPoint: {fileID: 1558083805}
+  tableTransform: {fileID: 0}
+  autoResolveTableTransform: 1
   ballContainer: {fileID: 2029789589}
   autoStartOnPlay: 0
   serveInterval: 4.2
@@ -1339,16 +1342,40 @@ MonoBehaviour:
   upwardArc: 0.42
   minimumNetClearanceHeight: 0.9925
   netWorldZ: 2
+  useTableRelativeServeTargets: 1
+  netLocalZ: 0
   bounceOnTableBeforePlayer: 1
   tableBounceWorldY: 0.78999996
   tableBounceWorldZ: 1.45
+  tableBounceLocalZ: -0.65
   horizontalRandomRange: 0.12
   verticalRandomRange: 0.04
+  enableServePathVariation: 1
+  useDifficultyServeVariation: 1
+  serveTargetLateralRandomRange: 0.18
+  serveTargetDepthRandomRange: 0.05
+  serveYawRandomDegrees: 2.5
+  serveSpeedJitter: 0.05
+  serveEdgeSafetyMargin: 0.18
+  drawServeVariationGizmos: 1
   topspinRadiansPerSecond: 95
   backspinRadiansPerSecond: 80
   sidespinRadiansPerSecond: 50
   serveSpinRandomness: 0.18
   maxServeSpin: 140
+  logServeDiagnostics: 0
+  serveNetClearanceSafetyMargin: 0.03
+  spawnedBallMass: 0.004
+  spawnedBallDrag: 0.015
+  spawnedBallAngularDrag: 0.04
+  spawnedBallBounciness: 0.86
+  spawnedBallDynamicFriction: 0.01
+  spawnedBallStaticFriction: 0.01
+  spawnedBallTableBounceMinUpSpeed: 3
+  spawnedBallTableBounceMaxUpSpeed: 3.15
+  spawnedBallTableBounceUpwardAssist: 0.52
+  spawnedBallTableBounceHorizontalDamping: 0.8
+  spawnedBallTableBounceMaxHorizontalSpeed: 1.45
 --- !u!1 &153489190
 GameObject:
   m_ObjectHideFlags: 0
@@ -1863,8 +1890,9 @@ MonoBehaviour:
   customSpeed: 3
   controlServeInterval: 1
   enhancePanelReadability: 1
+  displayStandalonePanel: 0
   showScreenButtons: 0
-  enableControllerSpeedButtons: 1
+  enableControllerSpeedButtons: 0
   controllerButtonNode: 5
 --- !u!1 &211446095
 GameObject:
@@ -1926,6 +1954,7 @@ MonoBehaviour:
   maxDistanceMeters: 3.8
   minHeightFromHead: -0.45
   maxHeightFromHead: 0.55
+  lockWorldHeight: 1
   lockHeightToComfortOffset: 1
   lockedHeightToleranceMeters: 0.08
 --- !u!222 &211446099
@@ -2251,6 +2280,7 @@ MonoBehaviour:
   uiFont: {fileID: 11400000, guid: 1b82f4de448bbd040a62014ec37e09dc, type: 2}
   ballSpawner: {fileID: 147400565}
   autoCreateDifficultyControls: 1
+  useUnifiedControlPanel: 1
   enhanceHudReadability: 1
   hudPanelSize: {x: 680, y: 432}
   hudPanelColor: {r: 0.075, g: 0.13, b: 0.17, a: 0.96}
@@ -3389,6 +3419,7 @@ MonoBehaviour:
   maxDistanceMeters: 3.8
   minHeightFromHead: -0.45
   maxHeightFromHead: 0.55
+  lockWorldHeight: 1
   lockHeightToComfortOffset: 1
   lockedHeightToleranceMeters: 0.08
 --- !u!222 &403732582
@@ -4813,7 +4844,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 4211081215
   m_fontColor: {r: 1, g: 1, b: 1, a: 0.98}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -4826,7 +4857,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -4901,7 +4932,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &729903928
 RectTransform:
   m_ObjectHideFlags: 0
@@ -4955,6 +4986,11 @@ MonoBehaviour:
   recenterDuringStartup: 1
   startupRecenterSeconds: 1.25
   startupRecenterFrames: 18
+  clampWorldHeight: 1
+  minWorldHeight: 1.25
+  maxWorldHeight: 1.75
+  preferredWorldHeight: 1.5
+  usePreferredHeightInsteadOfHeadHeight: 1
   enableRayDrag: 1
   enableThumbstickNavigation: 1
   invertThumbstickHorizontal: 0
@@ -5022,7 +5058,7 @@ MonoBehaviour:
   m_FallbackScreenDPI: 96
   m_DefaultSpriteDPI: 96
   m_DynamicPixelsPerUnit: 1
-  m_PresetInfoIsWorld: 0
+  m_PresetInfoIsWorld: 1
 --- !u!223 &729903933
 Canvas:
   m_ObjectHideFlags: 0
@@ -5093,6 +5129,7 @@ MonoBehaviour:
   showHomeOnStart: 1
   clearBallsWhenLeavingPingPong: 1
   placeHomeUiOnShow: 1
+  startServingWhenOpeningPingPong: 0
 --- !u!4 &788432984
 Transform:
   m_ObjectHideFlags: 0
@@ -6003,7 +6040,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 4211081215
   m_fontColor: {r: 1, g: 1, b: 1, a: 0.98}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -6016,7 +6053,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -6137,7 +6174,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 3355443199
   m_fontColor: {r: 1, g: 1, b: 1, a: 0.78}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -6150,7 +6187,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -6271,7 +6308,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 4294962017
   m_fontColor: {r: 0.38, g: 0.92, b: 1, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -6284,7 +6321,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -6472,7 +6509,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 2667577343
   m_fontColor: {r: 1, g: 1, b: 1, a: 0.62}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -6485,7 +6522,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -6663,6 +6700,7 @@ MonoBehaviour:
   resumeStableSeconds: 0.5
   tableCenterHeightAboveFloor: 0.71999997
   controlServing: 1
+  allowAutomaticResumeServing: 0
   clearBallsOnBlock: 1
   moveRigWhenInside: 0
   moveTableWhenInside: 0
@@ -7239,6 +7277,7 @@ MonoBehaviour:
   syncedControllerLimiters:
   - {fileID: 620711836}
   - {fileID: 1743836097}
+  syncDifficultyPanel: 1
   activationRadius: 0.2
   tableBounceLocalZ: -0.54999995
   minimumNetClearanceAboveNet: 0.08
@@ -8197,7 +8236,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 3355443199
   m_fontColor: {r: 1, g: 1, b: 1, a: 0.78}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -8210,7 +8249,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -8754,7 +8793,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 4294962017
   m_fontColor: {r: 0.38, g: 0.92, b: 1, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -8767,7 +8806,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -9004,7 +9043,7 @@ Canvas:
   m_OverridePixelPerfect: 0
   m_SortingBucketNormalizedSize: 0
   m_VertexColorAlwaysGammaSpace: 0
-  m_AdditionalShaderChannelsFlag: 0
+  m_AdditionalShaderChannelsFlag: 25
   m_UpdateRectTransformForStandalone: 0
   m_SortingLayerID: 0
   m_SortingOrder: 100
@@ -9056,6 +9095,11 @@ MonoBehaviour:
   recenterDuringStartup: 0
   startupRecenterSeconds: 1.25
   startupRecenterFrames: 18
+  clampWorldHeight: 1
+  minWorldHeight: 1.25
+  maxWorldHeight: 1.75
+  preferredWorldHeight: 1.5
+  usePreferredHeightInsteadOfHeadHeight: 1
   enableRayDrag: 1
   enableThumbstickNavigation: 1
   invertThumbstickHorizontal: 0
@@ -10188,7 +10232,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 4211081215
   m_fontColor: {r: 1, g: 1, b: 1, a: 0.98}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -10201,7 +10245,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -11434,7 +11478,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 3355443199
   m_fontColor: {r: 1, g: 1, b: 1, a: 0.78}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -11447,7 +11491,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
