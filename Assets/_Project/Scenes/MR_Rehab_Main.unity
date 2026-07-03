@@ -1110,6 +1110,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   sessionManager: {fileID: 1970877958}
   videoLayoutController: {fileID: 902136585}
+  panelPlacementController: {fileID: 0}
   leftControllerTransform: {fileID: 816540689}
   rightControllerTransform: {fileID: 816540688}
   hmdTransform: {fileID: 816540687}
@@ -1163,9 +1164,9 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   headTransform: {fileID: 816540687}
   uiRoot: {fileID: 290964137}
-  distanceMeters: 2
+  distanceMeters: 1.35
   hmdHeightOffsetMeters: -0.1
-  placeOnStart: 1
+  placeOnStart: 0
   placeOnEnable: 0
   recenterDuringStartup: 0
   startupRecenterSeconds: 1.25
@@ -1173,7 +1174,7 @@ MonoBehaviour:
   clampWorldHeight: 1
   minWorldHeight: 1.25
   maxWorldHeight: 1.75
-  preferredWorldHeight: 1.5
+  preferredWorldHeight: 1.45
   usePreferredHeightInsteadOfHeadHeight: 1
   enableRayDrag: 1
   enableThumbstickNavigation: 1
@@ -3405,6 +3406,7 @@ MonoBehaviour:
   videoMaterial: {fileID: 2100000, guid: b5e12212d97243eabf5235b20dba74bb, type: 2}
   renderTexture: {fileID: 8400000, guid: bb6b5399d51a27448b75ff2b530d9f3b, type: 2}
   layoutController: {fileID: 902136585}
+  panelPlacementController: {fileID: 0}
   sessionManager: {fileID: 1970877958}
   displayMode: 1
   requireActiveSession: 1
@@ -7407,6 +7409,7 @@ GameObject:
   - component: {fileID: 1970877958}
   - component: {fileID: 1970877957}
   - component: {fileID: 1970877956}
+  - component: {fileID: 1970877966}
   m_Layer: 0
   m_Name: RehabManagers
   m_TagString: Untagged
@@ -7493,6 +7496,9 @@ MonoBehaviour:
   coachPlaybackStateOnMovementStart: 1
   autoCreateVirtualCoach: 1
   videoGuideController: {fileID: 902136582}
+  trainingCircleAnchor: {fileID: 0}
+  startFlowController: {fileID: 0}
+  panelPlacementController: {fileID: 0}
   trainingAreaRoot: {fileID: 582264891}
   promptCanvas: {fileID: 2088192602}
   placePromptCanvasWithTrainingArea: 1
@@ -7735,6 +7741,27 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   mainEntrySceneName: 00_MainEntry
+--- !u!114 &1970877966
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1970877954}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b80fb7f62df4d70bc25eb2f8d0ea9b2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  headTransform: {fileID: 816540687}
+  promptPanelRoot: {fileID: 2088192602}
+  videoPanelRoot: {fileID: 0}
+  videoLayoutController: {fileID: 0}
+  placeOnStart: 1
+  promptPanelDistance: 1.35
+  videoPanelDistance: 2.2
+  videoPanelYawOffsetDegrees: 40
+  panelHeight: 1.35
 --- !u!1 &1996039252
 GameObject:
   m_ObjectHideFlags: 0
@@ -8050,7 +8077,7 @@ MonoBehaviour:
   m_FallbackScreenDPI: 96
   m_DefaultSpriteDPI: 96
   m_DynamicPixelsPerUnit: 1
-  m_PresetInfoIsWorld: 0
+  m_PresetInfoIsWorld: 1
 --- !u!223 &2088192606
 Canvas:
   m_ObjectHideFlags: 0
@@ -8100,10 +8127,10 @@ MonoBehaviour:
   sessionManager: {fileID: 1970877958}
   videoGuideController: {fileID: 902136582}
   showTrainingSelectOnStart: 1
-  placeUiOnStart: 1
-  placeUiOnMainMenuOpen: 1
-  placeUiOnTrainingSelectOpen: 1
-  trainingSelectDistanceMeters: 2.45
+  placeUiOnStart: 0
+  placeUiOnMainMenuOpen: 0
+  placeUiOnTrainingSelectOpen: 0
+  trainingSelectDistanceMeters: 1.35
   trainingSelectHeightOffsetMeters: 0.08
 --- !u!114 &2088192608
 MonoBehaviour:
@@ -8123,6 +8150,7 @@ MonoBehaviour:
   completionText: {fileID: 1298136711}
   safetyPromptText: {fileID: 561538562}
   debugText: {fileID: 1894153881}
+  startButton: {fileID: 0}
 --- !u!1 &2092056485
 GameObject:
   m_ObjectHideFlags: 0

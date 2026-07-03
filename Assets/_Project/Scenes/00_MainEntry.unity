@@ -2007,6 +2007,59 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 949630333}
   m_CullTransparentMesh: 1
+--- !u!1 &956850574
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 956850576}
+  - component: {fileID: 956850575}
+  m_Layer: 0
+  m_Name: MainEntryPlacementController
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &956850575
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 956850574}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 8b80fb7f62df4d70bc25eb2f8d0ea9b2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  headTransform: {fileID: 564418155}
+  promptPanelRoot: {fileID: 1297796640}
+  videoPanelRoot: {fileID: 0}
+  videoLayoutController: {fileID: 0}
+  placeOnStart: 1
+  promptPanelDistance: 1.35
+  videoPanelDistance: 2.2
+  videoPanelYawOffsetDegrees: 40
+  panelHeight: 1.35
+--- !u!4 &956850576
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 956850574}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0.2934932, y: 0.30438268, z: 0.97717315}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &966516153
 GameObject:
   m_ObjectHideFlags: 0
@@ -3028,24 +3081,24 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1297796638}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 6a9c032b7e634b1391809eaada1a9ed9, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
   headTransform: {fileID: 564418155}
   uiRoot: {fileID: 1297796640}
-  distanceMeters: 2.2
+  distanceMeters: 1.35
   hmdHeightOffsetMeters: -0.25
-  placeOnStart: 1
+  placeOnStart: 0
   placeOnEnable: 0
-  recenterDuringStartup: 1
+  recenterDuringStartup: 0
   startupRecenterSeconds: 1.25
   startupRecenterFrames: 18
   clampWorldHeight: 1
-  minWorldHeight: 0.95
-  maxWorldHeight: 1.3
-  preferredWorldHeight: 1.1
+  minWorldHeight: 1.25
+  maxWorldHeight: 1.75
+  preferredWorldHeight: 1.45
   usePreferredHeightInsteadOfHeadHeight: 1
   enableRayDrag: 1
   enableThumbstickNavigation: 1
@@ -5864,7 +5917,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 1.45}
+  m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 680, y: 432}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &2088800494
@@ -5925,7 +5978,7 @@ MonoBehaviour:
   m_FallbackScreenDPI: 96
   m_DefaultSpriteDPI: 96
   m_DynamicPixelsPerUnit: 1
-  m_PresetInfoIsWorld: 0
+  m_PresetInfoIsWorld: 1
 --- !u!223 &2088800497
 Canvas:
   m_ObjectHideFlags: 0
@@ -6415,3 +6468,4 @@ SceneRoots:
   - {fileID: 1502320956}
   - {fileID: 652587186}
   - {fileID: 1297796640}
+  - {fileID: 956850576}
