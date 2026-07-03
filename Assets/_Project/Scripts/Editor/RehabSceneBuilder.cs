@@ -52,6 +52,7 @@ public static class RehabSceneBuilder
         public Button backButton;
         public Button startButton;
         public Button trainingBackButton;
+        public Button resultBackButton;
     }
 
     [MenuItem("Tools/PICO ElderCare/Build Main Entry Scene")]
@@ -124,7 +125,21 @@ public static class RehabSceneBuilder
         var uiRoot = CreateUiRoot("UIRoot", null);
         var entryCanvas = BuildEntryCanvas(menu, null);
         AttachUiToRoot(entryCanvas.transform, uiRoot.transform);
-        ConfigureComfortUiPlacer(uiRoot, mainCamera != null ? mainCamera.transform : null, uiRoot.transform, ElderCareUiTheme.MainEntryDistanceMeters);
+        var entryUiPlacer = ConfigureComfortUiPlacer(uiRoot, mainCamera != null ? mainCamera.transform : null, uiRoot.transform, ElderCareUiTheme.MainEntryDistanceMeters);
+        entryUiPlacer.placeOnStart = false;
+        entryUiPlacer.recenterDuringStartup = false;
+
+        var entryPanelPlacement = uiRoot.AddComponent<RehabPanelPlacementController>();
+        entryPanelPlacement.headTransform = mainCamera != null ? mainCamera.transform : null;
+        entryPanelPlacement.promptPanelRoot = uiRoot.transform;
+        entryPanelPlacement.promptPanelDistance = ElderCareUiTheme.MainEntryDistanceMeters;
+        entryPanelPlacement.videoPanelDistance = 2.2f;
+        entryPanelPlacement.videoPanelYawOffsetDegrees = 40f;
+        entryPanelPlacement.panelHeight = 1.45f;
+        entryPanelPlacement.placeOnStart = false;
+        menu.panelPlacementController = entryPanelPlacement;
+        menu.recenterPanelsOnEnable = true;
+        menu.recenterDelayFrames = 2;
 
         EditorUtility.SetDirty(managers);
         EditorUtility.SetDirty(uiRoot);
@@ -158,6 +173,8 @@ public static class RehabSceneBuilder
         var rehabUi = BuildRehabPromptCanvas(uiRoot.transform, mainCamera, homeMenu);
         var promptCanvas = rehabUi.canvas;
         var rehabUiPlacer = ConfigureComfortUiPlacer(uiRoot, hmd, uiRoot.transform, 2f);
+        rehabUiPlacer.placeOnStart = false;
+        rehabUiPlacer.recenterDuringStartup = false;
 
         var poseTracker = managers.AddComponent<HandPoseTracker>();
         poseTracker.hmdTransform = hmd;
@@ -257,8 +274,11 @@ public static class RehabSceneBuilder
         modeSelectUi.baduanjinButton = rehabUi.baduanjinButton;
         modeSelectUi.taiChiButton = rehabUi.taiChiButton;
         modeSelectUi.backButton = rehabUi.backButton;
+        modeSelectUi.trainingBackButton = rehabUi.trainingBackButton;
+        modeSelectUi.resultBackButton = rehabUi.resultBackButton;
         modeSelectUi.homeMenu = homeMenu;
         modeSelectUi.uiPlacer = rehabUiPlacer;
+        modeSelectUi.panelPlacementController = panelPlacement;
         modeSelectUi.sessionManager = session;
         modeSelectUi.showTrainingSelectOnStart = true;
         modeSelectUi.placeUiOnStart = true;
@@ -650,8 +670,7 @@ public static class RehabSceneBuilder
         CreateText(ui.trainingResultPanel.transform, "Title", "训练结果", ElderCareUiTheme.Title, FontStyles.Bold, TextAlignmentOptions.Center, new Vector2(0f, 128f), new Vector2(800f, 76f));
         var summary = CreateText(ui.trainingResultPanel.transform, "Summary", "训练结束后结果会自动保存到本机", ElderCareUiTheme.Body, FontStyles.Normal, TextAlignmentOptions.Center, new Vector2(0f, 30f), new Vector2(560f, 100f));
         summary.color = ElderCareUiTheme.TextSecondary;
-        var resultBackButton = CreateButton(ui.trainingResultPanel.transform, "BackButton", "返回主页", new Vector2(0f, -112f), new Vector2(292f, 82f));
-        UnityEventTools.AddPersistentListener(resultBackButton.onClick, homeMenu.LoadMainEntry);
+        ui.resultBackButton = CreateButton(ui.trainingResultPanel.transform, "BackButton", "返回选择", new Vector2(0f, -112f), new Vector2(292f, 82f));
 
         ui.mainMenuPanel.SetActive(false);
         ui.rehabTrainingSelectPanel.SetActive(true);
