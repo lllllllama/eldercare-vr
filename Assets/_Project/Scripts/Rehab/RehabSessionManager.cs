@@ -275,7 +275,7 @@ namespace PicoElderCare.Rehab
             {
                 videoGuideController.SetSessionManager(this);
                 videoGuideController.loopVideo = false;
-                videoGuideController.StopAndHide();
+                videoGuideController.ShowPanelOnly();
             }
 
             if (startFlowController != null)
@@ -592,7 +592,7 @@ namespace PicoElderCare.Rehab
 
             if (videoGuideController != null)
             {
-                videoGuideController.StopAndHide();
+                videoGuideController.PauseAtLastFrameKeepPanelVisible();
             }
 
             movementEvaluator.FinishCurrentMovementByTimer(_elapsedTrainingSeconds, safetyWarningCount);

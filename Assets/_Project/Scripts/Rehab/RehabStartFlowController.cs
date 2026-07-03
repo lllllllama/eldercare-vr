@@ -23,7 +23,7 @@ namespace PicoElderCare.Rehab
         public bool autoCreateStartButton = true;
         public float startPreparationDelaySeconds = 5f;
         public float preMovementCountdownSeconds = 3f;
-        public float movementRecoveryDelaySeconds = 8f;
+        public float movementRecoveryDelaySeconds = 3f;
 
         private const string WaitingPrompt = "请站稳并准备开始";
         private const string PreparationPrompt = "请放好手柄，保持站稳";
