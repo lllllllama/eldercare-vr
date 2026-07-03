@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -26,8 +27,13 @@ namespace PicoElderCare.Rehab
         public bool placeUiOnStart = true;
         public bool placeUiOnMainMenuOpen = true;
         public bool placeUiOnTrainingSelectOpen = true;
+        public int startRecenterDelayFrames = 2;
+        public float startRecenterSeconds = 1.25f;
+        public int startRecenterFrames = 18;
         public float trainingSelectDistanceMeters = 2.45f;
         public float trainingSelectHeightOffsetMeters = 0.08f;
+
+        private Coroutine _startRecenterCoroutine;
 
         private void Awake()
         {
@@ -49,6 +55,16 @@ namespace PicoElderCare.Rehab
             if (placeUiOnStart)
             {
                 RecenterNavigationPanels();
+                ScheduleStartRecenterNavigationPanels();
+            }
+        }
+
+        private void OnDisable()
+        {
+            if (_startRecenterCoroutine != null)
+            {
+                StopCoroutine(_startRecenterCoroutine);
+                _startRecenterCoroutine = null;
             }
         }
 
@@ -227,6 +243,46 @@ namespace PicoElderCare.Rehab
                 uiPlacer.EnsureWorldSpaceInteractionHelpers();
                 uiPlacer.PlaceInFrontOfUser();
             }
+        }
+
+        private void ScheduleStartRecenterNavigationPanels()
+        {
+            if (!isActiveAndEnabled) return;
+
+            if (_startRecenterCoroutine != null)
+            {
+                StopCoroutine(_startRecenterCoroutine);
+            }
+
+            _startRecenterCoroutine = StartCoroutine(RecenterNavigationPanelsAfterStartDelay());
+        }
+
+        private IEnumerator RecenterNavigationPanelsAfterStartDelay()
+        {
+            var delayFrames = Mathf.Max(0, startRecenterDelayFrames);
+            for (var i = 0; i < delayFrames; i++)
+            {
+                yield return null;
+            }
+
+            var recenterUntilTime = Time.unscaledTime + Mathf.Max(0f, startRecenterSeconds);
+            var recenterFramesRemaining = Mathf.Max(1, startRecenterFrames);
+            while (isActiveAndEnabled)
+            {
+                RecenterNavigationPanels();
+                recenterFramesRemaining--;
+
+                var stillWithinTime = Time.unscaledTime <= recenterUntilTime;
+                var stillWithinFrames = recenterFramesRemaining > 0;
+                if (!stillWithinTime && !stillWithinFrames)
+                {
+                    break;
+                }
+
+                yield return null;
+            }
+
+            _startRecenterCoroutine = null;
         }
 
         private void ApplyTrainingSelectPlacementDefaults()
