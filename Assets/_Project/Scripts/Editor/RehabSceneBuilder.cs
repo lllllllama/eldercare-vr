@@ -50,6 +50,7 @@ public static class RehabSceneBuilder
         public Button baduanjinButton;
         public Button taiChiButton;
         public Button backButton;
+        public Button startButton;
         public Button trainingBackButton;
     }
 
@@ -190,6 +191,27 @@ public static class RehabSceneBuilder
         uiController.completionText = rehabUi.completion;
         uiController.safetyPromptText = rehabUi.safety;
         uiController.debugText = rehabUi.debug;
+        uiController.startButton = rehabUi.startButton;
+
+        var trainingCircleAnchor = managers.AddComponent<TrainingCircleAnchor>();
+        trainingCircleAnchor.headTransform = hmd;
+        trainingCircleAnchor.trainingAreaRoot = trainingArea.transform;
+        trainingCircleAnchor.fallbackFloorY = 0f;
+
+        var startFlow = managers.AddComponent<RehabStartFlowController>();
+        startFlow.uiController = uiController;
+        startFlow.startButton = rehabUi.startButton;
+        startFlow.startPreparationDelaySeconds = 5f;
+        startFlow.preMovementCountdownSeconds = 3f;
+        startFlow.movementRecoveryDelaySeconds = 8f;
+
+        var panelPlacement = managers.AddComponent<RehabPanelPlacementController>();
+        panelPlacement.headTransform = hmd;
+        panelPlacement.promptPanelRoot = promptCanvas.transform;
+        panelPlacement.promptPanelDistance = 1.8f;
+        panelPlacement.videoPanelDistance = 2.2f;
+        panelPlacement.videoPanelYawOffsetDegrees = 40f;
+        panelPlacement.panelHeight = 1.45f;
 
         var virtualCoach = BuildVirtualCoach(visualRoot.transform, hmd);
 
@@ -201,6 +223,9 @@ public static class RehabSceneBuilder
         session.resultRecorder = recorder;
         session.virtualCoachController = virtualCoach;
         session.coachPlaybackStateOnMovementStart = CoachPlaybackState.Demonstration;
+        session.trainingCircleAnchor = trainingCircleAnchor;
+        session.startFlowController = startFlow;
+        session.panelPlacementController = panelPlacement;
         session.trainingAreaRoot = trainingArea.transform;
         session.promptCanvas = promptCanvas.transform;
         session.placePromptCanvasWithTrainingArea = false;
@@ -214,7 +239,7 @@ public static class RehabSceneBuilder
         session.trainingFloorY = 0f;
         session.promptHeightMeters = 1.65f;
         session.promptForwardOffsetMeters = 0.85f;
-        session.useOpenSpacePlacement = true;
+        session.useOpenSpacePlacement = false;
         session.refreshOpenSpaceAfterPlacement = false;
         session.openSpaceClearanceRadiusMeters = 0.85f;
         session.openSpaceClearanceHeightMeters = 1.7f;
@@ -615,8 +640,11 @@ public static class RehabSceneBuilder
         SendToBack(CreateEntryDivider(ui.rehabTrainingPanel.transform, "SafetyPanel", new Vector2(0f, -116f), new Vector2(606f, 58f), WithAlpha(ElderCareUiTheme.Gold, 0.22f), 20f));
         ui.safety = CreateText(ui.rehabTrainingPanel.transform, "SafetyPromptText", "保持舒适幅度，准备开始", ElderCareUiTheme.BodySmall, FontStyles.Bold, TextAlignmentOptions.Center, new Vector2(0f, -116f), new Vector2(586f, 52f));
         ui.safety.color = WithAlpha(ElderCareUiTheme.Gold, 0.96f);
-        ui.debug = CreateText(ui.rehabTrainingPanel.transform, "DebugText", "动作 1/8 | 步骤 1/1 | 保持 0.0s | 距中心 0.00m", ElderCareUiTheme.Debug, FontStyles.Normal, TextAlignmentOptions.Center, new Vector2(-92f, -174f), new Vector2(500f, 36f));
+        ui.debug = CreateText(ui.rehabTrainingPanel.transform, "DebugText", "距中心 0.00m", ElderCareUiTheme.Debug, FontStyles.Normal, TextAlignmentOptions.Center, new Vector2(0f, -174f), new Vector2(260f, 36f));
         ui.debug.color = WithAlpha(ElderCareUiTheme.TextMuted, 0.42f);
+        ui.debug.enableWordWrapping = false;
+        ui.debug.overflowMode = TextOverflowModes.Ellipsis;
+        ui.startButton = CreateButton(ui.rehabTrainingPanel.transform, "StartButton", "开始", new Vector2(-232f, -174f), new Vector2(186f, 82f));
         ui.trainingBackButton = CreateButton(ui.rehabTrainingPanel.transform, "HomeButton", "返回", new Vector2(232f, -174f), new Vector2(186f, 82f));
 
         CreateText(ui.trainingResultPanel.transform, "Title", "训练结果", ElderCareUiTheme.Title, FontStyles.Bold, TextAlignmentOptions.Center, new Vector2(0f, 128f), new Vector2(800f, 76f));

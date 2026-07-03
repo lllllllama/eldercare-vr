@@ -43,6 +43,7 @@ namespace PicoElderCare.Rehab
         public Material videoMaterial;
         public RenderTexture renderTexture;
         public RehabVideoPanelLayoutController layoutController;
+        public RehabPanelPlacementController panelPlacementController;
         public RehabSessionManager sessionManager;
         public RehabVideoDisplayMode displayMode = RehabVideoDisplayMode.QuadMaterial;
         public bool requireActiveSession = true;
@@ -302,6 +303,12 @@ namespace PicoElderCare.Rehab
         public void PlacePanelForCurrentView()
         {
             ResolveReferences();
+            if (panelPlacementController != null)
+            {
+                panelPlacementController.PlacePanelsIfNeeded();
+                return;
+            }
+
             if (layoutController != null)
             {
                 layoutController.PlaceInRightFrontOfUserOnce();
@@ -749,6 +756,11 @@ namespace PicoElderCare.Rehab
                 layoutController = GetComponent<RehabVideoPanelLayoutController>();
             }
 
+            if (panelPlacementController == null)
+            {
+                panelPlacementController = FindObjectOfType<RehabPanelPlacementController>(true);
+            }
+
             if (layoutController != null)
             {
                 if (layoutController.panelRoot == null)
@@ -771,6 +783,15 @@ namespace PicoElderCare.Rehab
                 if (layoutController.heightOffset < 0.02f)
                 {
                     layoutController.heightOffset = 0.08f;
+                }
+            }
+
+            if (panelPlacementController != null)
+            {
+                panelPlacementController.videoLayoutController = layoutController;
+                if (videoPanel != null)
+                {
+                    panelPlacementController.videoPanelRoot = videoPanel.transform;
                 }
             }
 

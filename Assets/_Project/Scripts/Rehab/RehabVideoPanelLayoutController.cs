@@ -101,6 +101,18 @@ namespace PicoElderCare.Rehab
             PlaceInRightFrontOfUserOnce();
         }
 
+        public void ApplyExternalPanelPose(Vector3 position, Quaternion rotation, bool preserveAsUserPlacement)
+        {
+            ResolveReferences();
+            ApplyVideoSize();
+
+            if (panelRoot == null) return;
+
+            panelRoot.position = position;
+            panelRoot.rotation = rotation;
+            _hasUserPlacement = preserveAsUserPlacement;
+        }
+
         public void MoveVideoToWorldPoint(Vector3 targetPosition, Vector3 headPosition)
         {
             ResolveReferences();

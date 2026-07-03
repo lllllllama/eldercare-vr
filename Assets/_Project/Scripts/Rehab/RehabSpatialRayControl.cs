@@ -18,6 +18,7 @@ namespace PicoElderCare.Rehab
     {
         public RehabSessionManager sessionManager;
         public RehabVideoPanelLayoutController videoLayoutController;
+        public RehabPanelPlacementController panelPlacementController;
         public Transform leftControllerTransform;
         public Transform rightControllerTransform;
         public Transform hmdTransform;
@@ -91,6 +92,11 @@ namespace PicoElderCare.Rehab
                 controller.videoLayoutController = videoLayout;
             }
 
+            if (session != null)
+            {
+                controller.panelPlacementController = session.panelPlacementController;
+            }
+
             controller.ResolveReferences();
             controller.EnsureControlCanvas();
             controller.EnsureVideoRayTarget();
@@ -109,7 +115,11 @@ namespace PicoElderCare.Rehab
         {
             ResolveReferences();
             EnsureVideoRayTarget();
-            if (videoLayoutController != null)
+            if (panelPlacementController != null)
+            {
+                panelPlacementController.PlacePanelsIfNeeded();
+            }
+            else if (videoLayoutController != null)
             {
                 videoLayoutController.PlaceInRightFrontOfUserOnce();
             }
@@ -218,8 +228,12 @@ namespace PicoElderCare.Rehab
 
         public void ResetVideoPlacement()
         {
-            if (videoLayoutController == null) ResolveReferences();
-            if (videoLayoutController != null)
+            if (panelPlacementController == null || videoLayoutController == null) ResolveReferences();
+            if (panelPlacementController != null)
+            {
+                panelPlacementController.RecenterPanels();
+            }
+            else if (videoLayoutController != null)
             {
                 videoLayoutController.ResetVideoPlacement();
             }
@@ -402,9 +416,18 @@ namespace PicoElderCare.Rehab
                 videoLayoutController = FindObjectOfType<RehabVideoPanelLayoutController>(true);
             }
 
+            if (panelPlacementController == null)
+            {
+                panelPlacementController = FindObjectOfType<RehabPanelPlacementController>(true);
+            }
+
             if (sessionManager != null)
             {
                 floorY = sessionManager.trainingFloorY;
+                if (panelPlacementController == null)
+                {
+                    panelPlacementController = sessionManager.panelPlacementController;
+                }
             }
 
             if (leftControllerTransform == null)
