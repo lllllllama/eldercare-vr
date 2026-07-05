@@ -43,6 +43,7 @@ namespace PicoElderCare.Rehab
         public Material videoMaterial;
         public RenderTexture renderTexture;
         public RehabVideoPanelLayoutController layoutController;
+        public RehabPanelPlacementController panelPlacementController;
         public RehabSessionManager sessionManager;
         public RehabVideoDisplayMode displayMode = RehabVideoDisplayMode.QuadMaterial;
         public bool requireActiveSession = true;
@@ -94,14 +95,22 @@ namespace PicoElderCare.Rehab
 
             if (requireActiveSession && sessionManager != null && !sessionManager.IsTrainingActive)
             {
-                StopAndHide();
+                if (sessionManager.IsSessionActive)
+                {
+                    ShowPanelOnly();
+                }
+                else
+                {
+                    StopAndHide();
+                }
+
                 Debug.Log($"Skip rehab video guide because current movement is not training. movementId={movementId}, movementName={movementName}", this);
                 return;
             }
 
             if (string.IsNullOrWhiteSpace(movementName))
             {
-                StopAndHide();
+                ShowPanelOnly();
                 Debug.Log($"Skip rehab video guide because movementName is empty. movementId={movementId}", this);
                 return;
             }
@@ -109,14 +118,14 @@ namespace PicoElderCare.Rehab
             var binding = FindBinding(movementId, movementName);
             if (binding == null || binding.videoClip == null)
             {
-                StopAndHide();
+                ShowPanelOnly();
                 Debug.Log($"Current movement has no bound video. movementId={movementId}, movementName={movementName}", this);
                 return;
             }
 
             if (videoPlayer == null)
             {
-                StopAndHide();
+                ShowPanelOnly();
                 Debug.LogWarning("Cannot play rehab video guide because VideoPlayer is not assigned.", this);
                 return;
             }
@@ -220,6 +229,59 @@ namespace PicoElderCare.Rehab
             Debug.Log("Prepare rehab video guide for resume", this);
         }
 
+        public void ShowPanelOnly()
+        {
+            ResolveReferences();
+            EnsurePlaybackObjectsReady();
+            PlacePanelForCurrentView();
+            ApplyDisplayVisible(true);
+            ApplyDebugFrameVisible();
+
+            _playWhenPrepared = false;
+            _pauseWhenPrepared = false;
+            UnsubscribePrepareCompleted();
+
+            if (videoPlayer != null && videoPlayer.isPlaying)
+            {
+                videoPlayer.Pause();
+            }
+
+            if (audioSource != null && audioSource.isPlaying)
+            {
+                audioSource.Pause();
+            }
+        }
+
+        public void PauseAtLastFrameKeepPanelVisible()
+        {
+            ResolveReferences();
+            EnsurePlaybackObjectsReady();
+            PlacePanelForCurrentView();
+            ApplyDisplayVisible(true);
+            EnsureRenderTextureBinding();
+            ApplyDebugFrameVisible();
+
+            _playWhenPrepared = false;
+            _pauseWhenPrepared = false;
+            UnsubscribePrepareCompleted();
+
+            if (videoPlayer != null && videoPlayer.clip != null && videoPlayer.isPrepared)
+            {
+                var duration = (float)videoPlayer.clip.length;
+                if (duration > 0f)
+                {
+                    videoPlayer.time = Mathf.Max(0f, duration - 0.05f);
+                }
+
+                videoPlayer.Pause();
+            }
+
+            if (audioSource != null && audioSource.isPlaying)
+            {
+                audioSource.Pause();
+            }
+        }
+
         public void StopAndHide()
         {
             _playWhenPrepared = false;
@@ -302,6 +364,12 @@ namespace PicoElderCare.Rehab
         public void PlacePanelForCurrentView()
         {
             ResolveReferences();
+            if (panelPlacementController != null)
+            {
+                panelPlacementController.PlacePanelsIfNeeded();
+                return;
+            }
+
             if (layoutController != null)
             {
                 layoutController.PlaceInRightFrontOfUserOnce();
@@ -749,6 +817,11 @@ namespace PicoElderCare.Rehab
                 layoutController = GetComponent<RehabVideoPanelLayoutController>();
             }
 
+            if (panelPlacementController == null)
+            {
+                panelPlacementController = FindObjectOfType<RehabPanelPlacementController>(true);
+            }
+
             if (layoutController != null)
             {
                 if (layoutController.panelRoot == null)
@@ -771,6 +844,15 @@ namespace PicoElderCare.Rehab
                 if (layoutController.heightOffset < 0.02f)
                 {
                     layoutController.heightOffset = 0.08f;
+                }
+            }
+
+            if (panelPlacementController != null)
+            {
+                panelPlacementController.videoLayoutController = layoutController;
+                if (videoPanel != null)
+                {
+                    panelPlacementController.videoPanelRoot = videoPanel.transform;
                 }
             }
 

@@ -1,5 +1,6 @@
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace PicoElderCare.Rehab
 {
@@ -11,6 +12,7 @@ namespace PicoElderCare.Rehab
         public TMP_Text completionText;
         public TMP_Text safetyPromptText;
         public TMP_Text debugText;
+        public Button startButton;
 
         public void Refresh(
             RehabMovementEvaluation evaluation,
@@ -77,6 +79,19 @@ namespace PicoElderCare.Rehab
         {
             if (stepText != null) stepText.text = message;
             if (safetyPromptText != null) safetyPromptText.text = message;
+        }
+
+        public void SetFlowPrompt(
+            string movementName,
+            string statusMessage,
+            string timerMessage,
+            string safetyMessage)
+        {
+            if (movementNameText != null) movementNameText.text = movementName;
+            if (stepText != null) stepText.text = statusMessage;
+            if (remainingTimeText != null) remainingTimeText.text = timerMessage;
+            if (completionText != null) completionText.text = "完成度 0%";
+            if (safetyPromptText != null) safetyPromptText.text = safetyMessage;
         }
     }
 }

@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -15,8 +16,10 @@ namespace PicoElderCare.Rehab
         public Button taiChiButton;
         public Button backButton;
         public Button trainingBackButton;
+        public Button resultBackButton;
         public ModuleHomeMenu homeMenu;
         public ComfortWorldSpaceUIPlacer uiPlacer;
+        public RehabPanelPlacementController panelPlacementController;
 
         public RehabSessionManager sessionManager;
         public RehabVideoGuideController videoGuideController;
@@ -24,8 +27,13 @@ namespace PicoElderCare.Rehab
         public bool placeUiOnStart = true;
         public bool placeUiOnMainMenuOpen = true;
         public bool placeUiOnTrainingSelectOpen = true;
+        public int startRecenterDelayFrames = 2;
+        public float startRecenterSeconds = 1.25f;
+        public int startRecenterFrames = 18;
         public float trainingSelectDistanceMeters = 2.45f;
         public float trainingSelectHeightOffsetMeters = 0.08f;
+
+        private Coroutine _startRecenterCoroutine;
 
         private void Awake()
         {
@@ -46,7 +54,17 @@ namespace PicoElderCare.Rehab
 
             if (placeUiOnStart)
             {
-                PlaceUiInFrontOfUser();
+                RecenterNavigationPanels();
+                ScheduleStartRecenterNavigationPanels();
+            }
+        }
+
+        private void OnDisable()
+        {
+            if (_startRecenterCoroutine != null)
+            {
+                StopCoroutine(_startRecenterCoroutine);
+                _startRecenterCoroutine = null;
             }
         }
 
@@ -61,7 +79,7 @@ namespace PicoElderCare.Rehab
 
             if (placeUiOnMainMenuOpen)
             {
-                PlaceUiInFrontOfUser();
+                RecenterNavigationPanels();
             }
         }
 
@@ -76,7 +94,7 @@ namespace PicoElderCare.Rehab
 
             if (placeUiOnTrainingSelectOpen)
             {
-                PlaceUiInFrontOfUser();
+                RecenterNavigationPanels();
             }
         }
 
@@ -98,6 +116,8 @@ namespace PicoElderCare.Rehab
             SetPanelActive(rehabTrainingSelectPanel, false);
             SetPanelActive(rehabTrainingPanel, false);
             SetPanelActive(trainingResultPanel, true);
+
+            RecenterNavigationPanels();
         }
 
         public void ReturnToMainEntry()
@@ -116,7 +136,7 @@ namespace PicoElderCare.Rehab
 
         public void ResetUiPosition()
         {
-            PlaceUiInFrontOfUser();
+            RecenterNavigationPanels();
         }
 
         private void StartTraining(RehabTrainingType trainingType)
@@ -156,6 +176,21 @@ namespace PicoElderCare.Rehab
                 homeMenu = FindObjectOfType<ModuleHomeMenu>(true);
             }
 
+            if (panelPlacementController == null && sessionManager != null)
+            {
+                panelPlacementController = sessionManager.panelPlacementController;
+            }
+
+            if (panelPlacementController == null)
+            {
+                panelPlacementController = FindObjectOfType<RehabPanelPlacementController>(true);
+            }
+
+            if (panelPlacementController != null && panelPlacementController.promptPanelRoot == null)
+            {
+                panelPlacementController.promptPanelRoot = transform;
+            }
+
             if (uiPlacer == null)
             {
                 uiPlacer = GetComponentInParent<ComfortWorldSpaceUIPlacer>();
@@ -175,11 +210,32 @@ namespace PicoElderCare.Rehab
                     }
                 }
             }
+
+            if (resultBackButton == null && trainingResultPanel != null)
+            {
+                var buttons = trainingResultPanel.GetComponentsInChildren<Button>(true);
+                for (var i = 0; i < buttons.Length; i++)
+                {
+                    var buttonName = buttons[i].name;
+                    if (buttonName == "BackButton" ||
+                        buttonName.IndexOf("Back", System.StringComparison.OrdinalIgnoreCase) >= 0)
+                    {
+                        resultBackButton = buttons[i];
+                        break;
+                    }
+                }
+            }
         }
 
-        private void PlaceUiInFrontOfUser()
+        private void RecenterNavigationPanels()
         {
             ResolveReferences();
+
+            if (panelPlacementController != null)
+            {
+                panelPlacementController.RecenterPanels();
+                return;
+            }
 
             if (uiPlacer != null)
             {
@@ -187,6 +243,46 @@ namespace PicoElderCare.Rehab
                 uiPlacer.EnsureWorldSpaceInteractionHelpers();
                 uiPlacer.PlaceInFrontOfUser();
             }
+        }
+
+        private void ScheduleStartRecenterNavigationPanels()
+        {
+            if (!isActiveAndEnabled) return;
+
+            if (_startRecenterCoroutine != null)
+            {
+                StopCoroutine(_startRecenterCoroutine);
+            }
+
+            _startRecenterCoroutine = StartCoroutine(RecenterNavigationPanelsAfterStartDelay());
+        }
+
+        private IEnumerator RecenterNavigationPanelsAfterStartDelay()
+        {
+            var delayFrames = Mathf.Max(0, startRecenterDelayFrames);
+            for (var i = 0; i < delayFrames; i++)
+            {
+                yield return null;
+            }
+
+            var recenterUntilTime = Time.unscaledTime + Mathf.Max(0f, startRecenterSeconds);
+            var recenterFramesRemaining = Mathf.Max(1, startRecenterFrames);
+            while (isActiveAndEnabled)
+            {
+                RecenterNavigationPanels();
+                recenterFramesRemaining--;
+
+                var stillWithinTime = Time.unscaledTime <= recenterUntilTime;
+                var stillWithinFrames = recenterFramesRemaining > 0;
+                if (!stillWithinTime && !stillWithinFrames)
+                {
+                    break;
+                }
+
+                yield return null;
+            }
+
+            _startRecenterCoroutine = null;
         }
 
         private void ApplyTrainingSelectPlacementDefaults()
@@ -197,9 +293,6 @@ namespace PicoElderCare.Rehab
             uiPlacer.hmdHeightOffsetMeters = Mathf.Max(uiPlacer.hmdHeightOffsetMeters, trainingSelectHeightOffsetMeters);
             uiPlacer.enableRayDrag = true;
             uiPlacer.enableThumbstickNavigation = true;
-            uiPlacer.recenterDuringStartup = true;
-            uiPlacer.startupRecenterSeconds = Mathf.Max(uiPlacer.startupRecenterSeconds, 1.25f);
-            uiPlacer.startupRecenterFrames = Mathf.Max(uiPlacer.startupRecenterFrames, 18);
         }
 
         private void BindButtonEvents()
@@ -233,6 +326,12 @@ namespace PicoElderCare.Rehab
             {
                 trainingBackButton.onClick.RemoveListener(ShowTrainingSelectPanel);
                 trainingBackButton.onClick.AddListener(ShowTrainingSelectPanel);
+            }
+
+            if (resultBackButton != null)
+            {
+                resultBackButton.onClick = new Button.ButtonClickedEvent();
+                resultBackButton.onClick.AddListener(ShowTrainingSelectPanel);
             }
         }
 

@@ -1,3 +1,4 @@
+using System.Collections;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -11,17 +12,27 @@ namespace PicoElderCare.Rehab
         public string htmlStyleMainSceneName = "00_MainEntry";
         public string htmlStyleCanvasName = "MainEntryCanvas";
         public Transform htmlStyleMainCanvas;
+        public RehabPanelPlacementController panelPlacementController;
+        public bool recenterPanelsOnEnable = true;
+        public int recenterDelayFrames = 2;
+
+        private Coroutine _recenterCoroutine;
+
+        private void OnEnable()
+        {
+            if (recenterPanelsOnEnable)
+            {
+                ScheduleRecenterPanels();
+            }
+        }
 
         private void Start()
         {
-            if (!ShouldApplyHtmlStyleMainPanel()) return;
+            ApplyHtmlStyleMainPanelIfNeeded();
 
-            var canvas = htmlStyleMainCanvas != null
-                ? htmlStyleMainCanvas
-                : FindSceneTransform(htmlStyleCanvasName);
-            if (canvas != null)
+            if (recenterPanelsOnEnable)
             {
-                HtmlStyleMainEntryPanel.Ensure(canvas, this, null);
+                ScheduleRecenterPanels();
             }
         }
 
@@ -35,6 +46,28 @@ namespace PicoElderCare.Rehab
             SceneManager.LoadScene(rehabSceneName);
         }
 
+        public void RecenterPanels()
+        {
+            ResolveReferences();
+            if (panelPlacementController != null)
+            {
+                panelPlacementController.RecenterPanels();
+            }
+        }
+
+        private void ApplyHtmlStyleMainPanelIfNeeded()
+        {
+            if (!ShouldApplyHtmlStyleMainPanel()) return;
+
+            var canvas = htmlStyleMainCanvas != null
+                ? htmlStyleMainCanvas
+                : FindSceneTransform(htmlStyleCanvasName);
+            if (canvas != null)
+            {
+                HtmlStyleMainEntryPanel.Ensure(canvas, this, null);
+            }
+        }
+
         private bool ShouldApplyHtmlStyleMainPanel()
         {
             if (!applyHtmlStyleMainPanel) return false;
@@ -42,6 +75,38 @@ namespace PicoElderCare.Rehab
 
             var activeScene = SceneManager.GetActiveScene();
             return activeScene.IsValid() && activeScene.name == htmlStyleMainSceneName;
+        }
+
+        private void ScheduleRecenterPanels()
+        {
+            if (!isActiveAndEnabled) return;
+
+            if (_recenterCoroutine != null)
+            {
+                StopCoroutine(_recenterCoroutine);
+            }
+
+            _recenterCoroutine = StartCoroutine(RecenterPanelsAfterDelay());
+        }
+
+        private IEnumerator RecenterPanelsAfterDelay()
+        {
+            var frames = Mathf.Max(0, recenterDelayFrames);
+            for (var i = 0; i < frames; i++)
+            {
+                yield return null;
+            }
+
+            RecenterPanels();
+            _recenterCoroutine = null;
+        }
+
+        private void ResolveReferences()
+        {
+            if (panelPlacementController == null)
+            {
+                panelPlacementController = FindObjectOfType<RehabPanelPlacementController>(true);
+            }
         }
 
         private static Transform FindSceneTransform(string objectName)
