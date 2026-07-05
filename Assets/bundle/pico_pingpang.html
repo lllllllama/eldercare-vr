@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>乒乓球训练 · MR 控制面板</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;font-family:"PingFang SC","Microsoft YaHei",sans-serif;}
+  html,body{width:100%;height:100%;overflow:hidden;}
+
+  /* ===== 模拟 MR 实景背景 ===== */
+  #scene{position:fixed;inset:0;overflow:hidden;
+    background:linear-gradient(165deg,#9a8f80 0%,#7d7264 28%,#564d42 60%,#332d26 100%);}
+  .wall{position:absolute;top:0;left:0;right:0;height:50%;
+    background:linear-gradient(180deg,#b3a896,#8c8170);opacity:.9;}
+  .door{position:absolute;top:6%;left:6%;width:150px;height:300px;
+    background:linear-gradient(120deg,#6b5e4d,#54493b);border:8px solid #463d31;border-radius:4px;opacity:.85;}
+  .table{position:absolute;bottom:-4%;left:50%;transform:translateX(-58%) perspective(900px) rotateX(58deg);
+    width:680px;height:560px;background:linear-gradient(180deg,#1f4f8a,#15396a);
+    border:10px solid #0d2747;border-radius:8px;box-shadow:0 0 60px rgba(0,0,0,.4);}
+  .table .line{position:absolute;left:50%;top:0;bottom:0;width:4px;background:rgba(255,255,255,.85);transform:translateX(-50%);}
+  .table .net{position:absolute;top:46%;left:-4%;right:-4%;height:7px;background:rgba(230,230,230,.7);}
+  .paddle{position:absolute;bottom:4%;right:16%;width:120px;height:120px;border-radius:50%;
+    background:radial-gradient(circle at 40% 35%,#ff5a4d,#c5281c);box-shadow:0 8px 30px rgba(0,0,0,.5);}
+
+  /* ===== 完整控制面板 ===== */
+  #ctrl{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);
+    width:min(92vw,600px);
+    background:rgba(18,26,38,.92);
+    backdrop-filter:blur(20px) saturate(150%);-webkit-backdrop-filter:blur(20px) saturate(150%);
+    border:2px solid rgba(120,170,230,.35);border-radius:30px;
+    padding:24px 26px;color:#fff;
+    box-shadow:0 24px 70px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.12);
+    transition:opacity .35s, transform .35s;}
+  #ctrl.hidden{opacity:0;pointer-events:none;transform:translate(-50%,-50%) scale(.92);}
+
+  .head{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;}
+  .head .ttl{display:flex;align-items:center;gap:12px;font-size:28px;font-weight:800;color:#aee0ff;}
+  .head .ttl .e{font-size:32px;}
+  .status{font-size:16px;font-weight:700;padding:7px 16px;border-radius:30px;
+    background:rgba(255,255,255,.1);color:#cfe6ff;display:flex;align-items:center;gap:7px;}
+  .status.run{background:rgba(110,220,140,.22);color:#8effb0;}
+  .status.pause{background:rgba(255,190,90,.22);color:#ffce8a;}
+
+  .sechead{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700;
+    color:#9fb8d4;margin:6px 0 10px;letter-spacing:1px;}
+  .sechead::after{content:"";flex:1;height:1px;background:rgba(255,255,255,.12);}
+
+  .assess{background:rgba(255,255,255,.05);border:1.5px solid rgba(255,255,255,.1);
+    border-radius:20px;padding:16px;margin-bottom:18px;}
+  .a-top{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px;}
+  .acell{background:rgba(255,255,255,.06);border-radius:14px;padding:12px 8px;text-align:center;}
+  .acell .av{font-size:30px;font-weight:800;line-height:1;}
+  .acell .al{font-size:14px;color:#bcd2e8;margin-top:6px;display:flex;align-items:center;justify-content:center;gap:5px;}
+  .hit .av{color:#8effb0;} .serve .av{color:#6ee0ff;} .miss .av{color:#ff9b8a;}
+  .a-rate{display:flex;align-items:center;gap:14px;}
+  .a-rate .rinfo{flex:1;}
+  .a-rate .rl{font-size:15px;color:#bcd2e8;display:flex;align-items:center;gap:6px;}
+  .a-rate .rv{font-size:34px;font-weight:800;color:#ffd47a;line-height:1.1;}
+  .bar{flex:1.4;height:14px;border-radius:10px;background:rgba(255,255,255,.12);overflow:hidden;}
+  .bar > i{display:block;height:100%;width:0%;border-radius:10px;
+    background:linear-gradient(90deg,#6ee0ff,#8effb0);transition:width .5s;}
+  .speedrow{display:flex;align-items:center;gap:6px;font-size:14px;color:#bcd2e8;margin-top:10px;}
+  .speedrow b{color:#fff;font-size:16px;}
+
+  .diff{background:rgba(255,255,255,.05);border:1.5px solid rgba(120,170,240,.25);
+    border-radius:20px;padding:16px;margin-bottom:18px;}
+  .dctl{display:flex;align-items:center;justify-content:space-between;gap:14px;}
+  .dbtn{width:60px;height:60px;border-radius:18px;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;font-size:34px;font-weight:800;cursor:pointer;
+    background:rgba(80,150,230,.25);color:#bfe0ff;border:2px solid rgba(110,170,240,.45);
+    transition:transform .25s,filter .25s;user-select:none;}
+  .dbtn:hover{transform:scale(1.12);filter:brightness(1.2);}
+  .dbtn:active{transform:scale(.95);}
+  .dmid{flex:1;text-align:center;}
+  .dlevel{font-size:30px;font-weight:800;color:#fff;}
+  .dgears{display:flex;justify-content:center;gap:6px;margin-top:10px;}
+  .gear{width:30px;height:10px;border-radius:6px;background:rgba(255,255,255,.15);transition:.3s;}
+  .gear.on{background:linear-gradient(90deg,#6ee0ff,#8effb0);}
+  .dlink{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:14px;}
+  .link{background:rgba(255,255,255,.06);border-radius:14px;padding:10px 12px;display:flex;align-items:center;gap:10px;}
+  .link .li{font-size:24px;}
+  .link .lv{font-size:22px;font-weight:800;}
+  .link .ll{font-size:13px;color:#bcd2e8;}
+  .speedv{color:#ffd47a;} .spinv{color:#c89bff;}
+
+  .ctrls{display:grid;grid-template-columns:1fr 1fr;gap:13px;}
+  .btn{display:flex;align-items:center;justify-content:center;gap:10px;
+    font-size:22px;font-weight:800;padding:18px 10px;border-radius:18px;cursor:pointer;
+    border:2px solid transparent;transition:transform .25s,filter .25s,box-shadow .25s;user-select:none;}
+  .btn .bi{font-size:25px;}
+  .btn:hover{transform:scale(1.04);filter:brightness(1.12);box-shadow:0 10px 26px rgba(0,0,0,.4);}
+  .btn.main{grid-column:span 2;font-size:26px;padding:22px;
+    background:linear-gradient(135deg,#2e8b57,#1f7a48);color:#fff;}
+  .btn.main.paused{background:linear-gradient(135deg,#e0992e,#c47d1f);}
+  .btn.coach{background:rgba(255,180,110,.2);color:#ffe0b8;border-color:rgba(255,190,120,.45);}
+  .btn.coach.on{background:rgba(120,200,150,.28);color:#bdf5d0;border-color:rgba(120,210,160,.55);}
+  .btn.exit{background:rgba(230,90,80,.25);color:#ffc7c0;border-color:rgba(235,110,100,.5);}
+
+  .winctrl{display:flex;justify-content:center;gap:18px;margin-top:16px;}
+  .wbtn{width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-size:25px;font-weight:800;cursor:pointer;background:rgba(18,26,38,.85);
+    border:2px solid rgba(120,170,230,.35);color:#cfe6ff;transition:transform .3s,background .3s;}
+  .wbtn:hover{transform:scale(1.3);}
+  .wmin:hover{background:#6ee0ff;color:#0d1a2a;border-color:#6ee0ff;}
+  .wclose:hover{background:#e6584d;color:#fff;border-color:#e6584d;}
+
+  /* ===== 训练中的极简角标 ===== */
+  #mini{position:absolute;top:8%;right:6%;
+    background:rgba(18,26,38,.82);backdrop-filter:blur(14px);
+    border:2px solid rgba(120,210,160,.5);border-radius:24px;padding:16px 18px;color:#fff;
+    box-shadow:0 16px 44px rgba(0,0,0,.5);display:none;flex-direction:column;gap:12px;
+    transition:opacity .35s,transform .35s;min-width:200px;}
+  #mini.show{display:flex;}
+  .mtop{display:flex;align-items:center;gap:14px;}
+  .mscore{text-align:center;}
+  .mscore .mv{font-size:34px;font-weight:800;color:#8effb0;line-height:1;}
+  .mscore .ml{font-size:13px;color:#bcd2e8;margin-top:4px;}
+  .mdiv{width:1px;align-self:stretch;background:rgba(255,255,255,.15);}
+  .mrate .mv{color:#ffd47a;font-size:28px;}
+  .mpause{display:flex;align-items:center;justify-content:center;gap:10px;
+    font-size:22px;font-weight:800;padding:14px;border-radius:16px;cursor:pointer;
+    background:linear-gradient(135deg,#e0992e,#c47d1f);color:#fff;transition:transform .25s,filter .25s;}
+  .mpause:hover{transform:scale(1.05);filter:brightness(1.12);}
+
+  .hint{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);
+    color:rgba(255,255,255,.7);font-size:14px;background:rgba(0,0,0,.45);padding:7px 18px;border-radius:30px;}
+</style>
+</head>
+<body>
+<div id="scene">
+  <div class="wall"></div>
+  <div class="door"></div>
+  <div class="table"><div class="net"></div><div class="line"></div></div>
+  <div class="paddle"></div>
+
+  <!-- ===== 完整面板 ===== -->
+  <div id="ctrl">
+    <div class="head">
+      <div class="ttl"><span class="e">🏓</span>乒乓球训练</div>
+      <div class="status" id="status">⏳ 等待开始</div>
+    </div>
+
+    <div class="sechead">📊 训练评估</div>
+    <div class="assess">
+      <div class="a-top">
+        <div class="acell hit"><div class="av" id="vHit">0</div><div class="al">✅ 命中</div></div>
+        <div class="acell serve"><div class="av" id="vServe">0</div><div class="al">🏓 发球</div></div>
+        <div class="acell miss"><div class="av" id="vMiss">0</div><div class="al">❌ 漏接</div></div>
+      </div>
+      <div class="a-rate">
+        <div class="rinfo"><div class="rl">🎯 命中率</div><div class="rv" id="vRate">0%</div></div>
+        <div class="bar"><i id="barFill"></i></div>
+      </div>
+      <div class="speedrow">⚡ 平均回球速度 <b id="vReturn">0.0 m/s</b></div>
+    </div>
+
+    <div class="sechead">🎚️ 难度调节</div>
+    <div class="diff">
+      <div class="dctl">
+        <div class="dbtn" onclick="changeDiff(-1)">−</div>
+        <div class="dmid">
+          <div class="dlevel" id="diffName">挑战</div>
+          <div class="dgears" id="gears"></div>
+        </div>
+        <div class="dbtn" onclick="changeDiff(1)">＋</div>
+      </div>
+      <div class="dlink">
+        <div class="link"><span class="li">🚀</span><div><div class="lv speedv" id="diffSpeed">4.2 m/s</div><div class="ll">发球速度</div></div></div>
+        <div class="link"><span class="li">🌀</span><div><div class="lv spinv" id="diffSpin">12 rad/s</div><div class="ll">旋转速度</div></div></div>
+      </div>
+    </div>
+
+    <div class="sechead">🎮 训练控制</div>
+    <div class="ctrls">
+      <div class="btn main" id="mainBtn" onclick="toggleRun()"><span class="bi">▶️</span><span id="mainTxt">开始训练</span></div>
+      <div class="btn coach" id="coachBtn" onclick="toggleCoach()"><span class="bi">🤖</span><span id="coachTxt">开启陪练</span></div>
+      <div class="btn exit"><span class="bi">🏠</span>退出返回</div>
+    </div>
+
+    <div class="winctrl">
+      <div class="wbtn wmin" title="最小化">—</div>
+      <div class="wbtn wclose" title="关闭">×</div>
+    </div>
+  </div>
+
+  <!-- ===== 训练中极简角标 ===== -->
+  <div id="mini">
+    <div class="mtop">
+      <div class="mscore"><div class="mv" id="mHit">0</div><div class="ml">✅ 命中</div></div>
+      <div class="mdiv"></div>
+      <div class="mscore mrate"><div class="mv" id="mRate">0%</div><div class="ml">🎯 命中率</div></div>
+    </div>
+    <div class="mpause" onclick="toggleRun()"><span>⏸️</span>暂停</div>
+  </div>
+</div>
+
+<div class="hint">💡 点"开始训练"→面板自动收成右上角小角标（打球时视野最大化）；点角标"暂停"→展开完整面板</div>
+
+<script>
+  const levels = [
+    {name:"轻松", speed:"2.5 m/s", spin:"4 rad/s"},
+    {name:"入门", speed:"3.2 m/s", spin:"7 rad/s"},
+    {name:"适中", speed:"3.8 m/s", spin:"10 rad/s"},
+    {name:"挑战", speed:"4.2 m/s", spin:"12 rad/s"},
+    {name:"高手", speed:"5.0 m/s", spin:"16 rad/s"}
+  ];
+  let cur=3, running=false, coachOn=false;
+
+  function renderGears(){
+    let h="";
+    for(let i=0;i<levels.length;i++) h+=`<span class="gear ${i<=cur?'on':''}"></span>`;
+    document.getElementById('gears').innerHTML=h;
+  }
+  function renderDiff(){
+    document.getElementById('diffName').textContent=levels[cur].name;
+    document.getElementById('diffSpeed').textContent=levels[cur].speed;
+    document.getElementById('diffSpin').textContent=levels[cur].spin;
+    renderGears();
+  }
+  function changeDiff(d){ cur=Math.max(0,Math.min(levels.length-1,cur+d)); renderDiff(); }
+
+  function toggleRun(){
+    running=!running;
+    const ctrl=document.getElementById('ctrl');
+    const mini=document.getElementById('mini');
+    const st=document.getElementById('status');
+    const btn=document.getElementById('mainBtn');
+    const txt=document.getElementById('mainTxt');
+    const bi=btn.querySelector('.bi');
+    if(running){
+      // 进入训练 → 收成角标
+      txt.textContent="暂停训练"; bi.textContent="⏸️"; btn.classList.add('paused');
+      st.textContent="🟢 训练中"; st.className="status run";
+      ctrl.classList.add('hidden'); mini.classList.add('show');
+    }else{
+      // 暂停 → 展开完整面板
+      txt.textContent="继续训练"; bi.textContent="▶️"; btn.classList.remove('paused');
+      st.textContent="⏸️ 已暂停"; st.className="status pause";
+      ctrl.classList.remove('hidden'); mini.classList.remove('show');
+    }
+  }
+  function toggleCoach(){
+    coachOn=!coachOn;
+    document.getElementById('coachTxt').textContent=coachOn?"陪练已开":"开启陪练";
+    document.getElementById('coachBtn').classList.toggle('on',coachOn);
+  }
+  renderDiff();
+</script>
+</body>
+</html>

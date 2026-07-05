@@ -1,0 +1,262 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PICO 乒乓球训练 Unity 面板预览</title>
+<link rel="icon" href="data:,">
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;font-family:"PingFang SC","Microsoft YaHei",Arial,sans-serif;}
+  html,body{width:100%;height:100%;overflow:hidden;background:#332d26;}
+  #scene{position:fixed;inset:0;overflow:hidden;background:linear-gradient(165deg,#9a8f80 0%,#7d7264 28%,#564d42 60%,#332d26 100%);}
+  .wall{position:absolute;top:0;left:0;right:0;height:50%;background:linear-gradient(180deg,#b3a896,#8c8170);opacity:.9;}
+  .door{position:absolute;top:6%;left:6%;width:150px;height:300px;background:linear-gradient(120deg,#6b5e4d,#54493b);border:8px solid #463d31;border-radius:4px;opacity:.85;}
+  .table{position:absolute;bottom:-4%;left:50%;transform:translateX(-58%) perspective(900px) rotateX(58deg);width:680px;height:560px;background:linear-gradient(180deg,#1f4f8a,#15396a);border:10px solid #0d2747;border-radius:8px;box-shadow:0 0 60px rgba(0,0,0,.4);}
+  .table .line{position:absolute;left:50%;top:0;bottom:0;width:4px;background:rgba(255,255,255,.85);transform:translateX(-50%);}
+  .table .net{position:absolute;top:46%;left:-4%;right:-4%;height:7px;background:rgba(230,230,230,.7);}
+  .paddle{position:absolute;bottom:4%;right:16%;width:120px;height:120px;border-radius:50%;background:radial-gradient(circle at 40% 35%,#ff5a4d,#c5281c);box-shadow:0 8px 30px rgba(0,0,0,.5);}
+  .svgico{width:1.1em;height:1.1em;display:inline-block;vertical-align:-.18em;object-fit:contain;flex:0 0 auto;}
+  .svgico.big{width:32px;height:32px;vertical-align:middle;}
+  .svgico.mid{width:24px;height:24px;}
+  #ctrl{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%) scale(.9);transform-origin:center;width:min(92vw,600px);background:rgba(18,26,38,.94);backdrop-filter:blur(20px) saturate(150%);-webkit-backdrop-filter:blur(20px) saturate(150%);border:2px solid rgba(120,170,230,.35);border-radius:30px;padding:24px 26px;color:#fff;box-shadow:0 24px 70px rgba(0,0,0,.6),inset 0 1px 0 rgba(255,255,255,.12);transition:opacity .35s,transform .35s;}
+  #ctrl.hidden{opacity:0;pointer-events:none;transform:translate(-50%,-50%) scale(.84);}
+  .head{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;gap:16px;}
+  .ttl{display:flex;align-items:center;gap:12px;font-size:28px;font-weight:800;color:#aee0ff;white-space:nowrap;}
+  .status{font-size:16px;font-weight:700;padding:7px 16px;border-radius:30px;background:rgba(255,255,255,.1);color:#cfe6ff;display:flex;align-items:center;gap:7px;white-space:nowrap;}
+  .status.run{background:rgba(110,220,140,.22);color:#8effb0;}
+  .status.pause{background:rgba(255,190,90,.22);color:#ffce8a;}
+  .sechead{display:flex;align-items:center;gap:8px;font-size:15px;font-weight:700;color:#9fb8d4;margin:6px 0 10px;letter-spacing:1px;}
+  .sechead::after{content:"";flex:1;height:1px;background:rgba(255,255,255,.12);}
+  .assess,.diff{background:rgba(255,255,255,.05);border:1.5px solid rgba(255,255,255,.1);border-radius:20px;padding:16px;margin-bottom:18px;}
+  .diff{border-color:rgba(120,170,240,.25);}
+  .a-top{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:14px;}
+  .acell{background:rgba(255,255,255,.06);border-radius:14px;padding:12px 8px;text-align:center;min-width:0;}
+  .av{font-size:30px;font-weight:800;line-height:1;}
+  .al{font-size:14px;color:#bcd2e8;margin-top:6px;display:flex;align-items:center;justify-content:center;gap:5px;white-space:nowrap;}
+  .hit .av{color:#8effb0;} .serve .av{color:#6ee0ff;} .miss .av{color:#ff9b8a;}
+  .a-rate{display:flex;align-items:center;gap:14px;}
+  .rinfo{width:118px;text-align:center;flex:0 0 auto;}
+  .rl{font-size:15px;color:#bcd2e8;display:flex;align-items:center;justify-content:center;gap:6px;white-space:nowrap;}
+  .rv{font-size:34px;font-weight:800;color:#ffd47a;line-height:1.1;}
+  .bar{flex:1;height:14px;border-radius:10px;background:rgba(255,255,255,.12);overflow:hidden;}
+  .bar>i{display:block;height:100%;width:0%;border-radius:10px;background:linear-gradient(90deg,#6ee0ff,#8effb0);transition:width .5s;}
+  .speedrow{display:flex;align-items:center;gap:6px;font-size:14px;color:#bcd2e8;margin-top:10px;}
+  .speedrow b{color:#fff;font-size:16px;}
+  .dctl{display:flex;align-items:center;justify-content:space-between;gap:14px;}
+  .dbtn{width:60px;height:60px;border-radius:18px;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:34px;font-weight:800;cursor:pointer;background:rgba(80,150,230,.25);color:#bfe0ff;border:2px solid rgba(110,170,240,.45);transition:transform .25s,filter .25s;user-select:none;}
+  .dbtn:hover{transform:scale(1.12);filter:brightness(1.2);}
+  .dbtn:active{transform:scale(.95);}
+  .dmid{flex:1;text-align:center;}
+  .dlevel{font-size:30px;font-weight:800;color:#fff;}
+  .dgears{display:flex;justify-content:center;gap:10px;margin-top:10px;}
+  .gear{width:30px;height:10px;border-radius:6px;background:rgba(255,255,255,.15);transition:.3s;}
+  .gear.on{background:linear-gradient(90deg,#6ee0ff,#8effb0);}
+  .dlink{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:14px;}
+  .link{background:rgba(255,255,255,.06);border-radius:14px;padding:10px 12px;display:flex;align-items:center;gap:10px;min-width:0;}
+  .lv{font-size:22px;font-weight:800;white-space:nowrap;}
+  .ll{font-size:13px;color:#bcd2e8;white-space:nowrap;}
+  .speedv{color:#ffd47a;} .spinv{color:#c89bff;}
+  .ctrls{display:grid;grid-template-columns:1fr 1fr;gap:13px;}
+  .btn{display:flex;align-items:center;justify-content:center;gap:10px;font-size:22px;font-weight:800;padding:18px 10px;border-radius:18px;cursor:pointer;border:2px solid transparent;transition:transform .25s,filter .25s,box-shadow .25s;user-select:none;white-space:nowrap;}
+  .btn:hover{transform:scale(1.04);filter:brightness(1.12);box-shadow:0 10px 26px rgba(0,0,0,.4);}
+  .btn.main{grid-column:span 2;font-size:26px;padding:22px;background:linear-gradient(135deg,#2e8b57,#1f7a48);color:#fff;}
+  .btn.main.paused{background:linear-gradient(135deg,#e0992e,#c47d1f);}
+  .btn.coach{background:rgba(180,120,230,.14);color:rgba(255,255,255,.62);border-color:rgba(190,150,245,.24);}
+  .btn.coach.disabled{cursor:not-allowed;filter:saturate(.65);}
+  .btn.coach.disabled:hover{transform:none;filter:saturate(.65);box-shadow:none;}
+  .btn.exit{background:rgba(230,90,80,.25);color:#ffc7c0;border-color:rgba(235,110,100,.5);}
+  .winctrl{display:flex;justify-content:center;gap:18px;margin-top:16px;}
+  .wbtn{width:50px;height:50px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:25px;font-weight:800;cursor:pointer;background:rgba(18,26,38,.85);border:2px solid rgba(120,170,230,.35);color:#cfe6ff;transition:transform .3s,background .3s;}
+  .wbtn:hover{transform:scale(1.3);}
+  .wmin:hover{background:#6ee0ff;color:#0d1a2a;border-color:#6ee0ff;}
+  .wclose:hover{background:#e6584d;color:#fff;border-color:#e6584d;}
+  .wreset:hover{background:#55c57a;color:#082010;border-color:#55c57a;}
+  #mini{position:absolute;top:8%;right:6%;background:rgba(18,26,38,.84);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:2px solid rgba(120,210,160,.5);border-radius:24px;padding:16px 18px;color:#fff;box-shadow:0 16px 44px rgba(0,0,0,.5);display:none;flex-direction:column;gap:12px;min-width:200px;}
+  #mini.show{display:flex;}
+  .mtop{display:flex;align-items:center;gap:14px;}
+  .mscore{text-align:center;}
+  .mscore .mv{font-size:34px;font-weight:800;color:#8effb0;line-height:1;}
+  .mscore .ml{font-size:13px;color:#bcd2e8;margin-top:4px;display:flex;align-items:center;justify-content:center;gap:5px;white-space:nowrap;}
+  .mdiv{width:1px;align-self:stretch;background:rgba(255,255,255,.15);}
+  .mrate .mv{color:#ffd47a;font-size:28px;}
+  .mpause{display:flex;align-items:center;justify-content:center;gap:10px;font-size:22px;font-weight:800;padding:14px;border-radius:16px;cursor:pointer;background:linear-gradient(135deg,#e0992e,#c47d1f);color:#fff;transition:transform .25s,filter .25s;}
+  .mpause:hover{transform:scale(1.05);filter:brightness(1.12);}
+  .hint{position:fixed;bottom:14px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,.7);font-size:14px;background:rgba(0,0,0,.45);padding:7px 18px;border-radius:30px;white-space:nowrap;}
+  @media(max-width:640px){
+    #ctrl{width:94vw;padding:18px 16px;border-radius:24px;}
+    .head{align-items:flex-start;flex-direction:column;gap:10px;}
+    .ttl{font-size:24px;}
+    .a-top{gap:8px;}
+    .av{font-size:26px;}
+    .a-rate{align-items:flex-start;flex-direction:column;}
+    .rinfo{width:auto;text-align:left;}
+    .rl{justify-content:flex-start;}
+    .bar{width:100%;flex:auto;}
+    .dlink{grid-template-columns:1fr;}
+    .btn{font-size:18px;}
+    .btn.main{font-size:22px;}
+    .hint{display:none;}
+  }
+</style>
+</head>
+<body>
+<div id="scene">
+  <div class="wall"></div>
+  <div class="door"></div>
+  <div class="table"><div class="net"></div><div class="line"></div></div>
+  <div class="paddle"></div>
+
+  <div id="ctrl" aria-label="乒乓球训练控制面板">
+    <div class="head">
+      <div class="ttl"><img class="svgico big" src="svg_icons/U+1F3D3_table_tennis_paddle_and_ball.svg" alt="">乒乓球训练</div>
+      <div class="status" id="status"><img class="svgico" src="svg_icons/U+23F3_hourglass_with_flowing_sand.svg" alt="">等待开始</div>
+    </div>
+
+    <div class="sechead"><img class="svgico" src="svg_icons/U+1F4CA_bar_chart.svg" alt="">训练评估</div>
+    <div class="assess">
+      <div class="a-top">
+        <div class="acell hit"><div class="av" id="hit">0</div><div class="al"><img class="svgico" src="svg_icons/U+2705_white_heavy_check_mark.svg" alt="">命中</div></div>
+        <div class="acell serve"><div class="av" id="serve">0</div><div class="al"><img class="svgico" src="svg_icons/U+1F6A9_triangular_flag_on_post.svg" alt="">发球</div></div>
+        <div class="acell miss"><div class="av" id="miss">0</div><div class="al"><img class="svgico" src="svg_icons/U+274C_cross_mark.svg" alt="">漏接</div></div>
+      </div>
+      <div class="a-rate">
+        <div class="rinfo"><div class="rl"><img class="svgico" src="svg_icons/U+1F3AF_direct_hit.svg" alt="">命中率</div><div class="rv" id="rateTxt">0%</div></div>
+        <div class="bar"><i id="rateBar"></i></div>
+      </div>
+      <div class="speedrow"><img class="svgico" src="svg_icons/U+26A1_high_voltage_sign.svg" alt="">平均回球速度 <b id="hitSpeed">0.0 m/s</b></div>
+    </div>
+
+    <div class="sechead"><img class="svgico" src="svg_icons/U+1F39A_level_slider.svg" alt="">难度调节</div>
+    <div class="diff">
+      <div class="dctl">
+        <div class="dbtn" id="diffDown" role="button" aria-label="降低难度">-</div>
+        <div class="dmid">
+          <div class="dlevel" id="diffName">适中</div>
+          <div class="dgears" id="gears"></div>
+        </div>
+        <div class="dbtn" id="diffUp" role="button" aria-label="提高难度">+</div>
+      </div>
+      <div class="dlink">
+        <div class="link"><img class="svgico mid" src="svg_icons/U+1F680_rocket.svg" alt=""><div><div class="lv speedv" id="diffSpeed">3.1 m/s</div><div class="ll">发球速度</div></div></div>
+        <div class="link"><img class="svgico mid" src="svg_icons/U+1F300_cyclone.svg" alt=""><div><div class="lv spinv" id="diffSpin">0 rad/s</div><div class="ll">旋转速度</div></div></div>
+      </div>
+    </div>
+
+    <div class="sechead"><img class="svgico" src="svg_icons/U+1F3AE_video_game.svg" alt="">训练控制</div>
+    <div class="ctrls">
+      <div class="btn main" id="mainBtn"><img class="svgico mid" id="mainIcon" src="svg_icons/U+25B6_black_right_pointing_triangle.svg" alt=""><span id="mainTxt">开始训练</span></div>
+      <div class="btn coach disabled" id="coachBtn" aria-disabled="true"><img class="svgico mid" src="svg_icons/U+1F916_robot_face.svg" alt=""><span>陪练待接入</span></div>
+      <div class="btn exit" id="exitBtn"><img class="svgico mid" src="svg_icons/U+1F3E0_house_building.svg" alt="">退出返回</div>
+    </div>
+
+    <div class="winctrl">
+      <div class="wbtn wreset" id="resetBtn" title="重置数据">↻</div>
+      <div class="wbtn wmin" id="minBtn" title="开始训练并最小化">-</div>
+      <div class="wbtn wclose" id="closeBtn" title="退出返回">x</div>
+    </div>
+  </div>
+
+  <div id="mini" aria-label="训练中小面板">
+    <div class="mtop">
+      <div class="mscore"><div class="mv" id="mHit">0</div><div class="ml"><img class="svgico" src="svg_icons/U+2705_white_heavy_check_mark.svg" alt="">命中</div></div>
+      <div class="mdiv"></div>
+      <div class="mscore mrate"><div class="mv" id="mRate">0%</div><div class="ml"><img class="svgico" src="svg_icons/U+1F3AF_direct_hit.svg" alt="">命中率</div></div>
+    </div>
+    <div class="mpause" id="miniPause"><img class="svgico mid" src="svg_icons/U+23F8_double_vertical_bar.svg" alt="">暂停训练</div>
+  </div>
+</div>
+
+<div class="hint"><img class="svgico" src="svg_icons/U+1F4A1_electric_light_bulb.svg" alt="">HTML 预览镜像 Unity 局内面板；开始训练后切换到右上角迷你面板</div>
+
+<script>
+  const levels=[
+    {name:"适中", speed:"3.1 m/s", spin:"0 rad/s", hitSpeed:"0.0 m/s"},
+    {name:"进阶", speed:"4.0 m/s", spin:"56 rad/s", hitSpeed:"4.7 m/s"},
+    {name:"挑战", speed:"4.8 m/s", spin:"62 rad/s", hitSpeed:"5.2 m/s"}
+  ];
+  const icon={
+    play:"svg_icons/U+25B6_black_right_pointing_triangle.svg",
+    pause:"svg_icons/U+23F8_double_vertical_bar.svg",
+    run:"svg_icons/U+1F7E2_large_green_circle.svg",
+    wait:"svg_icons/U+23F3_hourglass_with_flowing_sand.svg"
+  };
+  let cur=0;
+  let running=false;
+  let hasStarted=false;
+  let stats={hit:0, serve:0, miss:0};
+  function el(id){return document.getElementById(id);}
+  function accuracy(){return stats.serve>0?Math.round(stats.hit/stats.serve*100):0;}
+  function renderStats(){
+    const rate=accuracy();
+    el("hit").textContent=stats.hit;
+    el("serve").textContent=stats.serve;
+    el("miss").textContent=stats.miss;
+    el("mHit").textContent=stats.hit;
+    el("rateTxt").textContent=rate+"%";
+    el("mRate").textContent=rate+"%";
+    el("rateBar").style.width=rate+"%";
+  }
+  function renderGears(){
+    let html="";
+    for(let i=0;i<3;i++) html+=`<i class="gear ${i<=cur?"on":""}"></i>`;
+    el("gears").innerHTML=html;
+  }
+  function renderDiff(){
+    el("diffName").textContent=levels[cur].name;
+    el("diffSpeed").textContent=levels[cur].speed;
+    el("diffSpin").textContent=levels[cur].spin;
+    el("hitSpeed").textContent=levels[cur].hitSpeed;
+    renderGears();
+  }
+  function changeDiff(delta){
+    cur=Math.max(0,Math.min(levels.length-1,cur+delta));
+    renderDiff();
+  }
+  function setStatus(text, cls, src){
+    el("status").innerHTML=`<img class="svgico" src="${src}" alt="">${text}`;
+    el("status").className=cls;
+  }
+  function setRunning(next){
+    running=next;
+    if(running){
+      hasStarted=true;
+      stats.serve+=1;
+      stats.hit+=1;
+      renderStats();
+      el("mainTxt").textContent="暂停训练";
+      el("mainIcon").src=icon.pause;
+      el("mainBtn").classList.add("paused");
+      setStatus("训练中","status run",icon.run);
+      el("ctrl").classList.add("hidden");
+      el("mini").classList.add("show");
+    }else{
+      el("mainTxt").textContent=hasStarted?"继续训练":"开始训练";
+      el("mainIcon").src=icon.play;
+      el("mainBtn").classList.remove("paused");
+      setStatus(hasStarted?"已暂停":"等待开始",hasStarted?"status pause":"status",hasStarted?icon.pause:icon.wait);
+      el("ctrl").classList.remove("hidden");
+      el("mini").classList.remove("show");
+    }
+  }
+  function resetStats(){
+    stats={hit:0, serve:0, miss:0};
+    hasStarted=running;
+    renderStats();
+    if(!running){
+      hasStarted=false;
+      setRunning(false);
+    }
+  }
+  el("diffDown").addEventListener("click",()=>changeDiff(-1));
+  el("diffUp").addEventListener("click",()=>changeDiff(1));
+  el("mainBtn").addEventListener("click",()=>setRunning(!running));
+  el("miniPause").addEventListener("click",()=>setRunning(false));
+  el("resetBtn").addEventListener("click",resetStats);
+  el("minBtn").addEventListener("click",()=>setRunning(true));
+  el("closeBtn").addEventListener("click",()=>setRunning(false));
+  el("exitBtn").addEventListener("click",()=>setRunning(false));
+  renderStats();
+  renderDiff();
+</script>
+</body>
+</html>

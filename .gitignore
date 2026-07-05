@@ -38,3 +38,20 @@ Thumbs.db
 /pico-cast-*.md
 /pico-cast-*.png
 /国体动作.zip
+
+# Local report and presentation deliverables
+*.ppt
+*.pptx
+*.pptm
+*.doc
+*.docx
+*.docm
+~$*
+/Tools/Reports/
+/Tools/optimize_pico_project_report_docx.py
+/output/pico_project_report/
+/output/ppt/
+/output/technical_flowcharts*/
+/outputs/
+/projects/
+/tmp/

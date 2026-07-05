@@ -4,12 +4,16 @@ using UnityEngine.UI;
 
 public enum ElderCareIconType
 {
-    Gamepad,
-    Heart,
-    MapPin,
-    Video,
-    Check,
-    ArrowLeft
+    Gamepad = 0,
+    Heart = 1,
+    MapPin = 2,
+    Video = 3,
+    Check = 4,
+    ArrowLeft = 5,
+    TableTennis = 6,
+    Gear = 7,
+    User = 8,
+    Trophy = 9
 }
 
 public class ElderCareLineIcon : MaskableGraphic
@@ -30,6 +34,9 @@ public class ElderCareLineIcon : MaskableGraphic
 
         switch (iconType)
         {
+            case ElderCareIconType.TableTennis:
+                DrawTableTennis(vh, center, size, stroke, c);
+                break;
             case ElderCareIconType.Gamepad:
                 DrawGamepad(vh, center, size, stroke, c);
                 break;
@@ -42,6 +49,15 @@ public class ElderCareLineIcon : MaskableGraphic
             case ElderCareIconType.Video:
                 DrawVideo(vh, center, size, stroke, c);
                 break;
+            case ElderCareIconType.Gear:
+                DrawGear(vh, center, size, stroke, c);
+                break;
+            case ElderCareIconType.User:
+                DrawUser(vh, center, size, stroke, c);
+                break;
+            case ElderCareIconType.Trophy:
+                DrawTrophy(vh, center, size, stroke, c);
+                break;
             case ElderCareIconType.Check:
                 DrawCheck(vh, center, size, stroke, c);
                 break;
@@ -49,6 +65,19 @@ public class ElderCareLineIcon : MaskableGraphic
                 DrawArrowLeft(vh, center, size, stroke, c);
                 break;
         }
+    }
+
+    private void DrawTableTennis(VertexHelper vh, Vector2 center, float size, float stroke, Color32 c)
+    {
+        var paddleCenter = center + new Vector2(-0.08f, 0.05f) * size;
+        DrawCircle(vh, paddleCenter, size * 0.23f, stroke, c);
+        DrawLine(
+            vh,
+            paddleCenter + new Vector2(0.15f, -0.17f) * size,
+            center + new Vector2(0.34f, -0.38f) * size,
+            stroke,
+            c);
+        DrawCircle(vh, center + new Vector2(0.31f, 0.26f) * size, size * 0.07f, stroke, c);
     }
 
     private void DrawGamepad(VertexHelper vh, Vector2 center, float size, float stroke, Color32 c)
@@ -126,6 +155,60 @@ public class ElderCareLineIcon : MaskableGraphic
             center + new Vector2(w * 0.5f, -h * 0.4f),
             center + new Vector2(w * 0.2f, -h * 0.22f),
         }, stroke, c);
+    }
+
+    private void DrawGear(VertexHelper vh, Vector2 center, float size, float stroke, Color32 c)
+    {
+        DrawCircle(vh, center, size * 0.24f, stroke, c);
+        DrawCircle(vh, center, size * 0.08f, stroke, c);
+
+        for (var i = 0; i < 8; i++)
+        {
+            var angle = Mathf.PI * 2f * i / 8f;
+            var dir = new Vector2(Mathf.Cos(angle), Mathf.Sin(angle));
+            DrawLine(vh, center + dir * size * 0.31f, center + dir * size * 0.43f, stroke, c);
+        }
+    }
+
+    private void DrawUser(VertexHelper vh, Vector2 center, float size, float stroke, Color32 c)
+    {
+        DrawCircle(vh, center + Vector2.up * size * 0.2f, size * 0.15f, stroke, c);
+        DrawPolyline(vh, new[]
+        {
+            center + new Vector2(-0.32f, -0.34f) * size,
+            center + new Vector2(-0.22f, -0.08f) * size,
+            center + new Vector2(0f, 0.02f) * size,
+            center + new Vector2(0.22f, -0.08f) * size,
+            center + new Vector2(0.32f, -0.34f) * size,
+        }, stroke, c);
+    }
+
+    private void DrawTrophy(VertexHelper vh, Vector2 center, float size, float stroke, Color32 c)
+    {
+        DrawPolyline(vh, new[]
+        {
+            center + new Vector2(-0.23f, 0.28f) * size,
+            center + new Vector2(0.23f, 0.28f) * size,
+            center + new Vector2(0.16f, -0.08f) * size,
+            center + new Vector2(-0.16f, -0.08f) * size,
+            center + new Vector2(-0.23f, 0.28f) * size,
+        }, stroke, c);
+        DrawPolyline(vh, new[]
+        {
+            center + new Vector2(-0.23f, 0.18f) * size,
+            center + new Vector2(-0.43f, 0.18f) * size,
+            center + new Vector2(-0.36f, -0.02f) * size,
+            center + new Vector2(-0.17f, -0.02f) * size,
+        }, stroke, c);
+        DrawPolyline(vh, new[]
+        {
+            center + new Vector2(0.23f, 0.18f) * size,
+            center + new Vector2(0.43f, 0.18f) * size,
+            center + new Vector2(0.36f, -0.02f) * size,
+            center + new Vector2(0.17f, -0.02f) * size,
+        }, stroke, c);
+        DrawLine(vh, center + Vector2.down * size * 0.08f, center + Vector2.down * size * 0.27f, stroke, c);
+        DrawLine(vh, center + new Vector2(-0.22f, -0.36f) * size, center + new Vector2(0.22f, -0.36f) * size, stroke, c);
     }
 
     private void DrawCheck(VertexHelper vh, Vector2 center, float size, float stroke, Color32 c)

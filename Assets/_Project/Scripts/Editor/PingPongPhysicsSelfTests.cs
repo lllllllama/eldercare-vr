@@ -42,6 +42,7 @@ public static class PingPongPhysicsSelfTests
         BallSpawnerServingStateTransitions();
         ExistingServeLoopStillStartsAndStops();
         UnifiedPanelServingButtonTogglesState();
+        UnifiedPanelMiniPanelStaysAboveDragHandle();
         UnifiedPanelResetDoesNotStopServing();
         UnifiedPanelHomeButtonCallsShowHome();
         UnifiedPanelDifficultyButtonsChangeDifficulty();
@@ -796,6 +797,38 @@ public static class PingPongPhysicsSelfTests
         finally
         {
             Object.DestroyImmediate(difficultyObject);
+            Object.DestroyImmediate(spawnerObject);
+            Object.DestroyImmediate(scoreObject);
+            Object.DestroyImmediate(canvasObject);
+        }
+    }
+
+    private static void UnifiedPanelMiniPanelStaysAboveDragHandle()
+    {
+        var canvasObject = new GameObject("UnifiedPanelMiniLayerCanvas", typeof(RectTransform), typeof(Canvas));
+        var scoreObject = new GameObject("UnifiedPanelMiniLayerScore");
+        var spawnerObject = new GameObject("UnifiedPanelMiniLayerSpawner");
+        try
+        {
+            var score = scoreObject.AddComponent<ScoreManager>();
+            score.useUnifiedControlPanel = true;
+            var spawner = spawnerObject.AddComponent<BallSpawner>();
+
+            var panel = PingPongUnifiedControlPanel.EnsureRuntimePanel(canvasObject.transform, score, spawner, null, null, null);
+            var miniPanel = panel.transform.Find("MiniPanel");
+            var dragHandle = panel.transform.Find("DragHandle");
+            AssertTrue(miniPanel != null && dragHandle != null, "Unified panel should create both mini panel and drag handle.");
+            AssertTrue(miniPanel.GetSiblingIndex() > dragHandle.GetSiblingIndex(), "Mini panel should render above the drag handle so pause remains clickable.");
+
+            panel.StartServingAndCompact();
+            var miniGroup = miniPanel.GetComponent<CanvasGroup>();
+            var fullGroup = panel.transform.Find("FullPanel").GetComponent<CanvasGroup>();
+            AssertTrue(spawner.IsServing, "Compact action should start serving.");
+            AssertTrue(miniGroup != null && miniGroup.blocksRaycasts, "Mini panel should receive raycasts while compact.");
+            AssertTrue(fullGroup != null && !fullGroup.blocksRaycasts, "Full panel should not receive raycasts while compact.");
+        }
+        finally
+        {
             Object.DestroyImmediate(spawnerObject);
             Object.DestroyImmediate(scoreObject);
             Object.DestroyImmediate(canvasObject);

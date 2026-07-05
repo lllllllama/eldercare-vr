@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>银龄·主动健康 MR 原型</title>
+<style>
+  * { margin:0; padding:0; box-sizing:border-box; font-family:"PingFang SC","Microsoft YaHei",sans-serif; }
+  html,body { width:100%; height:100%; overflow:hidden; }
+
+  #scene {
+    position:fixed; inset:0;
+    background:
+      radial-gradient(circle at 30% 20%, rgba(255,235,200,.25), transparent 50%),
+      linear-gradient(160deg,#6b5d4f 0%,#544a3f 30%,#3d362e 70%,#2a2520 100%);
+    overflow:hidden;
+  }
+  #scene::before{
+    content:""; position:absolute; top:8%; right:6%; width:280px; height:340px;
+    background:linear-gradient(135deg,rgba(255,245,220,.55),rgba(180,200,230,.25));
+    border:14px solid rgba(60,50,40,.6); border-radius:6px;
+    box-shadow:0 0 80px rgba(255,240,200,.4); transform:perspective(600px) rotateY(-18deg);
+  }
+  .furniture{ position:absolute; opacity:.55; }
+  .sofa{ bottom:0; left:4%; width:340px; height:160px; background:#7a6a55;
+    border-radius:40px 40px 0 0; box-shadow:inset 0 8px 20px rgba(0,0,0,.3); }
+  .plant{ bottom:0; right:12%; width:90px; height:200px;
+    background:linear-gradient(#3c5a2e,#2a4020); border-radius:50% 50% 8px 8px; opacity:.6;}
+  .floor{ position:absolute; bottom:0; left:0; right:0; height:34%;
+    background:linear-gradient(rgba(120,95,65,.0),rgba(90,70,48,.5));}
+
+  #appwrap{
+    position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+    width:min(92vw,1040px);
+  }
+  #panel{
+    background:rgba(38,30,22,.72);
+    backdrop-filter:blur(22px) saturate(140%);
+    -webkit-backdrop-filter:blur(22px) saturate(140%);
+    border:2px solid rgba(255,210,150,.25);
+    border-radius:40px; padding:38px 46px;
+    box-shadow:0 30px 90px rgba(0,0,0,.55), inset 0 1px 0 rgba(255,255,255,.12);
+    color:#fff;
+  }
+
+  .topbar{ display:flex; justify-content:space-between; align-items:center; margin-bottom:26px;}
+  .greet{ font-size:34px; font-weight:800; color:#ffe7c2; }
+  .meta{ font-size:24px; color:#ffd9a8; opacity:.9; }
+
+  .cards{ display:grid; grid-template-columns:repeat(4,1fr); gap:22px; }
+  .card{
+    background:rgba(255,255,255,.08); border:2px solid rgba(255,255,255,.12);
+    border-radius:28px; padding:30px 16px; text-align:center; cursor:pointer;
+    transition:all .45s cubic-bezier(.2,.8,.2,1); position:relative;
+  }
+  .card:hover{ transform:scale(1.06) translateY(-6px);
+    background:rgba(255,200,130,.22); border-color:#ffce8a;
+    box-shadow:0 0 0 4px rgba(255,206,138,.35),0 20px 50px rgba(0,0,0,.4); }
+  .card .ic{ font-size:78px; line-height:1; display:block; margin-bottom:14px; }
+  .card .name{ font-size:30px; font-weight:800; color:#fff; }
+  .card .desc{ font-size:18px; color:#ffd9a8; margin-top:6px; opacity:.85; }
+  .card .ring{ position:absolute; top:12px; right:12px; width:34px; height:34px;
+    border-radius:50%; border:4px solid rgba(255,255,255,.2); opacity:0; }
+  .card:hover .ring{ opacity:1; border-top-color:#ffce8a; animation:spin 1.5s linear infinite;}
+  @keyframes spin{ to{ transform:rotate(360deg);} }
+
+  .safebar{ display:flex; justify-content:center; gap:26px; margin-top:30px; }
+  .sbtn{ display:flex; align-items:center; gap:10px; font-size:22px; font-weight:700;
+    padding:16px 30px; border-radius:50px; cursor:pointer; transition:.3s;
+    background:rgba(255,255,255,.14); color:#ffe7c2; }
+  .sbtn:hover{ transform:scale(1.08); filter:brightness(1.15);
+    background:rgba(255,200,130,.25); }
+
+  .winctrl{ display:flex; justify-content:center; gap:22px; margin-top:22px; }
+  .wbtn{
+    width:62px; height:62px; border-radius:50%;
+    display:flex; align-items:center; justify-content:center;
+    font-size:30px; font-weight:800; cursor:pointer;
+    background:rgba(40,32,24,.75); backdrop-filter:blur(14px);
+    border:2px solid rgba(255,210,150,.3); color:#ffe7c2;
+    box-shadow:0 8px 24px rgba(0,0,0,.45);
+    transition:transform .3s cubic-bezier(.2,.8,.2,1), background .3s, box-shadow .3s;
+  }
+  .wbtn:hover{ transform:scale(1.35); box-shadow:0 12px 34px rgba(0,0,0,.55); }
+  .wmin:hover{ background:#ffce8a; color:#2a2520; border-color:#ffce8a; }
+  .wclose:hover{ background:#d94f3d; color:#fff; border-color:#d94f3d; }
+
+  .sub{ display:none; }
+  .sub.active{ display:block; }
+  .home.hidden{ display:none; }
+  .backbtn{ font-size:24px; font-weight:800; color:#1a1a1a; background:#ffce8a;
+    padding:14px 30px; border-radius:50px; cursor:pointer; display:inline-flex;
+    align-items:center; gap:8px; transition:.3s; }
+  .backbtn:hover{ transform:scale(1.06); }
+  .subtitle{ font-size:36px; font-weight:800; color:#ffe7c2; margin:8px 0 22px; }
+
+  .grid3{ display:grid; grid-template-columns:repeat(3,1fr); gap:20px; }
+  .grid4{ display:grid; grid-template-columns:repeat(4,1fr); gap:20px; }
+  .item{ background:rgba(255,255,255,.08); border:2px solid rgba(255,255,255,.12);
+    border-radius:24px; padding:30px 18px; text-align:center; cursor:pointer; transition:.4s; }
+  .item:hover{ transform:scale(1.05); background:rgba(255,200,130,.2); border-color:#ffce8a; }
+  .item .ic{ font-size:64px; display:block; margin-bottom:12px; line-height:1;}
+  .item .t{ font-size:27px; font-weight:800; }
+  .item .s{ font-size:18px; color:#ffd9a8; margin-top:6px; }
+
+  .coach{ display:flex; gap:30px; align-items:center; justify-content:center;
+    background:rgba(255,255,255,.06); border-radius:24px; padding:30px; margin-top:6px;}
+  .coachfig{ font-size:120px; }
+  .coachinfo{ text-align:left; }
+  .coachinfo .ok{ font-size:30px; font-weight:800; color:#7ee08a; margin-bottom:14px;}
+  .dots{ font-size:30px; letter-spacing:8px; color:#ffce8a; }
+  .restbtn{ margin-top:18px; background:#ffce8a; color:#1a1a1a; font-size:22px;
+    font-weight:800; padding:14px 28px; border-radius:50px; display:inline-block; cursor:pointer;}
+
+  #closed{ position:fixed; inset:0; display:none; align-items:center; justify-content:center;
+    flex-direction:column; color:#ffe7c2; text-align:center; }
+  #closed .big{ font-size:30px; font-weight:800; margin-bottom:18px; }
+  #closed .reopen{ background:#ffce8a; color:#2a2520; font-size:24px; font-weight:800;
+    padding:16px 40px; border-radius:50px; cursor:pointer; transition:.3s; }
+  #closed .reopen:hover{ transform:scale(1.08); }
+
+  .hint{ position:fixed; bottom:18px; left:50%; transform:translateX(-50%);
+    color:rgba(255,255,255,.7); font-size:15px; background:rgba(0,0,0,.4);
+    padding:8px 20px; border-radius:30px; }
+</style>
+</head>
+<body>
+<div id="scene">
+  <div class="floor"></div>
+  <div class="furniture sofa"></div>
+  <div class="furniture plant"></div>
+
+  <div id="appwrap">
+    <div id="panel">
+      <!-- 主界面 -->
+      <div class="home" id="home">
+        <div class="topbar">
+          <div class="greet">张奶奶，上午好</div>
+          <div class="meta">☀ 22°　上午 9:15</div>
+        </div>
+        <div class="cards">
+          <div class="card" onclick="go('game')">
+            <span class="ring"></span><span class="ic">🏓</span>
+            <div class="name">健康游戏</div><div class="desc">动脑又开心</div>
+          </div>
+          <div class="card" onclick="go('rehab')">
+            <span class="ring"></span><span class="ic">🧘</span>
+            <div class="name">康复运动</div><div class="desc">今日 3 个动作</div>
+          </div>
+          <div class="card" onclick="go('travel')">
+            <span class="ring"></span><span class="ic">🧳</span>
+            <div class="name">VR 旅游</div><div class="desc">足不出户看世界</div>
+          </div>
+          <div class="card" onclick="go('memory')">
+            <span class="ring"></span><span class="ic">📷</span>
+            <div class="name">往日时光</div><div class="desc">回到从前</div>
+          </div>
+        </div>
+        <div class="safebar">
+          <div class="sbtn">⚙ 设置</div>
+          <div class="sbtn">❤ 我的健康</div>
+          <div class="sbtn">🏆 排行榜</div>
+        </div>
+      </div>
+
+      <!-- 健康游戏：四个游戏 -->
+      <div class="sub" id="game">
+        <div class="backbtn" onclick="back()">← 返回</div>
+        <div class="subtitle">🏓 健康游戏</div>
+        <div class="grid4">
+          <div class="item"><span class="ic">🏓</span><div class="t">虚拟乒乓</div><div class="s">接球练习</div></div>
+          <div class="item"><span class="ic">🎯</span><div class="t">弹弓射箭</div><div class="s">瞄准发射</div></div>
+          <div class="item"><span class="ic">🔨</span><div class="t">打地鼠</div><div class="s">手眼协调</div></div>
+          <div class="item"><span class="ic">🍉</span><div class="t">切水果</div><div class="s">挥臂活动</div></div>
+        </div>
+      </div>
+
+      <!-- 康复运动：三种功法选择 -->
+      <div class="sub" id="rehab">
+        <div class="backbtn" onclick="back()">← 返回</div>
+        <div class="subtitle">🧘 康复运动 · 选择今天的功法</div>
+        <div class="grid3">
+          <div class="item" onclick="go('rehabDo')"><span class="ic">🧘</span><div class="t">太极</div><div class="s">舒缓全身</div></div>
+          <div class="item" onclick="go('rehabDo')"><span class="ic">🙆</span><div class="t">八段锦</div><div class="s">站式·经典养生</div></div>
+          <div class="item" onclick="go('rehabDo')"><span class="ic">🪑</span><div class="t">坐式八段锦</div><div class="s">坐着也能练</div></div>
+        </div>
+        <p style="text-align:center;margin-top:20px;color:#ffd9a8;font-size:18px;">
+          行动不便或容易疲劳，推荐选择"坐式八段锦"</p>
+      </div>
+
+      <!-- 康复运动：训练进行中 -->
+      <div class="sub" id="rehabDo">
+        <div class="backbtn" onclick="go('rehab')">← 返回</div>
+        <div class="subtitle">🧘 太极 · 第 2 / 3 式</div>
+        <div class="coach">
+          <div class="coachfig">🧘</div>
+          <div class="coachinfo">
+            <div class="ok">🟢 招式标准，呼吸均匀</div>
+            <div style="font-size:22px;color:#ffd9a8;margin-bottom:8px;">跟着师傅打"野马分鬃"，慢慢来</div>
+            <div class="dots">● ● ○</div>
+            <div style="font-size:20px;margin-top:10px;color:#fff;">预计还需 4 分钟</div>
+            <div class="restbtn">😌 太累了，休息一下</div>
+          </div>
+        </div>
+        <p style="text-align:center;margin-top:18px;color:#ffd9a8;font-size:18px;">
+          说一声"暂停"即可随时停下　·　结束后报告自动发给家人和康复师</p>
+      </div>
+
+      <!-- VR 旅游 -->
+      <div class="sub" id="travel">
+        <div class="backbtn" onclick="back()">← 返回</div>
+        <div class="subtitle">🧳 VR 旅游　（推荐"坐着看"，不晕）</div>
+        <div class="grid3">
+          <div class="item"><span class="ic">⛰️</span><div class="t">桂林山水</div><div class="s">坐着慢游</div></div>
+          <div class="item"><span class="ic">🚩</span><div class="t">天安门升旗</div><div class="s">红色之旅</div></div>
+          <div class="item"><span class="ic">🏯</span><div class="t">古镇漫步</div><div class="s">真人导游</div></div>
+          <div class="item"><span class="ic">🌊</span><div class="t">海边疗愈</div><div class="s">放松减压</div></div>
+          <div class="item"><span class="ic">🏔️</span><div class="t">黄山日出</div><div class="s">坐着慢游</div></div>
+          <div class="item"><span class="ic">👨‍👩‍👧</span><div class="t">和家人同游</div><div class="s">远程陪伴</div></div>
+        </div>
+      </div>
+
+      <!-- 往日时光 -->
+      <div class="sub" id="memory">
+        <div class="backbtn" onclick="back()">← 返回</div>
+        <div class="subtitle">📷 往日时光</div>
+        <div class="grid3">
+          <div class="item"><span class="ic">🏘️</span><div class="t">老街记忆</div><div class="s">1970 年代</div></div>
+          <div class="item"><span class="ic">🏡</span><div class="t">我的老家</div><div class="s">家人上传重建</div></div>
+          <div class="item"><span class="ic">🎬</span><div class="t">年代影院</div><div class="s">老电影·老广播</div></div>
+          <div class="item"><span class="ic">📻</span><div class="t">知青岁月</div><div class="s">场景复原</div></div>
+          <div class="item"><span class="ic">📖</span><div class="t">人生相册</div><div class="s">时光轴漫游</div></div>
+          <div class="item"><span class="ic">🗣️</span><div class="t">口述家史</div><div class="s">AI 陪您聊</div></div>
+        </div>
+        <p style="text-align:center;margin-top:20px;color:#ffd9a8;font-size:20px;">
+          👵 "李爷爷，今天想回哪儿看看？"</p>
+      </div>
+    </div><!-- /panel -->
+
+    <div class="winctrl">
+      <div class="wbtn wmin" title="最小化" onclick="minimize()">—</div>
+      <div class="wbtn wclose" title="关闭" onclick="closeApp()">×</div>
+    </div>
+  </div><!-- /appwrap -->
+
+  <div id="closed">
+    <div class="big" id="closedmsg">软件已关闭</div>
+    <div class="reopen" onclick="reopen()">重新打开</div>
+  </div>
+</div>
+
+<div class="hint">💡 卡片悬停=模拟"凝视停留确认"　·　底部 — 最小化、× 关闭，光标指向会放大　·　建议 F11 全屏</div>
+
+<script>
+  function go(id){
+    document.getElementById('home').classList.add('hidden');
+    document.querySelectorAll('.sub').forEach(s=>s.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+  }
+  function back(){
+    document.querySelectorAll('.sub').forEach(s=>s.classList.remove('active'));
+    document.getElementById('home').classList.remove('hidden');
+  }
+  function minimize(){
+    document.getElementById('appwrap').style.display='none';
+    document.getElementById('closedmsg').textContent='软件已最小化';
+    document.getElementById('closed').style.display='flex';
+  }
+  function closeApp(){
+    document.getElementById('appwrap').style.display='none';
+    document.getElementById('closedmsg').textContent='软件已关闭';
+    document.getElementById('closed').style.display='flex';
+  }
+  function reopen(){
+    document.getElementById('closed').style.display='none';
+    document.getElementById('appwrap').style.display='block';
+    back();
+  }
+</script>
+</body>
+</html>
