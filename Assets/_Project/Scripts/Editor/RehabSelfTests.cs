@@ -33,6 +33,7 @@ public static class RehabSelfTests
         ComfortUiStartupRecenterFollowsSettledHeadPose();
         ComfortUiCreatesRayDragAndThumbstickHelpers();
         ComfortUiRayDragKeepsStableHeightWhenDraggedFar();
+        HtmlStyleMainEntryPanelUsesVrReadableScale();
         ThumbstickNavigatorMovesLeftToLeftCard();
         VideoPanelLayoutIsDecoupledFromTrainingAreaByDefault();
         VideoPanelScalingClampsAndKeepsPanelUpright();
@@ -629,6 +630,41 @@ public static class RehabSelfTests
             Object.DestroyImmediate(handleObject);
             Object.DestroyImmediate(uiObject);
             Object.DestroyImmediate(headObject);
+        }
+    }
+
+    private static void HtmlStyleMainEntryPanelUsesVrReadableScale()
+    {
+        var canvasObject = new GameObject("MainEntryCanvas", typeof(RectTransform), typeof(Canvas));
+        try
+        {
+            var canvas = canvasObject.GetComponent<Canvas>();
+            canvas.renderMode = RenderMode.WorldSpace;
+
+            var panel = HtmlStyleMainEntryPanel.Ensure(canvasObject.transform, null, null);
+            var rect = canvasObject.GetComponent<RectTransform>();
+            var healthCard = canvasObject.transform.Find("Panel/Module_HealthGame");
+            var rehabCard = canvasObject.transform.Find("Panel/Module_Rehab");
+            var travelCard = canvasObject.transform.Find("Panel/Module_Travel");
+            var memoryCard = canvasObject.transform.Find("Panel/Module_Memory");
+            var healthGroup = healthCard != null ? healthCard.GetComponent<CanvasGroup>() : null;
+            var healthIcon = healthCard != null ? healthCard.Find("Icon")?.GetComponent<Image>() : null;
+            var greetingText = canvasObject.transform.Find("Panel/Greeting")?.GetComponent<TMPro.TMP_Text>();
+
+            AssertTrue(panel != null, "HTML-style main entry panel should be created.");
+            AssertTrue(rect != null && Mathf.Abs(rect.sizeDelta.x - 1120f) < 0.01f, "Main entry panel should use the wide HTML-style canvas pixel size.");
+            AssertTrue(canvasObject.transform.localScale.x <= 0.0015f, "Main entry panel should normalize its world scale for PICO readability.");
+            AssertTrue(canvasObject.GetComponent<MrKeepVisible>() != null, "Main entry panel should be protected from MR background visual suppression.");
+            AssertTrue(healthCard != null && rehabCard != null && travelCard != null && memoryCard != null, "Main entry panel should create all four HTML home cards.");
+            AssertTrue(Mathf.Abs(((RectTransform)healthCard).anchoredPosition.y - ((RectTransform)memoryCard).anchoredPosition.y) < 0.01f, "Main entry home cards should stay in one row like the HTML layout.");
+            AssertTrue(greetingText != null && canvasObject.transform.Find("Panel/WeatherTime") != null, "Main entry panel should include the HTML greeting and weather/time top bar.");
+            AssertTrue(greetingText.font != null && greetingText.font.name == "RehabChineseTMP", "Main entry text should bind to the project Chinese TMP font instead of the default missing-glyph font.");
+            AssertTrue(healthIcon != null && healthIcon.sprite != null, "Main entry runtime GUI should use the provided SVG-derived table tennis icon sprite.");
+            AssertTrue(healthGroup == null || healthGroup.alpha > 0.99f, "Main entry cards should be visible immediately instead of waiting on entrance animation.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(canvasObject);
         }
     }
 

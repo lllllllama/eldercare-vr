@@ -15,6 +15,7 @@ public class ScoreManager : MonoBehaviour
     private static readonly Vector2 MissedPosition = new Vector2(-360f, 145f);
     private static readonly Vector2 SpinSize = new Vector2(606f, 58f);
     private static readonly Vector2 SpinPosition = new Vector2(-570f, 51f);
+    private const string RequiredChineseGlyphs = "\u547d\u4e2d\u7387\u56de\u7403\u901f\u5ea6\u53d1\u7403\u6f0f\u7403\u65cb\u8f6c0123456789.%m/srad";
 
     public TMP_FontAsset uiFont;
     public BallSpawner ballSpawner;
@@ -36,6 +37,8 @@ public class ScoreManager : MonoBehaviour
     private int _missedCount;
     private float _lastHitSpeed;
     private float _lastSpinSpeed;
+    private TMP_FontAsset _runtimeFont;
+    private TMP_FontAsset _runtimeFontSource;
 
     public int ServedCount => _servedCount;
     public int HitCount => _hitCount;
@@ -76,6 +79,11 @@ public class ScoreManager : MonoBehaviour
         PingPongEvents.OnBallHit -= HandleBallHit;
         PingPongEvents.OnBallHitDetailed -= HandleBallHitDetailed;
         PingPongEvents.OnBallMissed -= HandleBallMissed;
+    }
+
+    private void OnDestroy()
+    {
+        RuntimeTmpFontAssetUtility.DestroyRuntimeFont(ref _runtimeFont, ref _runtimeFontSource);
     }
 
     public void ResetScore()
@@ -325,17 +333,22 @@ public class ScoreManager : MonoBehaviour
 
     private void ResolveFontIfNeeded()
     {
-        if (uiFont != null) return;
+        var resolvedFont = RuntimeTmpFontAssetUtility.ResolveSourceFont(uiFont, _runtimeFont, _runtimeFontSource);
 
-        var fonts = Resources.FindObjectsOfTypeAll<TMP_FontAsset>();
-        foreach (var font in fonts)
+        if (resolvedFont == null)
         {
-            if (font != null && font.name == "RehabChineseTMP")
+            var fonts = Resources.FindObjectsOfTypeAll<TMP_FontAsset>();
+            foreach (var font in fonts)
             {
-                uiFont = font;
-                return;
+                if (font != null && font.name == "RehabChineseTMP")
+                {
+                    resolvedFont = font;
+                    break;
+                }
             }
         }
+
+        uiFont = RuntimeTmpFontAssetUtility.PrepareDynamicFont(resolvedFont, RequiredChineseGlyphs, ref _runtimeFont, ref _runtimeFontSource);
     }
 
     private static RectTransform ConfigureRect(GameObject go, Vector2 size, Vector2 anchoredPosition)

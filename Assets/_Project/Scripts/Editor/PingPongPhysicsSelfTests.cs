@@ -42,6 +42,8 @@ public static class PingPongPhysicsSelfTests
         BallSpawnerServingStateTransitions();
         ExistingServeLoopStillStartsAndStops();
         UnifiedPanelServingButtonTogglesState();
+        UnifiedPanelUsesComfortableVrDefaultPlacement();
+        UnifiedPanelUsesHtmlSvgSpritesInRuntimeGui();
         UnifiedPanelMiniPanelStaysAboveDragHandle();
         UnifiedPanelResetDoesNotStopServing();
         UnifiedPanelHomeButtonCallsShowHome();
@@ -803,6 +805,66 @@ public static class PingPongPhysicsSelfTests
         }
     }
 
+    private static void UnifiedPanelUsesComfortableVrDefaultPlacement()
+    {
+        var canvasObject = new GameObject("UnifiedPanelPlacementCanvas", typeof(RectTransform), typeof(Canvas));
+        var scoreObject = new GameObject("UnifiedPanelPlacementScore");
+        var spawnerObject = new GameObject("UnifiedPanelPlacementSpawner");
+        try
+        {
+            var score = scoreObject.AddComponent<ScoreManager>();
+            score.useUnifiedControlPanel = true;
+            var spawner = spawnerObject.AddComponent<BallSpawner>();
+
+            var panel = PingPongUnifiedControlPanel.EnsureRuntimePanel(canvasObject.transform, score, spawner, null, null, null);
+            var rect = panel.GetComponent<RectTransform>();
+            AssertTrue(rect != null, "Unified panel should have a RectTransform.");
+            AssertTrue(rect.anchoredPosition.x > -250f && rect.anchoredPosition.x <= 0f, "Unified panel should start near the user's forward view instead of far to the left.");
+            AssertTrue(panel.GetComponent<MrKeepVisible>() != null, "Unified panel should be protected from MR background visual suppression.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(spawnerObject);
+            Object.DestroyImmediate(scoreObject);
+            Object.DestroyImmediate(canvasObject);
+        }
+    }
+
+    private static void UnifiedPanelUsesHtmlSvgSpritesInRuntimeGui()
+    {
+        var canvasObject = new GameObject("UnifiedPanelSvgCanvas", typeof(RectTransform), typeof(Canvas));
+        var scoreObject = new GameObject("UnifiedPanelSvgScore");
+        var spawnerObject = new GameObject("UnifiedPanelSvgSpawner");
+        try
+        {
+            var score = scoreObject.AddComponent<ScoreManager>();
+            score.useUnifiedControlPanel = true;
+            var spawner = spawnerObject.AddComponent<BallSpawner>();
+
+            var panel = PingPongUnifiedControlPanel.EnsureRuntimePanel(canvasObject.transform, score, spawner, null, null, null);
+            AssertSpriteIcon(panel.transform, "FullPanel/TitleIcon", "Runtime GUI should use the provided table tennis SVG sprite.");
+            AssertSpriteIcon(panel.transform, "FullPanel/StatusBadgePanel/StatusBadgeIcon", "Runtime GUI should use the provided status SVG sprite.");
+            AssertSpriteIcon(panel.transform, "FullPanel/AssessmentHeaderIcon", "Runtime GUI should use the provided assessment SVG sprite.");
+            AssertSpriteIcon(panel.transform, "FullPanel/AssessmentPanel/HitMetric/Icon", "Runtime GUI should use the provided hit SVG sprite.");
+            AssertSpriteIcon(panel.transform, "FullPanel/ServingToggleButton/Icon", "Runtime GUI should use the provided play SVG sprite.");
+            AssertSpriteIcon(panel.transform, "FullPanel/HomeButton/Icon", "Runtime GUI should use the provided home SVG sprite.");
+
+            var sectionIcon = panel.transform.Find("FullPanel/AssessmentHeaderIcon") as RectTransform;
+            AssertTrue(sectionIcon != null && sectionIcon.sizeDelta.x <= 18f && sectionIcon.sizeDelta.y <= 18f, "Section SVG icons should stay compact and not overlap text.");
+
+            panel.StartServingAndCompact();
+            AssertSpriteIcon(panel.transform, "MiniPanel/MiniPauseButton/Icon", "Runtime compact panel should use the provided pause SVG sprite.");
+            var miniGroup = panel.transform.Find("MiniPanel").GetComponent<CanvasGroup>();
+            AssertTrue(miniGroup != null && miniGroup.alpha > 0.99f, "Runtime compact panel should be visible after training starts.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(spawnerObject);
+            Object.DestroyImmediate(scoreObject);
+            Object.DestroyImmediate(canvasObject);
+        }
+    }
+
     private static void UnifiedPanelMiniPanelStaysAboveDragHandle()
     {
         var canvasObject = new GameObject("UnifiedPanelMiniLayerCanvas", typeof(RectTransform), typeof(Canvas));
@@ -1433,6 +1495,13 @@ public static class PingPongPhysicsSelfTests
         {
             throw new System.Exception(message);
         }
+    }
+
+    private static void AssertSpriteIcon(Transform root, string path, string message)
+    {
+        var icon = root != null ? root.Find(path) : null;
+        var image = icon != null ? icon.GetComponent<Image>() : null;
+        AssertTrue(image != null && image.sprite != null, message);
     }
 
     private static void SetPrivateField(object target, string fieldName, object value)

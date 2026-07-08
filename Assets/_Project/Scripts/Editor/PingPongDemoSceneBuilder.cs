@@ -3087,11 +3087,11 @@ public static class PingPongDemoSceneBuilder
 
         comfortPlacer.headTransform = Camera.main != null ? Camera.main.transform : null;
         comfortPlacer.uiRoot = canvasGo.transform;
-        comfortPlacer.distanceMeters = ElderCareUiTheme.HudDistanceMeters;
+        comfortPlacer.distanceMeters = 2.15f;
         comfortPlacer.hmdHeightOffsetMeters = 0.12f;
-        comfortPlacer.placeOnStart = false;
+        comfortPlacer.placeOnStart = true;
         comfortPlacer.placeOnEnable = false;
-        comfortPlacer.recenterDuringStartup = false;
+        comfortPlacer.recenterDuringStartup = true;
         comfortPlacer.clampWorldHeight = true;
         comfortPlacer.minWorldHeight = 1.25f;
         comfortPlacer.maxWorldHeight = 1.75f;

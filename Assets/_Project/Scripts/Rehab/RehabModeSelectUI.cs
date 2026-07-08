@@ -291,6 +291,12 @@ namespace PicoElderCare.Rehab
 
             uiPlacer.distanceMeters = Mathf.Max(uiPlacer.distanceMeters, trainingSelectDistanceMeters);
             uiPlacer.hmdHeightOffsetMeters = Mathf.Max(uiPlacer.hmdHeightOffsetMeters, trainingSelectHeightOffsetMeters);
+            if (uiPlacer.usePreferredHeightInsteadOfHeadHeight && uiPlacer.headTransform != null)
+            {
+                var desiredHeight = uiPlacer.headTransform.position.y + trainingSelectHeightOffsetMeters;
+                uiPlacer.preferredWorldHeight = Mathf.Max(uiPlacer.preferredWorldHeight, desiredHeight);
+            }
+
             uiPlacer.enableRayDrag = true;
             uiPlacer.enableThumbstickNavigation = true;
         }

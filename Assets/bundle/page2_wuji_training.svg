@@ -1,0 +1,186 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="720" height="960" viewBox="0 0 720 960" font-family="'PingFang SC','Noto Serif SC','Songti SC',serif">
+  <defs>
+    <linearGradient id="bgWood2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#E9DCC0"/>
+      <stop offset="50%" stop-color="#D9C7A3"/>
+      <stop offset="100%" stop-color="#C6B085"/>
+    </linearGradient>
+    <linearGradient id="cardRice2" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FBF5E6"/>
+      <stop offset="100%" stop-color="#F1E6CC"/>
+    </linearGradient>
+    <linearGradient id="tileTimer" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#FFF3D8"/>
+      <stop offset="100%" stop-color="#F3E1B4"/>
+    </linearGradient>
+    <linearGradient id="tileDone" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#EAF3E4"/>
+      <stop offset="100%" stop-color="#D0E4C6"/>
+    </linearGradient>
+    <linearGradient id="jadeBanner" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0%" stop-color="#8FB08A"/>
+      <stop offset="100%" stop-color="#5F8560"/>
+    </linearGradient>
+    <linearGradient id="amberBtn" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#E8B269"/>
+      <stop offset="100%" stop-color="#C88A3A"/>
+    </linearGradient>
+    <linearGradient id="jadeRing" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#A5C4A0"/>
+      <stop offset="100%" stop-color="#5F8560"/>
+    </linearGradient>
+
+    <filter id="softShadow2" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="6"/>
+      <feOffset dx="0" dy="6"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.28"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="glowJade">
+      <feGaussianBlur stdDeviation="4" result="b"/>
+      <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="dockShadow2" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur in="SourceAlpha" stdDeviation="4"/>
+      <feOffset dx="0" dy="4"/>
+      <feComponentTransfer><feFuncA type="linear" slope="0.2"/></feComponentTransfer>
+      <feMerge><feMergeNode/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+
+    <pattern id="paperTex2" x="0" y="0" width="60" height="60" patternUnits="userSpaceOnUse">
+      <rect width="60" height="60" fill="transparent"/>
+      <circle cx="10" cy="15" r="0.6" fill="#B89A5E" opacity="0.08"/>
+      <circle cx="40" cy="30" r="0.5" fill="#B89A5E" opacity="0.06"/>
+      <circle cx="25" cy="50" r="0.7" fill="#B89A5E" opacity="0.07"/>
+    </pattern>
+    <pattern id="woodTex2" x="0" y="0" width="8" height="960" patternUnits="userSpaceOnUse">
+      <rect width="8" height="960" fill="url(#bgWood2)"/>
+      <rect x="0" width="1" height="960" fill="#B99A6C" opacity="0.15"/>
+    </pattern>
+  </defs>
+
+  <!-- 背景 -->
+  <rect width="720" height="960" fill="url(#woodTex2)"/>
+  <rect width="720" height="960" fill="url(#paperTex2)" opacity="0.6"/>
+
+  <!-- 主卡片 -->
+  <g filter="url(#softShadow2)">
+    <rect x="60" y="60" width="600" height="720" rx="32" fill="url(#cardRice2)" stroke="#C9A96A" stroke-width="1.2" stroke-opacity="0.5"/>
+    <rect x="60" y="60" width="600" height="720" rx="32" fill="url(#paperTex2)" opacity="0.5"/>
+  </g>
+
+  <!-- 竹叶装饰 -->
+  <g opacity="0.18" transform="translate(560, 90)">
+    <path d="M 20 10 Q 50 30 40 70 Q 30 50 20 10 Z" fill="#4A6B4A"/>
+    <path d="M 45 20 Q 75 40 65 80 Q 55 60 45 20 Z" fill="#4A6B4A"/>
+    <path d="M 15 60 L 15 130" stroke="#6B5A3E" stroke-width="1.5"/>
+  </g>
+
+  <!-- Header -->
+  <g transform="translate(140, 120)">
+    <circle cx="20" cy="20" r="22" fill="#F5C97C" opacity="0.35"/>
+    <!-- 站桩小人 -->
+    <circle cx="20" cy="8" r="6" fill="#8B6B3E"/>
+    <path d="M 20 15 L 20 38" stroke="#8B6B3E" stroke-width="4" stroke-linecap="round"/>
+    <path d="M 20 20 L 8 30 M 20 20 L 32 30" stroke="#8B6B3E" stroke-width="3" stroke-linecap="round"/>
+    <path d="M 20 38 L 14 48 M 20 38 L 26 48" stroke="#8B6B3E" stroke-width="3" stroke-linecap="round"/>
+  </g>
+  <text x="200" y="152" font-size="42" font-weight="700" fill="#3E2E1F">无极桩</text>
+  <text x="360" y="192" font-size="16" fill="#7A6952" text-anchor="middle">太极起势 · 静心站桩</text>
+
+  <line x1="140" y1="215" x2="580" y2="215" stroke="#C9A96A" stroke-width="0.8" opacity="0.4"/>
+
+  <!-- 两个信息 Tile -->
+  <!-- 左：倒计时 -->
+  <g>
+    <rect x="90" y="240" width="255" height="140" rx="20" fill="url(#tileTimer)" stroke="#D4A574" stroke-width="1" stroke-opacity="0.5"/>
+    <text x="217" y="278" font-size="15" fill="#8B6B3E" text-anchor="middle">⏱ 倒计时</text>
+    <text x="217" y="352" font-size="58" font-weight="700" fill="#C88A3A" text-anchor="middle" font-family="'Noto Serif SC',serif">00:08</text>
+  </g>
+
+  <!-- 右：完成度 -->
+  <g>
+    <rect x="375" y="240" width="255" height="140" rx="20" fill="url(#tileDone)" stroke="#5F8560" stroke-width="1" stroke-opacity="0.4"/>
+    <text x="502" y="278" font-size="15" fill="#4C6B4C" text-anchor="middle">✓ 完成度</text>
+    <!-- 圆环 -->
+    <g transform="translate(502, 335)">
+      <circle r="34" fill="none" stroke="#D0E4C6" stroke-width="7"/>
+      <circle r="34" fill="none" stroke="url(#jadeRing)" stroke-width="7" stroke-linecap="round"
+              stroke-dasharray="213.6 213.6" transform="rotate(-90)"/>
+      <text y="8" font-size="21" font-weight="700" fill="#3E5A3E" text-anchor="middle">100%</text>
+    </g>
+  </g>
+
+  <!-- 状态横幅 -->
+  <g filter="url(#glowJade)">
+    <rect x="90" y="410" width="540" height="60" rx="30" fill="url(#jadeBanner)"/>
+    <text x="360" y="448" font-size="20" font-weight="600" fill="#FFF8E4" text-anchor="middle">☀ 动作已达标，做得很好！</text>
+  </g>
+
+  <!-- 三个统计 pills -->
+  <g>
+    <!-- 1 / 30 当前动作 -->
+    <rect x="90" y="500" width="170" height="90" rx="18" fill="#FBF5E6" stroke="#C9A96A" stroke-opacity="0.4"/>
+    <text x="175" y="540" font-size="26" font-weight="700" fill="#3E2E1F" text-anchor="middle">1 / 30</text>
+    <text x="175" y="568" font-size="13" fill="#8B7856" text-anchor="middle">当前动作</text>
+
+    <!-- 7.5 秒 已保持 -->
+    <rect x="275" y="500" width="170" height="90" rx="18" fill="#FBF5E6" stroke="#C9A96A" stroke-opacity="0.4"/>
+    <text x="360" y="540" font-size="26" font-weight="700" fill="#3E2E1F" text-anchor="middle">7.5 秒</text>
+    <text x="360" y="568" font-size="13" fill="#8B7856" text-anchor="middle">已保持</text>
+
+    <!-- 刚好 站位距离 -->
+    <rect x="460" y="500" width="170" height="90" rx="18" fill="#FBF5E6" stroke="#C9A96A" stroke-opacity="0.4"/>
+    <text x="545" y="540" font-size="24" font-weight="700" fill="#5F8560" text-anchor="middle">刚好 👍</text>
+    <text x="545" y="568" font-size="13" fill="#8B7856" text-anchor="middle">站位距离</text>
+  </g>
+
+  <!-- 操作按钮 -->
+  <g>
+    <!-- 暂停休息（主按钮） -->
+    <rect x="90" y="620" width="260" height="72" rx="36" fill="url(#amberBtn)" stroke="#B57327" stroke-opacity="0.4"/>
+    <g transform="translate(150, 656)">
+      <rect x="-6" y="-9" width="4" height="18" rx="1" fill="#FFF8E4"/>
+      <rect x="2" y="-9" width="4" height="18" rx="1" fill="#FFF8E4"/>
+    </g>
+    <text x="230" y="666" font-size="22" font-weight="700" fill="#FFF8E4" text-anchor="middle">暂停休息</text>
+
+    <!-- 返回 -->
+    <rect x="370" y="620" width="260" height="72" rx="36" fill="#F7EFD9" stroke="#C9A96A" stroke-width="1.5" stroke-opacity="0.6"/>
+    <text x="500" y="666" font-size="22" font-weight="600" fill="#5A4A32" text-anchor="middle">← 返回</text>
+  </g>
+
+  <!-- 底部提示 -->
+  <text x="360" y="745" font-size="13" fill="#9A8560" text-anchor="middle" opacity="0.75">
+    — 深呼吸 · 放松肩颈 · 保持自然站立 —
+  </text>
+
+  <!-- MR Dock -->
+  <g filter="url(#dockShadow2)">
+    <rect x="240" y="840" width="240" height="72" rx="36" fill="#3E2E1F" fill-opacity="0.85" stroke="#C9A96A" stroke-width="1" stroke-opacity="0.4"/>
+
+    <g transform="translate(288, 876)">
+      <circle r="24" fill="#F5EFE0" fill-opacity="0.12" stroke="#F5EFE0" stroke-opacity="0.25"/>
+      <rect x="-10" y="-1.5" width="20" height="3" rx="1.5" fill="#F5EFE0"/>
+    </g>
+    <text x="288" y="932" font-size="11" fill="#E8DCC0" text-anchor="middle" opacity="0.85">最小化</text>
+
+    <g transform="translate(360, 876)">
+      <circle r="24" fill="#C4544A" fill-opacity="0.85" stroke="#E8938B" stroke-opacity="0.5"/>
+      <path d="M -8 -8 L 8 8 M 8 -8 L -8 8" stroke="#FFF8E4" stroke-width="2.5" stroke-linecap="round"/>
+    </g>
+    <text x="360" y="932" font-size="11" fill="#E8DCC0" text-anchor="middle" opacity="0.85">关闭</text>
+
+    <g transform="translate(432, 876)">
+      <circle r="24" fill="#F5EFE0" fill-opacity="0.12" stroke="#F5EFE0" stroke-opacity="0.25"/>
+      <g fill="#F5EFE0">
+        <circle cx="0" cy="0" r="4.5" fill="none" stroke="#F5EFE0" stroke-width="2"/>
+        <rect x="-1.5" y="-11" width="3" height="4" rx="0.5"/>
+        <rect x="-1.5" y="7" width="3" height="4" rx="0.5"/>
+        <rect x="-11" y="-1.5" width="4" height="3" rx="0.5"/>
+        <rect x="7" y="-1.5" width="4" height="3" rx="0.5"/>
+      </g>
+    </g>
+    <text x="432" y="932" font-size="11" fill="#E8DCC0" text-anchor="middle" opacity="0.85">设置</text>
+  </g>
+</svg>

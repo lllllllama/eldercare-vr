@@ -130,6 +130,7 @@ public static class RemoteInputSelfTests
             remoteDrag.controlServing = false;
             remoteDrag.clearBallsWhenDragging = false;
             remoteDrag.remoteGrabMaxDistanceMeters = 4f;
+            remoteDrag.SetRemoteDragEnabled(true);
             InvokeLifecycle(remoteDrag, "OnEnable");
 
             rig.inputState.SetLeftGrip(1f);
