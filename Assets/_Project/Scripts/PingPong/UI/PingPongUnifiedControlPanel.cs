@@ -1,10 +1,12 @@
 using System.Collections.Generic;
+using PicoElderCare.Rehab;
 using PicoElderCare.UI;
 using TMPro;
 #if UNITY_EDITOR
 using UnityEditor;
 #endif
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 public class PingPongUnifiedControlPanel : MonoBehaviour
@@ -76,7 +78,10 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
     public PingPongDifficultyController difficultyController;
     public RemoteTableDragController tableDragController;
     public ElderCareHomeMenu homeMenu;
+    public ModuleHomeMenu moduleHomeMenu;
     public TMP_FontAsset uiFont;
+    public string mainEntrySceneName = "00_MainEntry";
+    public bool loadMainEntryWhenHomeMenuMissing = true;
 
     public TMP_Text titleText;
     public TMP_Text statusText;
@@ -111,6 +116,7 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
     private bool _buttonsWired;
     private bool _hasStartedServing;
     private bool _layoutBuilt;
+    private bool _standaloneDifficultyPanelsSuppressed;
     private float _nextRefreshTime;
     private TMP_FontAsset _runtimeFont;
     private TMP_FontAsset _runtimeFontSource;
@@ -256,10 +262,37 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
     public void ReturnHome()
     {
         ResolveReferences();
+
+        if (ballSpawner != null)
+        {
+            ballSpawner.StopServing();
+            ballSpawner.ClearBallsWithoutScoring();
+        }
+
+        if (scoreManager != null)
+        {
+            scoreManager.ResetScore();
+        }
+
+        if (moduleHomeMenu != null)
+        {
+            moduleHomeMenu.LoadMainEntry();
+            return;
+        }
+
         if (homeMenu != null)
         {
             homeMenu.ShowHome();
+            return;
         }
+
+        if (loadMainEntryWhenHomeMenuMissing && Application.isPlaying && !string.IsNullOrEmpty(mainEntrySceneName))
+        {
+            SceneManager.LoadScene(mainEntrySceneName);
+            return;
+        }
+
+        Debug.LogWarning("PingPongUnifiedControlPanel could not return home because no ElderCareHomeMenu was found.");
     }
 
     public void ToggleTableDrag()
@@ -458,6 +491,8 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
         if (difficultyController == null) difficultyController = FindSceneObject<PingPongDifficultyController>();
         if (tableDragController == null) tableDragController = FindSceneObject<RemoteTableDragController>();
         if (homeMenu == null) homeMenu = FindSceneObject<ElderCareHomeMenu>();
+        if (moduleHomeMenu == null) moduleHomeMenu = FindSceneObject<ModuleHomeMenu>();
+        SuppressStandaloneDifficultyPanels();
         var resolvedFont = RuntimeTmpFontAssetUtility.ResolveSourceFont(uiFont, _runtimeFont, _runtimeFontSource);
         if (resolvedFont == null) resolvedFont = ResolveRuntimeFont();
         uiFont = RuntimeTmpFontAssetUtility.PrepareDynamicFont(resolvedFont, RequiredChineseGlyphs, ref _runtimeFont, ref _runtimeFontSource);
@@ -472,6 +507,7 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
 
         if (_layoutBuilt && FindChild(transform, "FullPanel") != null)
         {
+            RepairEmbeddedDifficultyControlsIfNeeded();
             EnsureMiniPanelOnTop();
             WireButtons();
             return;
@@ -520,34 +556,63 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
         ConfigureSvgIcon(GetOrCreateChild(assessment.rectTransform, "SpeedIcon"), IconSpeed, new Vector2(18f, 18f), new Vector2(-248f, -75f), 0.98f);
         speedText = ConfigureText(GetOrCreateChild(assessment.rectTransform, "SpeedRow"), HitSpeedLabel, new Vector2(454f, 28f), new Vector2(28f, -75f), 18f, FontStyles.Bold, ElderCareUiTheme.TextSecondary, TextAlignmentOptions.Left);
 
-        CreateSectionLabel(fullRect, "DifficultyHeader", DifficultyLabel, IconDifficulty, new Vector2(-206f, 36f), ElderCareUiTheme.Gold);
-        BuildDifficultyPanel(fullRect);
+        CreateSectionLabel(fullRect, "ControlHeader", ControlLabel, IconTarget, new Vector2(-206f, 36f), ElderCareUiTheme.Cyan);
+        BuildControlPanel(fullRect);
+    }
 
-        CreateSectionLabel(fullRect, "ControlHeader", ControlLabel, IconTarget, new Vector2(-206f, -192f), ElderCareUiTheme.Cyan);
-        servingToggleButton = ConfigureButton(GetOrCreateChild(fullRect, "ServingToggleButton"), ResumeServingLabel, IconPlay, new Vector2(0f, -252f), new Vector2(ContentSize.x, 64f), ElderCareUiTheme.Green, true);
-        coachButton = ConfigureButton(GetOrCreateChild(fullRect, "CoachButton"), CoachEmptyLabel, IconCoach, new Vector2(-141f, -326f), SecondaryButtonSize, ElderCareUiTheme.Violet, false);
-        homeButton = ConfigureButton(GetOrCreateChild(fullRect, "HomeButton"), ReturnHomeLabel, IconHome, new Vector2(141f, -326f), SecondaryButtonSize, ElderCareUiTheme.Orange, true);
+    private void BuildControlPanel(RectTransform parent)
+    {
+        var panel = ConfigurePanel(GetOrCreateChild(parent, "ControlPanel"), new Vector2(ContentSize.x, 326f), new Vector2(0f, -128f), new Color(1f, 1f, 1f, 0.055f), 20f, false);
+        AddOutline(panel.gameObject, new Color(0.38f, 0.66f, 0.94f, 0.25f), new Vector2(1.5f, -1.5f));
 
-        resetButton = ConfigureButton(GetOrCreateChild(fullRect, "ResetButton"), "\u91cd", new Vector2(-68f, -366f), new Vector2(48f, 48f), ElderCareUiTheme.Green, true);
-        _minimizeButton = ConfigureButton(GetOrCreateChild(fullRect, "MinimizeButton"), DifficultyDownLabel, new Vector2(0f, -366f), new Vector2(48f, 48f), ElderCareUiTheme.Cyan, true);
-        _closeButton = ConfigureButton(GetOrCreateChild(fullRect, "CloseButton"), "\u00d7", new Vector2(68f, -366f), new Vector2(48f, 48f), ElderCareUiTheme.Orange, true);
+        BuildDifficultyPanel(panel.rectTransform);
+
+        servingToggleButton = ConfigureButton(GetOrCreateChild(panel.rectTransform, "ServingToggleButton"), ResumeServingLabel, IconPlay, new Vector2(0f, -42f), new Vector2(484f, 56f), ElderCareUiTheme.Green, true);
+        coachButton = ConfigureButton(GetOrCreateChild(panel.rectTransform, "CoachButton"), CoachEmptyLabel, IconCoach, new Vector2(-126f, -104f), new Vector2(232f, 52f), ElderCareUiTheme.Violet, false);
+        homeButton = ConfigureButton(GetOrCreateChild(panel.rectTransform, "HomeButton"), ReturnHomeLabel, IconHome, new Vector2(126f, -104f), new Vector2(232f, 52f), ElderCareUiTheme.Orange, true);
+
+        resetButton = ConfigureButton(GetOrCreateChild(panel.rectTransform, "ResetButton"), "\u91cd", new Vector2(-64f, -142f), new Vector2(42f, 42f), ElderCareUiTheme.Green, true);
+        _minimizeButton = ConfigureButton(GetOrCreateChild(panel.rectTransform, "MinimizeButton"), DifficultyDownLabel, new Vector2(0f, -142f), new Vector2(42f, 42f), ElderCareUiTheme.Cyan, true);
+        _closeButton = ConfigureButton(GetOrCreateChild(panel.rectTransform, "CloseButton"), "\u00d7", new Vector2(64f, -142f), new Vector2(42f, 42f), ElderCareUiTheme.Orange, true);
     }
 
     private void BuildDifficultyPanel(RectTransform parent)
     {
-        var panel = ConfigurePanel(GetOrCreateChild(parent, "DifficultyPanel"), new Vector2(ContentSize.x, 166f), new Vector2(0f, -74f), new Color(1f, 1f, 1f, 0.055f), 20f, false);
-        AddOutline(panel.gameObject, new Color(0.38f, 0.66f, 0.94f, 0.25f), new Vector2(1.5f, -1.5f));
-        difficultyDownButton = ConfigureButton(GetOrCreateChild(panel.rectTransform, "DifficultyDownButton"), DifficultyDownLabel, new Vector2(-210f, 34f), new Vector2(60f, 60f), ElderCareUiTheme.SoftButton, true);
-        difficultyUpButton = ConfigureButton(GetOrCreateChild(panel.rectTransform, "DifficultyUpButton"), DifficultyUpLabel, new Vector2(210f, 34f), new Vector2(60f, 60f), ElderCareUiTheme.SoftButton, true);
-        difficultyText = ConfigureText(GetOrCreateChild(panel.rectTransform, "DifficultyText"), DifficultyNormalLabel, new Vector2(190f, 40f), new Vector2(0f, 46f), 30f, FontStyles.Bold, ElderCareUiTheme.TextPrimary, TextAlignmentOptions.Center);
+        RemoveChildIfExists(parent, "DifficultyPanel");
+
+        var panel = ConfigureEmbeddedGroup(GetOrCreateChild(parent, "EmbeddedDifficultyControls"), new Vector2(500f, 118f), new Vector2(0f, 86f));
+        ConfigurePanel(GetOrCreateChild(panel, "DifficultyDivider"), new Vector2(468f, 2f), new Vector2(0f, -58f), new Color(1f, 1f, 1f, 0.10f), 1f, false);
+        ConfigureSvgIcon(GetOrCreateChild(panel, "DifficultyIcon"), IconDifficulty, new Vector2(18f, 18f), new Vector2(-214f, 40f), 0.98f);
+        ConfigureText(GetOrCreateChild(panel, "DifficultyLabel"), DifficultyLabel, new Vector2(150f, 26f), new Vector2(-132f, 40f), 17f, FontStyles.Bold, ElderCareUiTheme.Gold, TextAlignmentOptions.Left);
+        difficultyDownButton = ConfigureButton(GetOrCreateChild(panel, "DifficultyDownButton"), DifficultyDownLabel, new Vector2(-184f, 6f), new Vector2(52f, 52f), ElderCareUiTheme.SoftButton, true);
+        difficultyUpButton = ConfigureButton(GetOrCreateChild(panel, "DifficultyUpButton"), DifficultyUpLabel, new Vector2(184f, 6f), new Vector2(52f, 52f), ElderCareUiTheme.SoftButton, true);
+        difficultyText = ConfigureText(GetOrCreateChild(panel, "DifficultyText"), DifficultyNormalLabel, new Vector2(172f, 36f), new Vector2(0f, 14f), 26f, FontStyles.Bold, ElderCareUiTheme.TextPrimary, TextAlignmentOptions.Center);
 
         for (var i = 0; i < _difficultyGears.Length; i++)
         {
-            _difficultyGears[i] = ConfigurePanel(GetOrCreateChild(panel.rectTransform, "Gear" + i), new Vector2(30f, 10f), new Vector2((i - 2) * 38f, 10f), new Color(1f, 1f, 1f, 0.18f), 5f, false);
+            _difficultyGears[i] = ConfigurePanel(GetOrCreateChild(panel, "Gear" + i), new Vector2(28f, 9f), new Vector2((i - 2) * 36f, -10f), new Color(1f, 1f, 1f, 0.18f), 5f, false);
         }
 
-        serveSpeedText = CreateInfoTile(panel.rectTransform, "ServeSpeed", ServeSpeedPrefix, IconSpeed, new Vector2(-130f, -52f), ElderCareUiTheme.Gold);
-        spinText = CreateInfoTile(panel.rectTransform, "SpinSpeed", SpinSpeedLabel, IconSpin, new Vector2(130f, -52f), ElderCareUiTheme.Violet);
+        serveSpeedText = CreateInlineInfoText(panel, "ServeSpeed", ServeSpeedPrefix, IconSpeed, new Vector2(-112f, -38f), ElderCareUiTheme.Gold);
+        spinText = CreateInlineInfoText(panel, "SpinSpeed", SpinSpeedLabel, IconSpin, new Vector2(112f, -38f), ElderCareUiTheme.Violet);
+    }
+
+    private void RepairEmbeddedDifficultyControlsIfNeeded()
+    {
+        if (!HasLegacyEmbeddedDifficultyPanel()) return;
+
+        var controlPanel = transform.Find("FullPanel/ControlPanel") as RectTransform;
+        if (controlPanel == null) return;
+
+        UnwireButtons();
+        if (_difficultyGears == null || _difficultyGears.Length != 5)
+        {
+            _difficultyGears = new Graphic[5];
+        }
+
+        BuildDifficultyPanel(controlPanel);
+        WireButtons();
+        RefreshDisplay();
     }
 
     private void BuildMiniPanel(RectTransform rootRect)
@@ -590,12 +655,10 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
         return ConfigureText(GetOrCreateChild(rect, "Text"), label, new Vector2(126f, 62f), new Vector2(8f, 0f), 18f, FontStyles.Bold, ElderCareUiTheme.TextPrimary, TextAlignmentOptions.Center);
     }
 
-    private TMP_Text CreateInfoTile(RectTransform parent, string name, string label, string iconResource, Vector2 position, Color accent)
+    private TMP_Text CreateInlineInfoText(RectTransform parent, string name, string label, string iconResource, Vector2 position, Color accent)
     {
-        var panel = ConfigurePanel(GetOrCreateChild(parent, name + "Panel"), new Vector2(238f, 58f), position, new Color(1f, 1f, 1f, 0.06f), 14f, false);
-        AddOutline(panel.gameObject, WithAlpha(accent, 0.24f), new Vector2(1f, -1f));
-        ConfigureSvgIcon(GetOrCreateChild(panel.rectTransform, name + "Icon"), iconResource, new Vector2(24f, 24f), new Vector2(-84f, 0f), 0.98f);
-        return ConfigureText(GetOrCreateChild(panel.rectTransform, name + "Text"), label, new Vector2(154f, 50f), new Vector2(24f, 0f), 18f, FontStyles.Bold, accent, TextAlignmentOptions.Left);
+        ConfigureSvgIcon(GetOrCreateChild(parent, name + "Icon"), iconResource, new Vector2(18f, 18f), new Vector2(position.x - 58f, position.y), 0.94f);
+        return ConfigureText(GetOrCreateChild(parent, name + "Text"), label, new Vector2(136f, 30f), new Vector2(position.x + 14f, position.y), 15f, FontStyles.Bold, accent, TextAlignmentOptions.Left);
     }
 
     private TMP_Text ConfigureBadge(RectTransform parent, string name, string label, Vector2 size, Vector2 position, Color accent, string iconResource)
@@ -749,6 +812,40 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
         return sprite;
     }
 
+    private void SuppressStandaloneDifficultyPanels()
+    {
+        if (_standaloneDifficultyPanelsSuppressed) return;
+
+        var controllers = Resources.FindObjectsOfTypeAll<PingPongDifficultyController>();
+        var foundSceneController = false;
+        for (var i = 0; i < controllers.Length; i++)
+        {
+            var controller = controllers[i];
+            if (controller == null || !controller.gameObject.scene.IsValid()) continue;
+            foundSceneController = true;
+
+            controller.displayStandalonePanel = false;
+            controller.showScreenButtons = false;
+            controller.enableControllerSpeedButtons = false;
+
+            if (controller.transform == transform || controller.transform.IsChildOf(transform)) continue;
+            if (controller.gameObject.name != "DifficultyPanel") continue;
+
+            var group = EnsureComponent<CanvasGroup>(controller.gameObject);
+            group.alpha = 0f;
+            group.interactable = false;
+            group.blocksRaycasts = false;
+            controller.gameObject.SetActive(false);
+
+            if (difficultyController == null)
+            {
+                difficultyController = controller;
+            }
+        }
+
+        _standaloneDifficultyPanelsSuppressed = foundSceneController;
+    }
+
     private void RefreshStatusIcon(bool serving)
     {
         if (_statusIcon == null) return;
@@ -806,6 +903,31 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
         return rect;
     }
 
+    private static RectTransform ConfigureEmbeddedGroup(GameObject go, Vector2 size, Vector2 anchoredPosition)
+    {
+        var rect = ConfigureRect(go, size, anchoredPosition);
+
+        var graphic = go.GetComponent<Graphic>();
+        if (graphic != null)
+        {
+            graphic.color = Color.clear;
+            graphic.raycastTarget = false;
+        }
+
+        var outline = go.GetComponent<Outline>();
+        if (outline != null)
+        {
+            outline.effectColor = Color.clear;
+        }
+
+        return rect;
+    }
+
+    private bool HasLegacyEmbeddedDifficultyPanel()
+    {
+        return transform.Find("FullPanel/ControlPanel/DifficultyPanel") != null;
+    }
+
     private static Graphic ConfigurePanel(GameObject go, Vector2 size, Vector2 anchoredPosition, Color color, float radius, bool raycastTarget)
     {
         ConfigureRect(go, size, anchoredPosition);
@@ -829,6 +951,14 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
         var go = new GameObject(name, typeof(RectTransform));
         go.transform.SetParent(parent, false);
         return go;
+    }
+
+    private static void RemoveChildIfExists(Transform parent, string name)
+    {
+        var child = FindChild(parent, name);
+        if (child == null) return;
+
+        DestroyGameObject(child);
     }
 
     private static GameObject FindChild(Transform parent, string name)
@@ -879,6 +1009,19 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
         }
 
         DestroyImmediate(component);
+    }
+
+    private static void DestroyGameObject(GameObject go)
+    {
+        if (go == null) return;
+        go.SetActive(false);
+        if (Application.isPlaying)
+        {
+            Destroy(go);
+            return;
+        }
+
+        DestroyImmediate(go);
     }
 
     private static void SetText(TMP_Text text, string value)

@@ -217,7 +217,9 @@ public class TableDragHandle : MonoBehaviour
 
         foreach (var transform in FindObjectsOfType<Transform>(true))
         {
-            if (transform != null && transform.name == objectName)
+            if (transform != null &&
+                transform.name == objectName &&
+                transform.GetComponentInParent<PingPongUnifiedControlPanel>(true) == null)
             {
                 return transform;
             }

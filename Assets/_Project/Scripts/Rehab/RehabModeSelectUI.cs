@@ -1,5 +1,7 @@
 using System.Collections;
+using TMPro;
 using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.UI;
 
 namespace PicoElderCare.Rehab
@@ -32,12 +34,14 @@ namespace PicoElderCare.Rehab
         public int startRecenterFrames = 18;
         public float trainingSelectDistanceMeters = 2.45f;
         public float trainingSelectHeightOffsetMeters = 0.08f;
+        public bool applyHtmlStylePanels = true;
 
         private Coroutine _startRecenterCoroutine;
 
         private void Awake()
         {
             ResolveReferences();
+            ApplyHtmlStylePanelsIfNeeded();
             BindButtonEvents();
         }
 
@@ -71,6 +75,7 @@ namespace PicoElderCare.Rehab
         public void ShowMainMenuPanel()
         {
             CancelCurrentTrainingAndHideVideo();
+            ApplyHtmlStylePanelsIfNeeded();
 
             SetPanelActive(mainMenuPanel, true);
             SetPanelActive(rehabTrainingSelectPanel, false);
@@ -86,6 +91,7 @@ namespace PicoElderCare.Rehab
         public void ShowTrainingSelectPanel()
         {
             CancelCurrentTrainingAndHideVideo();
+            ApplyHtmlStylePanelsIfNeeded();
 
             SetPanelActive(mainMenuPanel, false);
             SetPanelActive(rehabTrainingSelectPanel, true);
@@ -111,6 +117,7 @@ namespace PicoElderCare.Rehab
         public void ShowTrainingResultPanel()
         {
             StopVideoGuideOnly();
+            ApplyHtmlStylePanelsIfNeeded();
 
             SetPanelActive(mainMenuPanel, false);
             SetPanelActive(rehabTrainingSelectPanel, false);
@@ -152,6 +159,7 @@ namespace PicoElderCare.Rehab
             if (sessionManager != null)
             {
                 sessionManager.StartTraining(trainingType);
+                ApplyHtmlStyleSkinOnly();
             }
             else
             {
@@ -161,6 +169,8 @@ namespace PicoElderCare.Rehab
 
         private void ResolveReferences()
         {
+            ResolvePanelReferences();
+
             if (sessionManager == null)
             {
                 sessionManager = FindObjectOfType<RehabSessionManager>(true);
@@ -196,34 +206,47 @@ namespace PicoElderCare.Rehab
                 uiPlacer = GetComponentInParent<ComfortWorldSpaceUIPlacer>();
             }
 
-            if (trainingBackButton == null && rehabTrainingPanel != null)
+            ResolveNavigationButtons();
+        }
+
+        private void ResolvePanelReferences()
+        {
+            if (mainMenuPanel == null)
             {
-                var buttons = rehabTrainingPanel.GetComponentsInChildren<Button>(true);
-                for (var i = 0; i < buttons.Length; i++)
-                {
-                    var buttonName = buttons[i].name;
-                    if (buttonName == "HomeButton" ||
-                        buttonName.IndexOf("Back", System.StringComparison.OrdinalIgnoreCase) >= 0)
-                    {
-                        trainingBackButton = buttons[i];
-                        break;
-                    }
-                }
+                mainMenuPanel = FindChildGameObject(transform, "MainMenuPanel");
             }
 
-            if (resultBackButton == null && trainingResultPanel != null)
+            if (rehabTrainingSelectPanel == null)
             {
-                var buttons = trainingResultPanel.GetComponentsInChildren<Button>(true);
-                for (var i = 0; i < buttons.Length; i++)
-                {
-                    var buttonName = buttons[i].name;
-                    if (buttonName == "BackButton" ||
-                        buttonName.IndexOf("Back", System.StringComparison.OrdinalIgnoreCase) >= 0)
-                    {
-                        resultBackButton = buttons[i];
-                        break;
-                    }
-                }
+                rehabTrainingSelectPanel = FindChildGameObject(transform, "RehabTrainingSelectPanel");
+            }
+
+            if (rehabTrainingPanel == null)
+            {
+                rehabTrainingPanel = FindChildGameObject(transform, "RehabTrainingPanel");
+            }
+
+            if (trainingResultPanel == null)
+            {
+                trainingResultPanel = FindChildGameObject(transform, "TrainingResultPanel");
+            }
+        }
+
+        private void ResolveNavigationButtons()
+        {
+            rehabButton = ResolveButtonReference(rehabButton, mainMenuPanel, "RehabButton", "\u5eb7\u590d\u8fd0\u52a8");
+            baduanjinButton = ResolveButtonReference(baduanjinButton, rehabTrainingSelectPanel, "BaduanjinButton", "\u516b\u6bb5\u9526");
+            taiChiButton = ResolveButtonReference(taiChiButton, rehabTrainingSelectPanel, "TaiChiButton", "TaijiButton", "\u592a\u6781");
+            backButton = ResolveButtonReference(backButton, rehabTrainingSelectPanel, "BackButton", "HomeButton", "\u8fd4\u56de");
+
+            if (rehabTrainingPanel != null)
+            {
+                trainingBackButton = ResolveButtonReference(trainingBackButton, rehabTrainingPanel, "HomeButton", "BackButton", "\u8fd4\u56de");
+            }
+
+            if (trainingResultPanel != null)
+            {
+                resultBackButton = ResolveButtonReference(resultBackButton, trainingResultPanel, "BackButton", "HomeButton", "\u8fd4\u56de");
             }
         }
 
@@ -301,44 +324,31 @@ namespace PicoElderCare.Rehab
             uiPlacer.enableThumbstickNavigation = true;
         }
 
+        private void ApplyHtmlStylePanelsIfNeeded()
+        {
+            if (!applyHtmlStylePanels) return;
+
+            ApplyHtmlStyleSkinOnly();
+            BindButtonEvents();
+        }
+
+        private void ApplyHtmlStyleSkinOnly()
+        {
+            if (!applyHtmlStylePanels) return;
+
+            ResolveReferences();
+            HtmlStyleRehabPanelSkin.Apply(this);
+            ResolveNavigationButtons();
+        }
+
         private void BindButtonEvents()
         {
-            if (rehabButton != null)
-            {
-                rehabButton.onClick.RemoveListener(ShowTrainingSelectPanel);
-                rehabButton.onClick.AddListener(ShowTrainingSelectPanel);
-            }
-
-            if (baduanjinButton != null)
-            {
-                baduanjinButton.onClick.RemoveListener(StartBaduanjinTraining);
-                baduanjinButton.onClick.AddListener(StartBaduanjinTraining);
-            }
-
-            if (taiChiButton != null)
-            {
-                taiChiButton.onClick.RemoveListener(StartTaiChiTraining);
-                taiChiButton.onClick.AddListener(StartTaiChiTraining);
-            }
-
-            if (backButton != null)
-            {
-                backButton.onClick.RemoveListener(ShowMainMenuPanel);
-                backButton.onClick.RemoveListener(ReturnToMainEntry);
-                backButton.onClick.AddListener(ReturnToMainEntry);
-            }
-
-            if (trainingBackButton != null)
-            {
-                trainingBackButton.onClick.RemoveListener(ShowTrainingSelectPanel);
-                trainingBackButton.onClick.AddListener(ShowTrainingSelectPanel);
-            }
-
-            if (resultBackButton != null)
-            {
-                resultBackButton.onClick = new Button.ButtonClickedEvent();
-                resultBackButton.onClick.AddListener(ShowTrainingSelectPanel);
-            }
+            ReplaceButtonRoute(rehabButton, ShowTrainingSelectPanel);
+            ReplaceButtonRoute(baduanjinButton, StartBaduanjinTraining);
+            ReplaceButtonRoute(taiChiButton, StartTaiChiTraining);
+            ReplaceButtonRoute(backButton, ReturnToMainEntry);
+            ReplaceButtonRoute(trainingBackButton, ShowTrainingSelectPanel);
+            ReplaceButtonRoute(resultBackButton, ShowTrainingSelectPanel);
         }
 
         private void CancelCurrentTrainingAndHideVideo()
@@ -370,6 +380,104 @@ namespace PicoElderCare.Rehab
             {
                 panel.SetActive(active);
             }
+        }
+
+        private static void ReplaceButtonRoute(Button button, UnityAction action)
+        {
+            if (button == null || action == null) return;
+
+            button.onClick = new Button.ButtonClickedEvent();
+            button.onClick.AddListener(action);
+        }
+
+        private static Button ResolveButtonReference(Button current, GameObject panelRoot, params string[] namesOrLabels)
+        {
+            if (IsButtonUnderPanel(current, panelRoot) && ButtonMatches(current, namesOrLabels, false))
+            {
+                return current;
+            }
+
+            if (panelRoot == null) return current;
+
+            var buttons = panelRoot.GetComponentsInChildren<Button>(true);
+            for (var i = 0; i < buttons.Length; i++)
+            {
+                if (ButtonMatches(buttons[i], namesOrLabels, true))
+                {
+                    return buttons[i];
+                }
+            }
+
+            for (var i = 0; i < buttons.Length; i++)
+            {
+                if (ButtonMatches(buttons[i], namesOrLabels, false))
+                {
+                    return buttons[i];
+                }
+            }
+
+            return current;
+        }
+
+        private static bool IsButtonUnderPanel(Button button, GameObject panelRoot)
+        {
+            if (button == null) return false;
+            if (panelRoot == null) return true;
+            return button.transform == panelRoot.transform || button.transform.IsChildOf(panelRoot.transform);
+        }
+
+        private static bool ButtonMatches(Button button, string[] namesOrLabels, bool exactNameOnly)
+        {
+            if (button == null || namesOrLabels == null) return false;
+
+            for (var i = 0; i < namesOrLabels.Length; i++)
+            {
+                var value = namesOrLabels[i];
+                if (string.IsNullOrEmpty(value)) continue;
+
+                if (string.Equals(button.name, value, System.StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+
+                if (!exactNameOnly && button.name.IndexOf(value, System.StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    return true;
+                }
+            }
+
+            if (exactNameOnly) return false;
+
+            var label = button.GetComponentInChildren<TMP_Text>(true);
+            if (label == null || string.IsNullOrEmpty(label.text)) return false;
+
+            for (var i = 0; i < namesOrLabels.Length; i++)
+            {
+                var value = namesOrLabels[i];
+                if (!string.IsNullOrEmpty(value) &&
+                    label.text.IndexOf(value, System.StringComparison.OrdinalIgnoreCase) >= 0)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private static GameObject FindChildGameObject(Transform root, string childName)
+        {
+            if (root == null || string.IsNullOrEmpty(childName)) return null;
+
+            var child = root.Find(childName);
+            if (child != null) return child.gameObject;
+
+            for (var i = 0; i < root.childCount; i++)
+            {
+                var found = FindChildGameObject(root.GetChild(i), childName);
+                if (found != null) return found;
+            }
+
+            return null;
         }
     }
 }
