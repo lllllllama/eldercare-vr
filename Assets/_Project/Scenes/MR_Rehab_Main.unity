@@ -8137,7 +8137,7 @@ MonoBehaviour:
   startRecenterFrames: 18
   trainingSelectDistanceMeters: 1.35
   trainingSelectHeightOffsetMeters: 0.08
-  applyHtmlStylePanels: 0
+  applyHtmlStylePanels: 1
 --- !u!114 &2088192608
 MonoBehaviour:
   m_ObjectHideFlags: 0

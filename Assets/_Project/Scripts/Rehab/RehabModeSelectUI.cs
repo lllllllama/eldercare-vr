@@ -123,13 +123,13 @@ namespace PicoElderCare.Rehab
 
         public void StartBaduanjinTraining()
         {
-            Debug.Log("[RehabModeSelectUI] StartBaduanjinTraining invoked.");
+            Debug.Log("[RehabModeSelectUI] StartBaduanjinTraining clicked.");
             StartTraining(RehabTrainingType.Baduanjin);
         }
 
         public void StartTaiChiTraining()
         {
-            Debug.Log("[RehabModeSelectUI] StartTaiChiTraining invoked.");
+            Debug.Log("[RehabModeSelectUI] StartTaiChiTraining clicked.");
             StartTraining(RehabTrainingType.TaiChi);
         }
 
@@ -148,7 +148,7 @@ namespace PicoElderCare.Rehab
 
         public void ReturnToMainEntry()
         {
-            Debug.Log("[RehabModeSelectUI] ReturnToMainEntry invoked.");
+            Debug.Log("[RehabModeSelectUI] ReturnToMainEntry clicked.");
             ResolveReferences();
             CancelCurrentTrainingAndHideVideo();
 
@@ -201,11 +201,11 @@ namespace PicoElderCare.Rehab
             {
                 try
                 {
-                    HtmlStyleRehabPanelSkin.Apply(this);
+                    HtmlStyleRehabVisualSkin.Apply(this);
                 }
                 catch (System.Exception ex)
                 {
-                    Debug.LogError($"[RehabModeSelectUI] HtmlStyleRehabPanelSkin.Apply failed during {reason}: {ex}");
+                    Debug.LogError($"[RehabModeSelectUI] HtmlStyleRehabVisualSkin.Apply failed during {reason}: {ex}");
                 }
             }
             else

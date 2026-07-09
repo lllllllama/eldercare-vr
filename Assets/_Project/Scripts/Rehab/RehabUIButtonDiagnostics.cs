@@ -51,7 +51,7 @@ namespace PicoElderCare.Rehab
             var targetGraphic = _button != null ? _button.targetGraphic : null;
             Debug.Log(
                 string.Format(
-                    "[RehabUIButtonDiagnostics] {0} button={1}, label={2}, active={3}, enabled={4}, interactable={5}, targetGraphic={6}, targetRaycast={7}, pointerId={8}",
+                    "RehabUIButtonDiagnostics {0} {1}, label={2}, active={3}, enabled={4}, interactable={5}, targetGraphic={6}, targetRaycast={7}, pointerId={8}",
                     eventName,
                     gameObject.name,
                     GetLabel(),
