@@ -1245,7 +1245,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 302815229}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 538917a84f8c445e919fac7edaf4c3cb, type: 3}
   m_Name: 
@@ -1578,7 +1578,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 412360866}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 538917a84f8c445e919fac7edaf4c3cb, type: 3}
   m_Name: 
@@ -2407,7 +2407,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 648790019}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 538917a84f8c445e919fac7edaf4c3cb, type: 3}
   m_Name: 
@@ -7751,8 +7751,8 @@ MonoBehaviour:
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 8b80fb7f62df4d70bc25eb2f8d0ea9b2, type: 3}
-  m_Name:
-  m_EditorClassIdentifier:
+  m_Name: 
+  m_EditorClassIdentifier: 
   headTransform: {fileID: 816540687}
   promptPanelRoot: {fileID: 2088192602}
   videoPanelRoot: {fileID: 0}
@@ -8122,16 +8122,22 @@ MonoBehaviour:
   taiChiButton: {fileID: 397022949}
   backButton: {fileID: 850986672}
   trainingBackButton: {fileID: 0}
+  resultBackButton: {fileID: 0}
   homeMenu: {fileID: 1970877965}
   uiPlacer: {fileID: 290964136}
+  panelPlacementController: {fileID: 0}
   sessionManager: {fileID: 1970877958}
   videoGuideController: {fileID: 902136582}
   showTrainingSelectOnStart: 1
   placeUiOnStart: 0
   placeUiOnMainMenuOpen: 0
   placeUiOnTrainingSelectOpen: 0
+  startRecenterDelayFrames: 2
+  startRecenterSeconds: 1.25
+  startRecenterFrames: 18
   trainingSelectDistanceMeters: 1.35
   trainingSelectHeightOffsetMeters: 0.08
+  applyHtmlStylePanels: 0
 --- !u!114 &2088192608
 MonoBehaviour:
   m_ObjectHideFlags: 0

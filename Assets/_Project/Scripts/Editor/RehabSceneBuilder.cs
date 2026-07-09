@@ -284,10 +284,11 @@ public static class RehabSceneBuilder
         modeSelectUi.placeUiOnStart = true;
         modeSelectUi.placeUiOnMainMenuOpen = true;
         session.modeSelectUI = modeSelectUi;
-        if (rehabUi.trainingBackButton != null)
-        {
-            UnityEventTools.AddPersistentListener(rehabUi.trainingBackButton.onClick, modeSelectUi.ShowTrainingSelectPanel);
-        }
+        AddPersistentButtonListener(rehabUi.baduanjinButton, modeSelectUi.StartBaduanjinTraining);
+        AddPersistentButtonListener(rehabUi.taiChiButton, modeSelectUi.StartTaiChiTraining);
+        AddPersistentButtonListener(rehabUi.backButton, modeSelectUi.ReturnToMainEntry);
+        AddPersistentButtonListener(rehabUi.trainingBackButton, modeSelectUi.ShowTrainingSelectPanel);
+        AddPersistentButtonListener(rehabUi.resultBackButton, modeSelectUi.ShowTrainingSelectPanel);
 
         var mrManager = managers.AddComponent<RehabMixedRealityManager>();
         mrManager.targetCamera = mainCamera;
@@ -306,6 +307,25 @@ public static class RehabSceneBuilder
         EditorUtility.SetDirty(rehabRoot);
         if (xrOrigin != null) EditorUtility.SetDirty(xrOrigin);
         EditorSceneManager.SaveScene(scene, RehabScenePath);
+    }
+
+    private static void AddPersistentButtonListener(Button button, UnityEngine.Events.UnityAction action)
+    {
+        if (button == null || action == null) return;
+
+        var target = action.Target as Object;
+        var methodName = action.Method != null ? action.Method.Name : string.Empty;
+        for (var i = 0; i < button.onClick.GetPersistentEventCount(); i++)
+        {
+            if (button.onClick.GetPersistentTarget(i) == target &&
+                button.onClick.GetPersistentMethodName(i) == methodName)
+            {
+                return;
+            }
+        }
+
+        UnityEventTools.AddPersistentListener(button.onClick, action);
+        EditorUtility.SetDirty(button);
     }
 
     private static VirtualCoachController BuildVirtualCoach(Transform parent, Transform hmd)
@@ -1068,14 +1088,51 @@ public static class RehabSceneBuilder
 
     private static void EnsureEventSystem()
     {
-        var eventSystem = Object.FindObjectOfType<EventSystem>();
+        var eventSystems = Object.FindObjectsOfType<EventSystem>(true);
+        var eventSystem = EventSystem.current != null
+            ? EventSystem.current
+            : eventSystems.Length > 0
+                ? eventSystems[0]
+                : null;
         if (eventSystem == null)
         {
             var go = new GameObject("EventSystem");
             eventSystem = go.AddComponent<EventSystem>();
         }
 
-        var xrUiInputModule = eventSystem.GetComponent<XRUIInputModule>();
+        for (var i = 0; i < eventSystems.Length; i++)
+        {
+            var candidate = eventSystems[i];
+            if (candidate == null || candidate == eventSystem) continue;
+
+            Object.DestroyImmediate(candidate.gameObject);
+        }
+
+        XRUIInputModule xrUiInputModule = null;
+        var inputModules = eventSystem.GetComponents<BaseInputModule>();
+        for (var i = 0; i < inputModules.Length; i++)
+        {
+            var module = inputModules[i];
+            if (module == null) continue;
+
+            var xrModule = module as XRUIInputModule;
+            if (xrModule != null)
+            {
+                if (xrUiInputModule == null)
+                {
+                    xrUiInputModule = xrModule;
+                }
+                else
+                {
+                    Object.DestroyImmediate(xrModule);
+                }
+
+                continue;
+            }
+
+            Object.DestroyImmediate(module);
+        }
+
         if (xrUiInputModule == null)
         {
             xrUiInputModule = eventSystem.gameObject.AddComponent<XRUIInputModule>();
@@ -1083,6 +1140,7 @@ public static class RehabSceneBuilder
 
         ApplyXrUiInputModulePreset(xrUiInputModule);
         EditorUtility.SetDirty(eventSystem);
+        EditorUtility.SetDirty(eventSystem.gameObject);
     }
 
     private static void ApplyXrUiInputModulePreset(XRUIInputModule inputModule)

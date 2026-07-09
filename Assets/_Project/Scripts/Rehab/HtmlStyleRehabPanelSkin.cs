@@ -156,11 +156,12 @@ namespace PicoElderCare.Rehab
             }
 
             var normalColor = WithAlpha(Color.Lerp(CardSurface, accent, interactable ? 0.16f : 0.08f), interactable ? 0.96f : 0.58f);
-            var panel = ConfigurePanel(button.gameObject, size, position, normalColor, Mathf.Min(28f, size.y * 0.22f), true);
+            var panel = ConfigurePanel(button.gameObject, size, position, normalColor, Mathf.Min(28f, size.y * 0.22f), interactable);
             AddOutline(button.gameObject, WithAlpha(accent, interactable ? 0.44f : 0.18f), new Vector2(1.5f, -1.5f));
+            button.enabled = true;
             button.targetGraphic = panel;
             button.interactable = interactable;
-            ConfigureButtonFeedback(button, panel, normalColor, accent, interactable);
+            panel.raycastTarget = interactable;
             button.transform.SetAsLastSibling();
 
             var hasDescription = !string.IsNullOrEmpty(description);
@@ -177,35 +178,6 @@ namespace PicoElderCare.Rehab
             {
                 ConfigureText(GetOrCreateText(rect, "HtmlDescription"), description, new Vector2(size.x - 30f, 28f), new Vector2(0f, -64f), 17f, FontStyles.Normal, TextGold, TextAlignmentOptions.Center);
             }
-        }
-
-        private static void ConfigureButtonFeedback(Button button, Graphic targetGraphic, Color normalColor, Color accent, bool interactable)
-        {
-            if (button == null || targetGraphic == null) return;
-
-            var highlightedColor = interactable
-                ? WithAlpha(Color.Lerp(normalColor, accent, 0.26f), normalColor.a)
-                : WithAlpha(normalColor, 0.50f);
-            var pressedColor = interactable
-                ? WithAlpha(Color.Lerp(normalColor, Color.black, 0.34f), normalColor.a)
-                : WithAlpha(normalColor, 0.42f);
-            var selectedColor = interactable
-                ? WithAlpha(Color.Lerp(normalColor, accent, 0.18f), normalColor.a)
-                : WithAlpha(normalColor, 0.50f);
-            var disabledColor = WithAlpha(normalColor, 0.40f);
-
-            var colors = button.colors;
-            colors.normalColor = normalColor;
-            colors.highlightedColor = highlightedColor;
-            colors.pressedColor = pressedColor;
-            colors.selectedColor = selectedColor;
-            colors.disabledColor = disabledColor;
-            colors.colorMultiplier = 1f;
-            colors.fadeDuration = 0.08f;
-
-            button.colors = colors;
-            button.transition = Selectable.Transition.ColorTint;
-            targetGraphic.color = interactable ? normalColor : disabledColor;
         }
 
         private static TMP_Text FindLabelText(Button button)
