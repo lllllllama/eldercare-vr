@@ -205,12 +205,12 @@ namespace PicoElderCare.Rehab
                 }
                 catch (System.Exception ex)
                 {
-                    Debug.LogError($"[RehabModeSelectUI] HtmlStyleRehabVisualSkin.Apply failed during {reason}: {ex}");
+                    Debug.LogError($"[RehabModeSelectUI] HtmlStyleRehabVisualSkin failed during {reason}: {ex}");
                 }
             }
             else
             {
-                Debug.Log($"[RehabModeSelectUI] HTML style apply skipped during {reason} because applyHtmlStylePanels=false, object={name}, scene={gameObject.scene.name}");
+                Debug.Log($"[RehabModeSelectUI] HTML visual skin skipped during {reason} because applyHtmlStylePanels=false, object={name}, scene={gameObject.scene.name}");
             }
 
             ResolveNavigationButtons();
