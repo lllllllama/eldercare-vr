@@ -5,14 +5,21 @@ namespace PicoElderCare.Rehab
     public class RehabPanelPlacementController : MonoBehaviour
     {
         public Transform headTransform;
+        public Transform selectionPanelRoot;
+        public Transform trainingFunctionPanelRoot;
         public Transform promptPanelRoot;
         public Transform videoPanelRoot;
         public RehabVideoPanelLayoutController videoLayoutController;
+        public bool useSceneAuthoredTrainingLayout = true;
         public bool placeOnStart = false;
+        public float selectionPanelDistance = 1.35f;
+        public float selectionPanelHeight = 1.35f;
         public float promptPanelDistance = 1.8f;
         public float videoPanelDistance = 2.2f;
         public float videoPanelYawOffsetDegrees = 40f;
         public float panelHeight = 1.45f;
+        [Range(0.5f, 1.2f)] public float compactTrainingFunctionScale = 0.84f;
+        public float minPanelSeparationMeters = 0.25f;
 
         private bool _hasPlacedPanels;
 
@@ -40,6 +47,13 @@ namespace PicoElderCare.Rehab
         {
             ResolveReferences();
             if (headTransform == null) return;
+
+            if (useSceneAuthoredTrainingLayout)
+            {
+                RecenterSelectionPanelInternal();
+                _hasPlacedPanels = true;
+                return;
+            }
 
             var headPosition = headTransform.position;
             var forward = GetHeadYawForward();
@@ -76,6 +90,15 @@ namespace PicoElderCare.Rehab
             _hasPlacedPanels = true;
         }
 
+        public void RecenterSelectionPanel()
+        {
+            ResolveReferences();
+            if (headTransform == null) return;
+
+            RecenterSelectionPanelInternal();
+            _hasPlacedPanels = true;
+        }
+
         public void ResolveReferences()
         {
             if (headTransform == null)
@@ -92,6 +115,29 @@ namespace PicoElderCare.Rehab
                 headTransform = Camera.main.transform;
             }
 
+            if (selectionPanelRoot == null)
+            {
+                var modeSelectUi = FindObjectOfType<RehabModeSelectUI>(true);
+                if (modeSelectUi != null && modeSelectUi.SelectionPanelRoot != null)
+                {
+                    selectionPanelRoot = modeSelectUi.SelectionPanelRoot.transform;
+                }
+            }
+
+            if (trainingFunctionPanelRoot == null)
+            {
+                var modeSelectUi = FindObjectOfType<RehabModeSelectUI>(true);
+                if (modeSelectUi != null && modeSelectUi.TrainingFunctionPanelRoot != null)
+                {
+                    trainingFunctionPanelRoot = modeSelectUi.TrainingFunctionPanelRoot.transform;
+                }
+            }
+
+            if (promptPanelRoot == null && selectionPanelRoot != null)
+            {
+                promptPanelRoot = selectionPanelRoot;
+            }
+
             if (promptPanelRoot == null)
             {
                 var session = FindObjectOfType<RehabSessionManager>(true);
@@ -99,6 +145,11 @@ namespace PicoElderCare.Rehab
                 {
                     promptPanelRoot = session.promptCanvas;
                 }
+            }
+
+            if (selectionPanelRoot == null && promptPanelRoot != null)
+            {
+                selectionPanelRoot = promptPanelRoot;
             }
 
             if (videoLayoutController == null)
@@ -130,6 +181,19 @@ namespace PicoElderCare.Rehab
                     videoLayoutController.panelRoot = videoPanelRoot;
                 }
             }
+        }
+
+        private void RecenterSelectionPanelInternal()
+        {
+            var target = selectionPanelRoot != null ? selectionPanelRoot : promptPanelRoot;
+            if (target == null || headTransform == null) return;
+
+            var headPosition = headTransform.position;
+            var forward = GetHeadYawForward();
+            var position = headPosition + forward * Mathf.Max(0.1f, selectionPanelDistance);
+            position.y = selectionPanelHeight;
+            target.position = position;
+            target.rotation = CreatePanelRotation(position, headPosition, forward);
         }
 
         private Vector3 GetHeadYawForward()

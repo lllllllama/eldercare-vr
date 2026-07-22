@@ -14,6 +14,11 @@ namespace PicoElderCare.Rehab
         public GameObject rehabTrainingPanel;
         public GameObject trainingResultPanel;
 
+        [SerializeField] private GameObject selectionPanelRoot;
+        [SerializeField] private GameObject trainingFunctionPanelRoot;
+        [SerializeField] private GameObject resultPanelRoot;
+        [SerializeField] private GameObject videoPanelRoot;
+
         public Button rehabButton;
         public Button baduanjinButton;
         public Button taiChiButton;
@@ -39,6 +44,11 @@ namespace PicoElderCare.Rehab
 
         private Coroutine _startRecenterCoroutine;
         private Coroutine _routeRebindCoroutine;
+
+        public GameObject SelectionPanelRoot => selectionPanelRoot;
+        public GameObject TrainingFunctionPanelRoot => trainingFunctionPanelRoot;
+        public GameObject ResultPanelRoot => resultPanelRoot;
+        public GameObject VideoPanelRoot => videoPanelRoot;
 
         private void Awake()
         {
@@ -92,9 +102,10 @@ namespace PicoElderCare.Rehab
             CancelCurrentTrainingAndHideVideo();
 
             SetPanelActive(mainMenuPanel, true);
-            SetPanelActive(rehabTrainingSelectPanel, false);
-            SetPanelActive(rehabTrainingPanel, false);
-            SetPanelActive(trainingResultPanel, false);
+            SetPageActive(selectionPanelRoot, rehabTrainingSelectPanel, false);
+            SetPageActive(trainingFunctionPanelRoot, rehabTrainingPanel, false);
+            SetPageActive(resultPanelRoot, trainingResultPanel, false);
+            SetPanelActive(videoPanelRoot, false);
 
             RefreshHtmlUIAndButtonBindings("ShowMainMenuPanel");
 
@@ -109,9 +120,10 @@ namespace PicoElderCare.Rehab
             CancelCurrentTrainingAndHideVideo();
 
             SetPanelActive(mainMenuPanel, false);
-            SetPanelActive(rehabTrainingSelectPanel, true);
-            SetPanelActive(rehabTrainingPanel, false);
-            SetPanelActive(trainingResultPanel, false);
+            SetPageActive(selectionPanelRoot, rehabTrainingSelectPanel, true);
+            SetPageActive(trainingFunctionPanelRoot, rehabTrainingPanel, false);
+            SetPageActive(resultPanelRoot, trainingResultPanel, false);
+            SetPanelActive(videoPanelRoot, false);
 
             RefreshHtmlUIAndButtonBindings("ShowTrainingSelectPanel");
 
@@ -138,9 +150,10 @@ namespace PicoElderCare.Rehab
             StopVideoGuideOnly();
 
             SetPanelActive(mainMenuPanel, false);
-            SetPanelActive(rehabTrainingSelectPanel, false);
-            SetPanelActive(rehabTrainingPanel, false);
-            SetPanelActive(trainingResultPanel, true);
+            SetPageActive(selectionPanelRoot, rehabTrainingSelectPanel, false);
+            SetPageActive(trainingFunctionPanelRoot, rehabTrainingPanel, false);
+            SetPageActive(resultPanelRoot, trainingResultPanel, true);
+            SetPanelActive(videoPanelRoot, false);
 
             RefreshHtmlUIAndButtonBindings("ShowTrainingResultPanel");
             RecenterNavigationPanels();
@@ -173,9 +186,10 @@ namespace PicoElderCare.Rehab
             CancelCurrentTrainingAndHideVideo();
 
             SetPanelActive(mainMenuPanel, false);
-            SetPanelActive(rehabTrainingSelectPanel, false);
-            SetPanelActive(rehabTrainingPanel, true);
-            SetPanelActive(trainingResultPanel, false);
+            SetPageActive(selectionPanelRoot, rehabTrainingSelectPanel, false);
+            SetPageActive(trainingFunctionPanelRoot, rehabTrainingPanel, true);
+            SetPageActive(resultPanelRoot, trainingResultPanel, false);
+            SetPanelActive(videoPanelRoot, true);
 
             RefreshHtmlUIAndButtonBindings("StartTraining.ShowTrainingPanel");
 
@@ -238,6 +252,11 @@ namespace PicoElderCare.Rehab
                 videoGuideController = FindObjectOfType<RehabVideoGuideController>(true);
             }
 
+            if (videoPanelRoot == null && videoGuideController != null)
+            {
+                videoPanelRoot = videoGuideController.videoPanel;
+            }
+
             if (homeMenu == null)
             {
                 homeMenu = FindObjectOfType<ModuleHomeMenu>(true);
@@ -253,9 +272,19 @@ namespace PicoElderCare.Rehab
                 panelPlacementController = FindObjectOfType<RehabPanelPlacementController>(true);
             }
 
-            if (panelPlacementController != null && panelPlacementController.promptPanelRoot == null)
+            if (panelPlacementController != null && panelPlacementController.selectionPanelRoot == null && selectionPanelRoot != null)
             {
-                panelPlacementController.promptPanelRoot = transform;
+                panelPlacementController.selectionPanelRoot = selectionPanelRoot.transform;
+            }
+
+            if (panelPlacementController != null && panelPlacementController.trainingFunctionPanelRoot == null && trainingFunctionPanelRoot != null)
+            {
+                panelPlacementController.trainingFunctionPanelRoot = trainingFunctionPanelRoot.transform;
+            }
+
+            if (panelPlacementController != null && panelPlacementController.promptPanelRoot == null && selectionPanelRoot != null)
+            {
+                panelPlacementController.promptPanelRoot = selectionPanelRoot.transform;
             }
 
             if (uiPlacer == null)
@@ -285,6 +314,26 @@ namespace PicoElderCare.Rehab
             {
                 trainingResultPanel = FindChildGameObject(transform, "TrainingResultPanel");
             }
+
+            if (selectionPanelRoot == null)
+            {
+                selectionPanelRoot = FindChildGameObject(transform, "SelectionPanelRoot");
+            }
+
+            if (trainingFunctionPanelRoot == null)
+            {
+                trainingFunctionPanelRoot = FindChildGameObject(transform, "TrainingFunctionPanelRoot");
+            }
+
+            if (resultPanelRoot == null)
+            {
+                resultPanelRoot = FindChildGameObject(transform, "ResultPanelRoot");
+            }
+
+            if (videoPanelRoot == null && videoGuideController != null)
+            {
+                videoPanelRoot = videoGuideController.videoPanel;
+            }
         }
 
         private void ResolveNavigationButtons()
@@ -311,7 +360,15 @@ namespace PicoElderCare.Rehab
 
             if (panelPlacementController != null)
             {
-                panelPlacementController.RecenterPanels();
+                if (panelPlacementController.useSceneAuthoredTrainingLayout)
+                {
+                    panelPlacementController.RecenterSelectionPanel();
+                }
+                else
+                {
+                    panelPlacementController.RecenterPanels();
+                }
+
                 return;
             }
 
@@ -417,6 +474,22 @@ namespace PicoElderCare.Rehab
             if (panel != null)
             {
                 panel.SetActive(active);
+            }
+        }
+
+        private static void SetPageActive(GameObject pageRoot, GameObject pagePanel, bool active)
+        {
+            if (active)
+            {
+                SetPanelActive(pageRoot, true);
+                SetPanelActive(pagePanel, true);
+                return;
+            }
+
+            SetPanelActive(pagePanel, false);
+            if (pageRoot != pagePanel)
+            {
+                SetPanelActive(pageRoot, false);
             }
         }
 

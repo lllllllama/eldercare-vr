@@ -30,6 +30,8 @@ namespace PicoElderCare.Rehab
         public bool enableDirectVideoRayDrag = true;
         public bool createVideoRayCollider = true;
         public bool autoCreateControlCanvas = true;
+        public bool createVisibleVideoControls = false;
+        public bool showDebugVideoControls = false;
         public bool hideControlCanvasUntilVideoVisible = true;
         public GameObject controlCanvasRoot;
         public TMP_Text statusText;
@@ -64,6 +66,11 @@ namespace PicoElderCare.Rehab
         public bool ControlCanvasVisible
         {
             get { return _controlCanvasVisible; }
+        }
+
+        private bool VisibleVideoControlsEnabled
+        {
+            get { return createVisibleVideoControls || showDebugVideoControls; }
         }
 
         public static RehabSpatialRayControl EnsureRuntime(
@@ -137,7 +144,7 @@ namespace PicoElderCare.Rehab
             }
 
             EnsureVideoRayTarget();
-            if (hideControlCanvasUntilVideoVisible && !_controlCanvasVisible)
+            if (VisibleVideoControlsEnabled && hideControlCanvasUntilVideoVisible && !_controlCanvasVisible)
             {
                 SetRayPreviewVisible(false, new Ray(Vector3.zero, Vector3.forward));
                 return;
@@ -258,8 +265,8 @@ namespace PicoElderCare.Rehab
 
         public void SetControlCanvasVisible(bool visible)
         {
-            _controlCanvasVisible = visible;
-            if (!visible)
+            _controlCanvasVisible = visible && VisibleVideoControlsEnabled;
+            if (!_controlCanvasVisible)
             {
                 _placementArmed = false;
                 _waitForTriggerRelease = false;
@@ -267,7 +274,7 @@ namespace PicoElderCare.Rehab
                 SetRayPreviewVisible(false, new Ray(Vector3.zero, Vector3.forward));
             }
 
-            if (controlCanvasRoot == null && visible)
+            if (controlCanvasRoot == null && _controlCanvasVisible)
             {
                 EnsureControlCanvas();
             }
@@ -302,7 +309,7 @@ namespace PicoElderCare.Rehab
         public bool TryBeginDirectVideoPanelDrag(Ray ray)
         {
             if (!enableVideoPanelControl || !enableDirectVideoRayDrag) return false;
-            if (hideControlCanvasUntilVideoVisible && !_controlCanvasVisible) return false;
+            if (VisibleVideoControlsEnabled && hideControlCanvasUntilVideoVisible && !_controlCanvasVisible) return false;
             if (videoLayoutController == null) ResolveReferences();
             if (videoLayoutController == null || videoLayoutController.panelRoot == null) return false;
 
@@ -457,6 +464,17 @@ namespace PicoElderCare.Rehab
 
         public void EnsureControlCanvas()
         {
+            if (!VisibleVideoControlsEnabled)
+            {
+                _controlCanvasVisible = false;
+                if (controlCanvasRoot != null)
+                {
+                    controlCanvasRoot.SetActive(false);
+                }
+
+                return;
+            }
+
             if (!autoCreateControlCanvas)
             {
                 return;
@@ -538,7 +556,8 @@ namespace PicoElderCare.Rehab
         {
             if (controlCanvasRoot == null) return;
 
-            var shouldBeVisible = !hideControlCanvasUntilVideoVisible || _controlCanvasVisible;
+            var shouldBeVisible = VisibleVideoControlsEnabled &&
+                                  (!hideControlCanvasUntilVideoVisible || _controlCanvasVisible);
             if (controlCanvasRoot.activeSelf != shouldBeVisible)
             {
                 controlCanvasRoot.SetActive(shouldBeVisible);
