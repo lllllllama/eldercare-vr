@@ -3549,6 +3549,7 @@ GameObject:
   - component: {fileID: 902136583}
   - component: {fileID: 902136585}
   - component: {fileID: 902136582}
+  - component: {fileID: 902136586}
   m_Layer: 0
   m_Name: RehabVideoPanel
   m_TagString: Untagged
@@ -3575,6 +3576,18 @@ Transform:
   - {fileID: 1438973725}
   m_Father: {fileID: 39450057}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &902136586
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 902136580}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 570d3da4cc2c4da1a2b2b261cb51f68a, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
 --- !u!114 &902136582
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -7885,7 +7898,8 @@ MonoBehaviour:
   startupFullScanDurationSeconds: 6
   steadyStateScanIntervalSeconds: 1
   minimumLargeSurfaceMeters: 1
-  protectedRoots: []
+  protectedRoots:
+  - {fileID: 902136581}
   scanRoots: []
   scanWholeSceneWhenNoRoots: 1
 --- !u!114 &1970877957

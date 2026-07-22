@@ -60,6 +60,9 @@ namespace PicoElderCare.Rehab
         public GameObject debugBorder;
         public RehabMovementVideoBinding[] bindings;
 
+        [SerializeField]
+        private bool logVideoVisibilityDiagnostics = true;
+
         private bool _playWhenPrepared;
         private string _currentMovementKey;
         private Transform _videoFrameRoot;
@@ -71,6 +74,7 @@ namespace PicoElderCare.Rehab
         private void Awake()
         {
             ResolveReferences();
+            EnsureVisibilityProtection();
             HideAllDisplays();
         }
 
@@ -149,6 +153,7 @@ namespace PicoElderCare.Rehab
             _pauseWhenPrepared = false;
             videoPlayer.prepareCompleted += OnVideoPrepared;
             videoPlayer.Prepare();
+            LogVideoVisibilityState("Prepare requested");
 
             Debug.Log($"Playing rehab video guide for movement: {binding.movementName} ({binding.videoClip.name})", this);
             LogVideoState("Prepare requested", binding.videoClip);
@@ -284,6 +289,7 @@ namespace PicoElderCare.Rehab
 
         public void StopAndHide()
         {
+            LogVideoVisibilityState("Before StopAndHide");
             _playWhenPrepared = false;
             _pauseWhenPrepared = false;
             UnsubscribePrepareCompleted();
@@ -547,6 +553,11 @@ namespace PicoElderCare.Rehab
         {
             if (displayMode == RehabVideoDisplayMode.QuadMaterial)
             {
+                if (videoPanel != null && visible)
+                {
+                    videoPanel.SetActive(true);
+                }
+
                 if (videoQuad != null)
                 {
                     videoQuad.SetActive(visible);
@@ -559,20 +570,30 @@ namespace PicoElderCare.Rehab
 
                 if (displayRoot != null)
                 {
-                    var sharesHierarchyWithQuad = false;
-                    if (videoQuad != null)
-                    {
-                        var displayTransform = displayRoot.transform;
-                        var quadTransform = videoQuad.transform;
-                        sharesHierarchyWithQuad = quadTransform == displayTransform ||
-                                                  quadTransform.IsChildOf(displayTransform) ||
-                                                  displayTransform.IsChildOf(quadTransform);
-                    }
+                    var displayRootContainsQuad =
+                        videoQuad != null &&
+                        (videoQuad.transform == displayRoot.transform ||
+                         videoQuad.transform.IsChildOf(displayRoot.transform));
 
-                    displayRoot.SetActive(sharesHierarchyWithQuad ? visible : false);
+                    if (displayRootContainsQuad)
+                    {
+                        Debug.LogError(
+                            "[RehabVideoGuideController] VideoQuad must not be a child of displayRoot. " +
+                            "Keeping displayRoot active to avoid hiding the video.",
+                            this);
+                        displayRoot.SetActive(visible);
+                    }
+                    else
+                    {
+                        displayRoot.SetActive(false);
+                    }
                 }
 
                 SetSpatialControlsVisible(visible);
+                if (visible)
+                {
+                    LogVideoVisibilityState("ApplyDisplayVisible(true)");
+                }
                 return;
             }
 
@@ -587,10 +608,15 @@ namespace PicoElderCare.Rehab
             }
 
             SetSpatialControlsVisible(visible);
+            if (visible)
+            {
+                LogVideoVisibilityState("ApplyDisplayVisible(true)");
+            }
         }
 
         private void HideAllDisplays()
         {
+            LogVideoVisibilityState("Before HideAllDisplays");
             if (videoQuad != null)
             {
                 videoQuad.SetActive(false);
@@ -657,6 +683,7 @@ namespace PicoElderCare.Rehab
             if (_pauseWhenPrepared)
             {
                 source.Play();
+                LogVideoVisibilityState("OnVideoPrepared Play before pause");
                 source.Pause();
                 if (audioSource != null)
                 {
@@ -674,6 +701,8 @@ namespace PicoElderCare.Rehab
             {
                 audioSource.UnPause();
             }
+
+            LogVideoVisibilityState("OnVideoPrepared Play");
 
             LogVideoState("Playback started", source.clip);
         }
@@ -914,6 +943,69 @@ namespace PicoElderCare.Rehab
             {
                 _spatialRayControl = RehabSpatialRayControl.EnsureRuntime(sessionManager, layoutController);
             }
+        }
+
+        private void EnsureVisibilityProtection()
+        {
+            if (videoPanel == null) return;
+
+            if (videoPanel.GetComponent<MrKeepVisible>() == null)
+            {
+                videoPanel.AddComponent<MrKeepVisible>();
+            }
+
+            var suppressors = FindObjectsOfType<MrBackgroundVisualSuppressor>(true);
+            for (var i = 0; i < suppressors.Length; i++)
+            {
+                if (suppressors[i] != null)
+                {
+                    suppressors[i].AddProtectedRoot(videoPanel.transform);
+                }
+            }
+        }
+
+        private void LogVideoVisibilityState(string phase)
+        {
+            if (!logVideoVisibilityDiagnostics) return;
+
+            Debug.Log(
+                $"[Rehab Video Visibility] phase={phase}, " +
+                $"panelSelf={GetActiveSelf(videoPanel)}, " +
+                $"panelHierarchy={GetActiveHierarchy(videoPanel)}, " +
+                $"quadSelf={GetActiveSelf(videoQuad)}, " +
+                $"quadHierarchy={GetActiveHierarchy(videoQuad)}, " +
+                $"rendererEnabled={(videoQuadRenderer != null ? videoQuadRenderer.enabled.ToString() : "null")}, " +
+                $"displayRootSelf={GetActiveSelf(displayRoot)}, " +
+                $"playing={(videoPlayer != null && videoPlayer.isPlaying)}, " +
+                $"prepared={(videoPlayer != null && videoPlayer.isPrepared)}, " +
+                $"frame={(videoPlayer != null ? videoPlayer.frame.ToString() : "null")}, " +
+                $"targetTexture={(videoPlayer != null && videoPlayer.targetTexture != null ? videoPlayer.targetTexture.name : "null")}, " +
+                $"materialTexture={GetMaterialTextureName()}",
+                this);
+        }
+
+        private static string GetActiveSelf(GameObject target)
+        {
+            return target != null ? target.activeSelf.ToString() : "null";
+        }
+
+        private static string GetActiveHierarchy(GameObject target)
+        {
+            return target != null ? target.activeInHierarchy.ToString() : "null";
+        }
+
+        private string GetMaterialTextureName()
+        {
+            var material = videoQuadRenderer != null ? videoQuadRenderer.sharedMaterial : videoMaterial;
+            if (material == null) return "null";
+
+            var texture = material.mainTexture;
+            if (texture == null && material.HasProperty("_BaseMap"))
+            {
+                texture = material.GetTexture("_BaseMap");
+            }
+
+            return texture != null ? texture.name : "null";
         }
 
         private void SetSpatialControlsVisible(bool visible)

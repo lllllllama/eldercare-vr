@@ -574,6 +574,21 @@ public static class RehabTrainingPanelSeparationTool
     private static void ConfigureVideoPresentation(SceneContext context)
     {
         var layout = context.VideoLayout;
+        if (context.VideoPanel.GetComponent<MrKeepVisible>() == null)
+        {
+            Undo.AddComponent<MrKeepVisible>(context.VideoPanel);
+        }
+
+        var suppressors = FindSceneComponents<MrBackgroundVisualSuppressor>(context.Scene);
+        for (var i = 0; i < suppressors.Count; i++)
+        {
+            if (ContainsProtectedRoot(suppressors[i].protectedRoots, context.VideoPanel.transform)) continue;
+
+            Undo.RecordObject(suppressors[i], "Protect RehabVideoPanel from MR suppression");
+            suppressors[i].AddProtectedRoot(context.VideoPanel.transform);
+            EditorUtility.SetDirty(suppressors[i]);
+        }
+
         Undo.RecordObject(layout, "Configure large rehab video");
         layout.panelRoot = context.VideoPanel.transform;
         layout.videoWidth = 1.22f;
@@ -767,6 +782,27 @@ public static class RehabTrainingPanelSeparationTool
             if (quadMaterial == null || quadMaterial.mainTexture != context.VideoGuide.renderTexture)
             {
                 issues.Add("VideoQuad material mainTexture must reference the configured rehab RenderTexture.");
+            }
+        }
+
+        if (context.VideoPanel != null && context.VideoPanel.GetComponent<MrKeepVisible>() == null)
+        {
+            issues.Add("RehabVideoPanel must have MrKeepVisible protection.");
+        }
+
+        var backgroundSuppressors = FindSceneComponents<MrBackgroundVisualSuppressor>(context.Scene);
+        if (backgroundSuppressors.Count == 0)
+        {
+            issues.Add("Expected at least one MrBackgroundVisualSuppressor.");
+        }
+        else if (context.VideoPanel != null)
+        {
+            for (var i = 0; i < backgroundSuppressors.Count; i++)
+            {
+                if (!ContainsProtectedRoot(backgroundSuppressors[i].protectedRoots, context.VideoPanel.transform))
+                {
+                    issues.Add("MrBackgroundVisualSuppressor must include RehabVideoPanel in protectedRoots.");
+                }
             }
         }
 
@@ -1085,6 +1121,16 @@ public static class RehabTrainingPanelSeparationTool
             throw new MissingFieldException(serializedObject.targetObject.GetType().Name, propertyName);
         }
         property.objectReferenceValue = value;
+    }
+
+    private static bool ContainsProtectedRoot(Transform[] roots, Transform expected)
+    {
+        if (roots == null || expected == null) return false;
+        for (var i = 0; i < roots.Length; i++)
+        {
+            if (roots[i] == expected) return true;
+        }
+        return false;
     }
 
     private static void SetActiveWithUndo(GameObject target, bool active, string undoName)
