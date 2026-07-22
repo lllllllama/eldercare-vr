@@ -9,8 +9,9 @@ public class ElderCareRoundedPanel : MaskableGraphic
     public int cornerSegments = 8;
 
 #if UNITY_EDITOR
-    private void OnValidate()
+    protected override void OnValidate()
     {
+        base.OnValidate();
         cornerRadius = Mathf.Max(0f, cornerRadius);
         cornerSegments = Mathf.Max(2, cornerSegments);
 

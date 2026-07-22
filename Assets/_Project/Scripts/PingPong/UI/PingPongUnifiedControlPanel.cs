@@ -12,11 +12,14 @@ using UnityEngine.UI;
 public class PingPongUnifiedControlPanel : MonoBehaviour
 {
     private const string RuntimePanelName = "PingPongUnifiedControlPanel";
-    private static readonly Vector2 PanelSize = new Vector2(600f, 760f);
-    private static readonly Vector2 PanelPosition = new Vector2(-160f, 80f);
-    private static readonly Vector2 ContentSize = new Vector2(548f, 0f);
-    private static readonly Vector2 SecondaryButtonSize = new Vector2(266f, 56f);
-    private const float AccuracyBarWidth = 300f;
+    private static readonly Vector2 PanelSize = new Vector2(620f, 560f);
+    private static readonly Vector2 PanelPosition = new Vector2(-160f, 40f);
+    private static readonly Vector2 ContentSize = new Vector2(572f, 0f);
+    private static readonly Vector2 MiniPanelSize = new Vector2(340f, 180f);
+    private static readonly Vector2 PrimaryButtonSize = new Vector2(300f, 72f);
+    private static readonly Vector2 SecondaryButtonSize = new Vector2(220f, 64f);
+    private static readonly Vector2 StandardButtonSize = new Vector2(180f, 64f);
+    private static readonly Vector2 SmallButtonSize = new Vector2(48f, 48f);
 
     private const string TitleLabel = "\u4e52\u4e53\u7403\u8bad\u7ec3";
     private const string StatusWaiting = "\u7b49\u5f85\u5f00\u59cb";
@@ -47,6 +50,8 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
     private const string TableDragTurnOnLabel = "\u5f00\u542f\u62d6\u684c";
     private const string TableDragTurnOffLabel = "\u5173\u95ed\u62d6\u684c";
     private const string TableDragUnavailableLabel = "\u62d6\u684c\u4e0d\u53ef\u7528";
+    private const string ExpandPanelLabel = "\u5c55\u5f00";
+    private const string CollapsePanelLabel = "\u6536";
     private static readonly string RequiredChineseGlyphs =
         TitleLabel + StatusWaiting + StatusTraining + StatusPaused +
         AssessmentLabel + DifficultyLabel + ControlLabel + AccuracyLabel +
@@ -55,7 +60,8 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
         ResetScoreLabel + ReturnHomeLabel + CoachEmptyLabel + DifficultyDownLabel +
         DifficultyUpLabel + DifficultyNormalLabel + DifficultyAdvancedLabel +
         DifficultyChallengeLabel + DifficultyCustomLabel + TableDragTurnOnLabel +
-        TableDragTurnOffLabel + TableDragUnavailableLabel + "0123456789.%m/srad\u00d7";
+        TableDragTurnOffLabel + TableDragUnavailableLabel + ExpandPanelLabel + CollapsePanelLabel +
+        "0123456789.%m/srad\u00d7";
 
     private const string IconTableTennis = "table_tennis";
     private const string IconAssessment = "bar_chart";
@@ -103,11 +109,14 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
 
     public Button coachButton;
     public Button miniPauseButton;
+    public Button miniResetButton;
+    public Button miniHomeButton;
     public TMP_Text miniHitText;
     public TMP_Text miniAccuracyText;
 
     private Button _minimizeButton;
     private Button _closeButton;
+    private Button _miniExpandButton;
     private CanvasGroup _fullPanelGroup;
     private CanvasGroup _miniPanelGroup;
     private Image _statusIcon;
@@ -115,6 +124,7 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
     private Graphic[] _difficultyGears;
     private bool _buttonsWired;
     private bool _hasStartedServing;
+    private bool _forceFullPanel;
     private bool _layoutBuilt;
     private bool _standaloneDifficultyPanelsSuppressed;
     private float _nextRefreshTime;
@@ -226,11 +236,13 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
         {
             ballSpawner.StopServing();
             ballSpawner.ClearBallsWithoutScoring();
+            _forceFullPanel = true;
         }
         else
         {
             ballSpawner.StartServing();
             _hasStartedServing = true;
+            _forceFullPanel = false;
         }
 
         RefreshDisplay();
@@ -245,7 +257,20 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
             _hasStartedServing = true;
         }
 
+        _forceFullPanel = false;
         RefreshDisplay();
+    }
+
+    public void ExpandFullPanel()
+    {
+        _forceFullPanel = true;
+        SetPanelVisibility(_hasStartedServing);
+    }
+
+    public void CollapseToMiniPanel()
+    {
+        _forceFullPanel = false;
+        SetPanelVisibility(true);
     }
 
     public void ResetScore()
@@ -339,27 +364,26 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
         var status = ResolveStatusText(serving);
         SetText(titleText, TitleLabel);
         SetText(statusText, status);
-        SetText(hitText, $"<size=42><b>{ReadHitCount()}</b></size>\n{HitLabel}");
-        SetText(servedText, $"<size=42><b>{ReadServedCount()}</b></size>\n{ServedLabel}");
-        SetText(missedText, $"<size=42><b>{ReadMissedCount()}</b></size>\n{MissedLabel}");
-        SetText(accuracyText, $"<size=38><b>{ReadAccuracy():0}%</b></size>");
+        SetText(hitText, $"<size=160%><b>{ReadHitCount()}</b></size>\n{HitLabel}");
+        SetText(servedText, $"<size=160%><b>{ReadServedCount()}</b></size>\n{ServedLabel}");
+        SetText(missedText, $"<size=160%><b>{ReadMissedCount()}</b></size>\n{MissedLabel}");
+        SetText(accuracyText, $"<size=160%><b>{ReadAccuracy():0}%</b></size>\n{AccuracyLabel}");
         SetText(speedText, $"{HitSpeedLabel}  <b>{ReadLastHitSpeed():0.0} m/s</b>");
         SetText(difficultyText, ResolveDifficultyLabel());
         SetText(serveSpeedText, $"{ServeSpeedPrefix}\n<b>{ResolveServeSpeed():0.0} m/s</b>");
         SetText(spinText, $"{SpinSpeedLabel}\n<b>{ResolveServeSpin():0} rad/s</b>");
-        SetText(miniHitText, $"<size=38><b>{ReadHitCount()}</b></size>\n{HitLabel}");
-        SetText(miniAccuracyText, $"<size=38><b>{ReadAccuracy():0}%</b></size>\n{AccuracyLabel}");
+        SetText(miniHitText, $"<size=160%><b>{ReadHitCount()}</b></size>\n{HitLabel}");
+        SetText(miniAccuracyText, $"<size=160%><b>{ReadAccuracy():0}%</b></size>\n{AccuracyLabel}");
         SetButtonLabel(servingToggleButton, serving ? PauseServingLabel : (_hasStartedServing ? ContinueServingLabel : ResumeServingLabel));
-        SetButtonLabel(miniPauseButton, PauseServingLabel);
+        SetButtonLabel(miniPauseButton, serving ? PauseServingLabel : ContinueServingLabel);
         SetButtonLabel(coachButton, CoachEmptyLabel);
         SetButtonIcon(servingToggleButton, serving ? IconPause : IconPlay);
-        SetButtonIcon(miniPauseButton, IconPause);
+        SetButtonIcon(miniPauseButton, serving ? IconPause : IconPlay);
         RefreshStatusIcon(serving);
 
-        RefreshAccuracyBar();
         RefreshDifficultyGears();
         RefreshTableDragButton();
-        SetPanelVisibility(serving);
+        SetPanelVisibility(_hasStartedServing);
     }
 
     private string ResolveStatusText(bool serving)
@@ -429,17 +453,6 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
         return ballSpawner != null ? ballSpawner.sidespinRadiansPerSecond : 0f;
     }
 
-    private void RefreshAccuracyBar()
-    {
-        if (_accuracyFill == null) return;
-
-        var ratio = Mathf.Clamp01(ReadAccuracy() / 100f);
-        var width = Mathf.Lerp(8f, AccuracyBarWidth, ratio);
-        var rect = _accuracyFill.rectTransform;
-        rect.sizeDelta = new Vector2(width, rect.sizeDelta.y);
-        rect.anchoredPosition = new Vector2(-AccuracyBarWidth * 0.5f + width * 0.5f, 0f);
-    }
-
     private void RefreshDifficultyGears()
     {
         if (_difficultyGears == null) return;
@@ -469,6 +482,8 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
 
     private void SetPanelVisibility(bool compact)
     {
+        compact = compact && !_forceFullPanel;
+
         if (_fullPanelGroup != null)
         {
             _fullPanelGroup.alpha = compact ? 0f : 1f;
@@ -535,66 +550,60 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
 
         backgroundGraphic = ConfigurePanel(full, PanelSize, Vector2.zero, new Color32(0x12, 0x1A, 0x26, 0xF2), 30f, true);
         AddOutline(full, new Color(0.38f, 0.92f, 1f, 0.58f), new Vector2(3f, -3f));
-        ConfigurePanel(GetOrCreateChild(fullRect, "AmbientGlow"), new Vector2(548f, 638f), Vector2.zero, new Color(0.38f, 0.92f, 1f, 0.045f), 36f, false).transform.SetAsFirstSibling();
+        ConfigurePanel(GetOrCreateChild(fullRect, "AmbientGlow"), new Vector2(580f, 520f), Vector2.zero, new Color(0.38f, 0.92f, 1f, 0.045f), 34f, false).transform.SetAsFirstSibling();
 
-        titleText = ConfigureText(GetOrCreateChild(fullRect, "Title"), TitleLabel, new Vector2(330f, 48f), new Vector2(-64f, 318f), 34f, FontStyles.Bold, ElderCareUiTheme.TextPrimary, TextAlignmentOptions.Left);
-        ConfigureSvgIcon(GetOrCreateChild(fullRect, "TitleIcon"), IconTableTennis, new Vector2(44f, 44f), new Vector2(-248f, 318f), 0.98f);
-        statusText = ConfigureBadge(fullRect, "StatusBadge", StatusWaiting, new Vector2(166f, 42f), new Vector2(190f, 318f), ElderCareUiTheme.Gold, IconHourglass);
+        titleText = ConfigureText(GetOrCreateChild(fullRect, "Title"), TitleLabel, new Vector2(336f, 52f), new Vector2(-62f, 232f), 34f, FontStyles.Bold, ElderCareUiTheme.TextPrimary, TextAlignmentOptions.Left);
+        ConfigureSvgIcon(GetOrCreateChild(fullRect, "TitleIcon"), IconTableTennis, new Vector2(44f, 44f), new Vector2(-270f, 232f), 0.98f);
+        statusText = ConfigureBadge(fullRect, "StatusBadge", StatusWaiting, new Vector2(174f, 44f), new Vector2(198f, 232f), ElderCareUiTheme.Gold, IconHourglass);
 
-        CreateSectionLabel(fullRect, "AssessmentHeader", AssessmentLabel, IconAssessment, new Vector2(-206f, 258f), ElderCareUiTheme.Cyan);
-        var assessment = ConfigurePanel(GetOrCreateChild(fullRect, "AssessmentPanel"), new Vector2(ContentSize.x, 182f), new Vector2(0f, 151f), new Color(1f, 1f, 1f, 0.055f), 20f, false);
+        var assessment = ConfigurePanel(GetOrCreateChild(fullRect, "AssessmentPanel"), new Vector2(ContentSize.x, 120f), new Vector2(0f, 136f), new Color(1f, 1f, 1f, 0.055f), 20f, false);
         AddOutline(assessment.gameObject, new Color(1f, 1f, 1f, 0.12f), new Vector2(1.5f, -1.5f));
-        hitText = CreateMetric(assessment.rectTransform, "HitMetric", HitLabel, IconCheck, new Vector2(-180f, 48f), ElderCareUiTheme.Green);
-        servedText = CreateMetric(assessment.rectTransform, "ServedMetric", ServedLabel, IconTableTennis, new Vector2(0f, 48f), ElderCareUiTheme.Cyan);
-        missedText = CreateMetric(assessment.rectTransform, "MissedMetric", MissedLabel, IconCross, new Vector2(180f, 48f), ElderCareUiTheme.Orange);
+        hitText = CreateMetric(assessment.rectTransform, "HitMetric", HitLabel, IconCheck, new Vector2(-207f, 0f), ElderCareUiTheme.Green);
+        servedText = CreateMetric(assessment.rectTransform, "ServedMetric", ServedLabel, IconTableTennis, new Vector2(-69f, 0f), ElderCareUiTheme.Cyan);
+        missedText = CreateMetric(assessment.rectTransform, "MissedMetric", MissedLabel, IconCross, new Vector2(69f, 0f), ElderCareUiTheme.Orange);
+        accuracyText = CreateMetric(assessment.rectTransform, "AccuracyMetric", AccuracyLabel, IconTarget, new Vector2(207f, 0f), ElderCareUiTheme.Gold);
+        _accuracyFill = null;
 
-        ConfigureSvgIcon(GetOrCreateChild(assessment.rectTransform, "AccuracyIcon"), IconTarget, new Vector2(18f, 18f), new Vector2(-262f, -25f), 0.98f);
-        ConfigureText(GetOrCreateChild(assessment.rectTransform, "AccuracyLabel"), AccuracyLabel, new Vector2(86f, 24f), new Vector2(-194f, -25f), 17f, FontStyles.Bold, ElderCareUiTheme.TextSecondary, TextAlignmentOptions.Left);
-        accuracyText = ConfigureText(GetOrCreateChild(assessment.rectTransform, "AccuracyText"), "0%", new Vector2(138f, 40f), new Vector2(-188f, -55f), 22f, FontStyles.Bold, ElderCareUiTheme.Gold, TextAlignmentOptions.Left);
-        var bar = ConfigurePanel(GetOrCreateChild(assessment.rectTransform, "AccuracyBar"), new Vector2(AccuracyBarWidth, 14f), new Vector2(96f, -38f), new Color(1f, 1f, 1f, 0.14f), 7f, false);
-        _accuracyFill = ConfigurePanel(GetOrCreateChild(bar.rectTransform, "Fill"), new Vector2(8f, 14f), new Vector2(-AccuracyBarWidth * 0.5f, 0f), ElderCareUiTheme.Cyan, 7f, false);
-        ConfigureSvgIcon(GetOrCreateChild(assessment.rectTransform, "SpeedIcon"), IconSpeed, new Vector2(18f, 18f), new Vector2(-248f, -75f), 0.98f);
-        speedText = ConfigureText(GetOrCreateChild(assessment.rectTransform, "SpeedRow"), HitSpeedLabel, new Vector2(454f, 28f), new Vector2(28f, -75f), 18f, FontStyles.Bold, ElderCareUiTheme.TextSecondary, TextAlignmentOptions.Left);
-
-        CreateSectionLabel(fullRect, "ControlHeader", ControlLabel, IconTarget, new Vector2(-206f, 36f), ElderCareUiTheme.Cyan);
+        BuildDifficultyPanel(fullRect);
         BuildControlPanel(fullRect);
     }
 
     private void BuildControlPanel(RectTransform parent)
     {
-        var panel = ConfigurePanel(GetOrCreateChild(parent, "ControlPanel"), new Vector2(ContentSize.x, 326f), new Vector2(0f, -128f), new Color(1f, 1f, 1f, 0.055f), 20f, false);
+        var panel = ConfigurePanel(GetOrCreateChild(parent, "ControlPanel"), new Vector2(ContentSize.x, 172f), new Vector2(0f, -166f), new Color(1f, 1f, 1f, 0.055f), 20f, false);
         AddOutline(panel.gameObject, new Color(0.38f, 0.66f, 0.94f, 0.25f), new Vector2(1.5f, -1.5f));
 
-        BuildDifficultyPanel(panel.rectTransform);
+        servingToggleButton = ConfigureButton(GetOrCreateChild(panel.rectTransform, "ServingToggleButton"), ResumeServingLabel, IconPlay, new Vector2(0f, 42f), PrimaryButtonSize, ElderCareUiTheme.Green, true);
+        resetButton = ConfigureButton(GetOrCreateChild(panel.rectTransform, "ResetButton"), ResetScoreLabel, IconAssessment, new Vector2(-108f, -48f), StandardButtonSize, ElderCareUiTheme.Cyan, true);
+        homeButton = ConfigureButton(GetOrCreateChild(panel.rectTransform, "HomeButton"), ReturnHomeLabel, IconHome, new Vector2(102f, -48f), SecondaryButtonSize, ElderCareUiTheme.Orange, true);
 
-        servingToggleButton = ConfigureButton(GetOrCreateChild(panel.rectTransform, "ServingToggleButton"), ResumeServingLabel, IconPlay, new Vector2(0f, -42f), new Vector2(484f, 56f), ElderCareUiTheme.Green, true);
-        coachButton = ConfigureButton(GetOrCreateChild(panel.rectTransform, "CoachButton"), CoachEmptyLabel, IconCoach, new Vector2(-126f, -104f), new Vector2(232f, 52f), ElderCareUiTheme.Violet, false);
-        homeButton = ConfigureButton(GetOrCreateChild(panel.rectTransform, "HomeButton"), ReturnHomeLabel, IconHome, new Vector2(126f, -104f), new Vector2(232f, 52f), ElderCareUiTheme.Orange, true);
-
-        resetButton = ConfigureButton(GetOrCreateChild(panel.rectTransform, "ResetButton"), "\u91cd", new Vector2(-64f, -142f), new Vector2(42f, 42f), ElderCareUiTheme.Green, true);
-        _minimizeButton = ConfigureButton(GetOrCreateChild(panel.rectTransform, "MinimizeButton"), DifficultyDownLabel, new Vector2(0f, -142f), new Vector2(42f, 42f), ElderCareUiTheme.Cyan, true);
-        _closeButton = ConfigureButton(GetOrCreateChild(panel.rectTransform, "CloseButton"), "\u00d7", new Vector2(64f, -142f), new Vector2(42f, 42f), ElderCareUiTheme.Orange, true);
+        coachButton = null;
+        _minimizeButton = ConfigureButton(GetOrCreateChild(panel.rectTransform, "MinimizeButton"), CollapsePanelLabel, new Vector2(258f, -48f), SmallButtonSize, ElderCareUiTheme.Cyan, true);
+        _closeButton = null;
     }
 
     private void BuildDifficultyPanel(RectTransform parent)
     {
+        RemoveChildIfExists(parent, "EmbeddedDifficultyControls");
         RemoveChildIfExists(parent, "DifficultyPanel");
 
-        var panel = ConfigureEmbeddedGroup(GetOrCreateChild(parent, "EmbeddedDifficultyControls"), new Vector2(500f, 118f), new Vector2(0f, 86f));
-        ConfigurePanel(GetOrCreateChild(panel, "DifficultyDivider"), new Vector2(468f, 2f), new Vector2(0f, -58f), new Color(1f, 1f, 1f, 0.10f), 1f, false);
-        ConfigureSvgIcon(GetOrCreateChild(panel, "DifficultyIcon"), IconDifficulty, new Vector2(18f, 18f), new Vector2(-214f, 40f), 0.98f);
-        ConfigureText(GetOrCreateChild(panel, "DifficultyLabel"), DifficultyLabel, new Vector2(150f, 26f), new Vector2(-132f, 40f), 17f, FontStyles.Bold, ElderCareUiTheme.Gold, TextAlignmentOptions.Left);
-        difficultyDownButton = ConfigureButton(GetOrCreateChild(panel, "DifficultyDownButton"), DifficultyDownLabel, new Vector2(-184f, 6f), new Vector2(52f, 52f), ElderCareUiTheme.SoftButton, true);
-        difficultyUpButton = ConfigureButton(GetOrCreateChild(panel, "DifficultyUpButton"), DifficultyUpLabel, new Vector2(184f, 6f), new Vector2(52f, 52f), ElderCareUiTheme.SoftButton, true);
-        difficultyText = ConfigureText(GetOrCreateChild(panel, "DifficultyText"), DifficultyNormalLabel, new Vector2(172f, 36f), new Vector2(0f, 14f), 26f, FontStyles.Bold, ElderCareUiTheme.TextPrimary, TextAlignmentOptions.Center);
+        var panelGraphic = ConfigurePanel(GetOrCreateChild(parent, "DifficultyPanel"), new Vector2(ContentSize.x, 108f), new Vector2(0f, 10f), new Color(1f, 1f, 1f, 0.055f), 20f, false);
+        AddOutline(panelGraphic.gameObject, new Color(1f, 0.82f, 0.35f, 0.18f), new Vector2(1.5f, -1.5f));
+        var panel = panelGraphic.rectTransform;
+        ConfigureSvgIcon(GetOrCreateChild(panel, "DifficultyIcon"), IconDifficulty, new Vector2(22f, 22f), new Vector2(-250f, 28f), 0.98f);
+        ConfigureText(GetOrCreateChild(panel, "DifficultyLabel"), DifficultyLabel, new Vector2(170f, 28f), new Vector2(-152f, 28f), 20f, FontStyles.Bold, ElderCareUiTheme.Gold, TextAlignmentOptions.Left);
+        difficultyDownButton = ConfigureButton(GetOrCreateChild(panel, "DifficultyDownButton"), DifficultyDownLabel, new Vector2(-214f, -20f), SmallButtonSize, ElderCareUiTheme.SoftButton, true);
+        difficultyUpButton = ConfigureButton(GetOrCreateChild(panel, "DifficultyUpButton"), DifficultyUpLabel, new Vector2(10f, -20f), SmallButtonSize, ElderCareUiTheme.SoftButton, true);
+        difficultyText = ConfigureText(GetOrCreateChild(panel, "DifficultyText"), DifficultyNormalLabel, new Vector2(152f, 40f), new Vector2(-102f, -14f), 28f, FontStyles.Bold, ElderCareUiTheme.TextPrimary, TextAlignmentOptions.Center);
 
         for (var i = 0; i < _difficultyGears.Length; i++)
         {
-            _difficultyGears[i] = ConfigurePanel(GetOrCreateChild(panel, "Gear" + i), new Vector2(28f, 9f), new Vector2((i - 2) * 36f, -10f), new Color(1f, 1f, 1f, 0.18f), 5f, false);
+            _difficultyGears[i] = ConfigurePanel(GetOrCreateChild(panel, "Gear" + i), new Vector2(22f, 7f), new Vector2(-102f + (i - 2) * 28f, -40f), new Color(1f, 1f, 1f, 0.18f), 4f, false);
         }
 
-        serveSpeedText = CreateInlineInfoText(panel, "ServeSpeed", ServeSpeedPrefix, IconSpeed, new Vector2(-112f, -38f), ElderCareUiTheme.Gold);
-        spinText = CreateInlineInfoText(panel, "SpinSpeed", SpinSpeedLabel, IconSpin, new Vector2(112f, -38f), ElderCareUiTheme.Violet);
+        serveSpeedText = CreateInlineInfoText(panel, "ServeSpeed", ServeSpeedPrefix, IconSpeed, new Vector2(160f, 20f), ElderCareUiTheme.Gold);
+        spinText = CreateInlineInfoText(panel, "SpinSpeed", SpinSpeedLabel, IconSpin, new Vector2(160f, -24f), ElderCareUiTheme.Gold);
+        speedText = null;
     }
 
     private void RepairEmbeddedDifficultyControlsIfNeeded()
@@ -618,16 +627,16 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
     private void BuildMiniPanel(RectTransform rootRect)
     {
         var mini = GetOrCreateChild(transform, "MiniPanel");
-        var miniRect = ConfigureRect(mini, new Vector2(252f, 156f), new Vector2(174f, 282f));
+        var miniRect = ConfigureRect(mini, MiniPanelSize, new Vector2(-130f, 185f));
         _miniPanelGroup = EnsureComponent<CanvasGroup>(mini);
-        var bg = ConfigurePanel(mini, new Vector2(252f, 156f), Vector2.zero, new Color32(0x12, 0x1A, 0x26, 0xE8), 24f, true);
+        var bg = ConfigurePanel(mini, MiniPanelSize, Vector2.zero, new Color32(0x12, 0x1A, 0x26, 0xE8), 24f, true);
         AddOutline(bg.gameObject, new Color(0.38f, 0.92f, 1f, 0.54f), new Vector2(2f, -2f));
-        ConfigureSvgIcon(GetOrCreateChild(miniRect, "MiniHitIcon"), IconCheck, new Vector2(18f, 18f), new Vector2(-96f, 10f), 0.98f);
-        ConfigureSvgIcon(GetOrCreateChild(miniRect, "MiniAccuracyIcon"), IconTarget, new Vector2(18f, 18f), new Vector2(18f, 10f), 0.98f);
-        miniHitText = ConfigureText(GetOrCreateChild(miniRect, "MiniHit"), HitLabel, new Vector2(98f, 62f), new Vector2(-56f, 38f), 18f, FontStyles.Bold, ElderCareUiTheme.TextPrimary, TextAlignmentOptions.Center);
-        miniAccuracyText = ConfigureText(GetOrCreateChild(miniRect, "MiniAccuracy"), AccuracyLabel, new Vector2(98f, 62f), new Vector2(56f, 38f), 18f, FontStyles.Bold, ElderCareUiTheme.Gold, TextAlignmentOptions.Center);
-        ConfigurePanel(GetOrCreateChild(miniRect, "Divider"), new Vector2(2f, 62f), new Vector2(0f, 38f), new Color(1f, 1f, 1f, 0.18f), 1f, false);
-        miniPauseButton = ConfigureButton(GetOrCreateChild(miniRect, "MiniPauseButton"), PauseServingLabel, IconPause, new Vector2(0f, -46f), new Vector2(206f, 50f), ElderCareUiTheme.Gold, true);
+        miniHitText = CreateMetric(miniRect, "MiniHitMetric", HitLabel, IconCheck, new Vector2(-76f, 38f), ElderCareUiTheme.Green);
+        miniAccuracyText = CreateMetric(miniRect, "MiniAccuracyMetric", AccuracyLabel, IconTarget, new Vector2(76f, 38f), ElderCareUiTheme.Gold);
+        miniPauseButton = ConfigureButton(GetOrCreateChild(miniRect, "MiniPauseButton"), PauseServingLabel, IconPause, new Vector2(-78f, -55f), new Vector2(170f, 64f), ElderCareUiTheme.Gold, true);
+        _miniExpandButton = ConfigureButton(GetOrCreateChild(miniRect, "MiniExpandButton"), ExpandPanelLabel, new Vector2(35f, -55f), SmallButtonSize, ElderCareUiTheme.Cyan, true);
+        miniResetButton = ConfigureButton(GetOrCreateChild(miniRect, "MiniResetButton"), "\u91cd", new Vector2(95f, -55f), SmallButtonSize, ElderCareUiTheme.Cyan, true);
+        miniHomeButton = ConfigureButton(GetOrCreateChild(miniRect, "MiniHomeButton"), ReturnHomeLabel, IconHome, new Vector2(145f, -55f), SmallButtonSize, ElderCareUiTheme.Orange, true);
     }
 
     private void BuildHiddenCompatibilityControls(RectTransform rootRect)
@@ -648,17 +657,17 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
     private TMP_Text CreateMetric(RectTransform parent, string name, string label, string iconResource, Vector2 position, Color accent)
     {
         var root = GetOrCreateChild(parent, name);
-        var rect = ConfigureRect(root, new Vector2(160f, 72f), position);
-        var bg = ConfigurePanel(GetOrCreateChild(rect, "Panel"), new Vector2(160f, 72f), Vector2.zero, WithAlpha(Color.Lerp(ElderCareUiTheme.PanelStrong, accent, 0.26f), 0.72f), 14f, false);
+        var rect = ConfigureRect(root, new Vector2(132f, 86f), position);
+        var bg = ConfigurePanel(GetOrCreateChild(rect, "Panel"), new Vector2(132f, 86f), Vector2.zero, WithAlpha(Color.Lerp(ElderCareUiTheme.PanelStrong, accent, 0.26f), 0.72f), 14f, false);
         AddOutline(bg.gameObject, WithAlpha(accent, 0.34f), new Vector2(1.5f, -1.5f));
-        ConfigureSvgIcon(GetOrCreateChild(rect, "Icon"), iconResource, new Vector2(18f, 18f), new Vector2(-38f, -22f), 0.98f);
-        return ConfigureText(GetOrCreateChild(rect, "Text"), label, new Vector2(126f, 62f), new Vector2(8f, 0f), 18f, FontStyles.Bold, ElderCareUiTheme.TextPrimary, TextAlignmentOptions.Center);
+        ConfigureSvgIcon(GetOrCreateChild(rect, "Icon"), iconResource, new Vector2(20f, 20f), new Vector2(-47f, 0f), 0.98f);
+        return ConfigureText(GetOrCreateChild(rect, "Text"), label, new Vector2(96f, 76f), new Vector2(14f, 0f), 22f, FontStyles.Bold, ElderCareUiTheme.TextPrimary, TextAlignmentOptions.Center);
     }
 
     private TMP_Text CreateInlineInfoText(RectTransform parent, string name, string label, string iconResource, Vector2 position, Color accent)
     {
-        ConfigureSvgIcon(GetOrCreateChild(parent, name + "Icon"), iconResource, new Vector2(18f, 18f), new Vector2(position.x - 58f, position.y), 0.94f);
-        return ConfigureText(GetOrCreateChild(parent, name + "Text"), label, new Vector2(136f, 30f), new Vector2(position.x + 14f, position.y), 15f, FontStyles.Bold, accent, TextAlignmentOptions.Left);
+        ConfigureSvgIcon(GetOrCreateChild(parent, name + "Icon"), iconResource, new Vector2(18f, 18f), new Vector2(position.x - 88f, position.y), 0.94f);
+        return ConfigureText(GetOrCreateChild(parent, name + "Text"), label, new Vector2(170f, 32f), new Vector2(position.x + 10f, position.y), 17f, FontStyles.Bold, accent, TextAlignmentOptions.Left);
     }
 
     private TMP_Text ConfigureBadge(RectTransform parent, string name, string label, Vector2 size, Vector2 position, Color accent, string iconResource)
@@ -679,7 +688,9 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
             background.raycastTarget = false;
         }
 
-        var handle = GetOrCreateChild(rootRect, "DragHandle");
+        var fullPanel = FindChild(rootRect, "FullPanel");
+        var handleParent = fullPanel != null ? fullPanel.transform : rootRect;
+        var handle = GetOrCreateChild(handleParent, "DragHandle");
         var handleRect = ConfigureRect(handle, new Vector2(PanelSize.x, 148f), new Vector2(0f, PanelSize.y * 0.5f - 74f));
         handleRect.SetAsLastSibling();
 
@@ -724,6 +735,11 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
         text.outlineColor = new Color(0f, 0f, 0f, 0.82f);
         text.outlineWidth = Mathf.Max(text.outlineWidth, 0.06f);
         text.enableWordWrapping = true;
+        text.enableAutoSizing = true;
+        text.fontSizeMin = Mathf.Max(14f, fontSize - 6f);
+        text.fontSizeMax = fontSize;
+        text.overflowMode = TextOverflowModes.Ellipsis;
+        text.margin = new Vector4(4f, 2f, 4f, 2f);
         text.richText = true;
         text.raycastTarget = false;
         return text;
@@ -746,16 +762,17 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
         button.targetGraphic = graphic;
         button.interactable = interactable;
 
-        var iconSize = Mathf.Clamp(size.y * 0.42f, 18f, 28f);
-        var labelWidth = iconResource == null ? size.x - 10f : size.x - 70f;
-        var labelPosition = iconResource == null ? Vector2.zero : new Vector2(24f, 0f);
+        RectTransform iconRect = null;
         if (iconResource != null)
         {
-            var iconX = size.x > 400f ? -104f : -74f;
-            ConfigureSvgIcon(GetOrCreateChild(rect, "Icon"), iconResource, new Vector2(iconSize, iconSize), new Vector2(iconX, 0f), interactable ? 0.98f : 0.52f);
+            var icon = ConfigureSvgIcon(GetOrCreateChild(rect, "Icon"), iconResource, Vector2.zero, Vector2.zero, interactable ? 0.98f : 0.52f);
+            iconRect = icon.rectTransform;
         }
 
-        ConfigureText(GetOrCreateChild(rect, "Label"), label, new Vector2(labelWidth, size.y - 8f), labelPosition, Mathf.Clamp(size.y * 0.42f, 18f, 30f), FontStyles.Bold, interactable ? ElderCareUiTheme.TextPrimary : WithAlpha(ElderCareUiTheme.TextPrimary, 0.62f), TextAlignmentOptions.Center);
+        var maxFontSize = size.y >= 70f ? 34f : size.x <= SmallButtonSize.x ? 24f : 30f;
+        var minFontSize = size.y >= 70f ? 26f : 20f;
+        var buttonLabel = ConfigureText(GetOrCreateChild(rect, "Label"), label, size, Vector2.zero, maxFontSize, FontStyles.Bold, interactable ? ElderCareUiTheme.TextPrimary : WithAlpha(ElderCareUiTheme.TextPrimary, 0.62f), TextAlignmentOptions.Center);
+        ElderCareButtonTextFitter.Configure(go, iconRect, buttonLabel, minFontSize, maxFontSize, size.x <= 72f && iconRect != null);
         return button;
     }
 
@@ -866,9 +883,12 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
         if (tableDragToggleButton != null) tableDragToggleButton.onClick.AddListener(ToggleTableDrag);
         if (servingToggleButton != null) servingToggleButton.onClick.AddListener(ToggleServing);
         if (miniPauseButton != null) miniPauseButton.onClick.AddListener(ToggleServing);
+        if (_miniExpandButton != null) _miniExpandButton.onClick.AddListener(ExpandFullPanel);
+        if (miniResetButton != null) miniResetButton.onClick.AddListener(ResetScore);
+        if (miniHomeButton != null) miniHomeButton.onClick.AddListener(ReturnHome);
         if (resetButton != null) resetButton.onClick.AddListener(ResetScore);
         if (homeButton != null) homeButton.onClick.AddListener(ReturnHome);
-        if (_minimizeButton != null) _minimizeButton.onClick.AddListener(StartServingAndCompact);
+        if (_minimizeButton != null) _minimizeButton.onClick.AddListener(CollapseToMiniPanel);
         if (_closeButton != null) _closeButton.onClick.AddListener(ReturnHome);
         _buttonsWired = true;
     }
@@ -882,9 +902,12 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
         if (tableDragToggleButton != null) tableDragToggleButton.onClick.RemoveListener(ToggleTableDrag);
         if (servingToggleButton != null) servingToggleButton.onClick.RemoveListener(ToggleServing);
         if (miniPauseButton != null) miniPauseButton.onClick.RemoveListener(ToggleServing);
+        if (_miniExpandButton != null) _miniExpandButton.onClick.RemoveListener(ExpandFullPanel);
+        if (miniResetButton != null) miniResetButton.onClick.RemoveListener(ResetScore);
+        if (miniHomeButton != null) miniHomeButton.onClick.RemoveListener(ReturnHome);
         if (resetButton != null) resetButton.onClick.RemoveListener(ResetScore);
         if (homeButton != null) homeButton.onClick.RemoveListener(ReturnHome);
-        if (_minimizeButton != null) _minimizeButton.onClick.RemoveListener(StartServingAndCompact);
+        if (_minimizeButton != null) _minimizeButton.onClick.RemoveListener(CollapseToMiniPanel);
         if (_closeButton != null) _closeButton.onClick.RemoveListener(ReturnHome);
         _buttonsWired = false;
     }
@@ -1042,6 +1065,10 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
         if (button == null) return;
 
         var icon = FindChild(button.transform, "Icon");
+        if (icon == null)
+        {
+            icon = FindChild(button.transform, "IconSlot/Icon");
+        }
         if (icon == null) return;
 
         var image = icon.GetComponent<Image>();
