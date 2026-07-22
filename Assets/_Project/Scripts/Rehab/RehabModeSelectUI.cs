@@ -44,6 +44,7 @@ namespace PicoElderCare.Rehab
 
         private Coroutine _startRecenterCoroutine;
         private Coroutine _routeRebindCoroutine;
+        private Coroutine _trainingLayoutRecenterCoroutine;
 
         public GameObject SelectionPanelRoot => selectionPanelRoot;
         public GameObject TrainingFunctionPanelRoot => trainingFunctionPanelRoot;
@@ -84,6 +85,8 @@ namespace PicoElderCare.Rehab
 
         private void OnDisable()
         {
+            CancelTrainingLayoutRecenter();
+
             if (_startRecenterCoroutine != null)
             {
                 StopCoroutine(_startRecenterCoroutine);
@@ -99,6 +102,7 @@ namespace PicoElderCare.Rehab
 
         public void ShowMainMenuPanel()
         {
+            CancelTrainingLayoutRecenter();
             CancelCurrentTrainingAndHideVideo();
 
             SetPanelActive(mainMenuPanel, true);
@@ -117,6 +121,7 @@ namespace PicoElderCare.Rehab
 
         public void ShowTrainingSelectPanel()
         {
+            CancelTrainingLayoutRecenter();
             CancelCurrentTrainingAndHideVideo();
 
             SetPanelActive(mainMenuPanel, false);
@@ -127,7 +132,12 @@ namespace PicoElderCare.Rehab
 
             RefreshHtmlUIAndButtonBindings("ShowTrainingSelectPanel");
 
-            if (placeUiOnTrainingSelectOpen)
+            ResolveReferences();
+            if (panelPlacementController != null)
+            {
+                panelPlacementController.RecenterSelectionPanel();
+            }
+            else if (placeUiOnTrainingSelectOpen)
             {
                 RecenterNavigationPanels();
             }
@@ -147,6 +157,7 @@ namespace PicoElderCare.Rehab
 
         public void ShowTrainingResultPanel()
         {
+            CancelTrainingLayoutRecenter();
             StopVideoGuideOnly();
 
             SetPanelActive(mainMenuPanel, false);
@@ -183,6 +194,7 @@ namespace PicoElderCare.Rehab
         {
             Debug.Log("[RehabModeSelectUI] StartTraining invoked. trainingType=" + trainingType);
             ResolveReferences();
+            CancelTrainingLayoutRecenter();
             CancelCurrentTrainingAndHideVideo();
 
             SetPanelActive(mainMenuPanel, false);
@@ -190,6 +202,7 @@ namespace PicoElderCare.Rehab
             SetPageActive(trainingFunctionPanelRoot, rehabTrainingPanel, true);
             SetPageActive(resultPanelRoot, trainingResultPanel, false);
             SetPanelActive(videoPanelRoot, true);
+            ScheduleTrainingLayoutRecenter();
 
             RefreshHtmlUIAndButtonBindings("StartTraining.ShowTrainingPanel");
 
@@ -202,6 +215,35 @@ namespace PicoElderCare.Rehab
             {
                 Debug.LogError("Cannot start rehab training because RehabSessionManager is not assigned.");
             }
+        }
+
+        private void ScheduleTrainingLayoutRecenter()
+        {
+            if (!isActiveAndEnabled) return;
+
+            CancelTrainingLayoutRecenter();
+            _trainingLayoutRecenterCoroutine = StartCoroutine(RecenterTrainingLayoutNextFrame());
+        }
+
+        private IEnumerator RecenterTrainingLayoutNextFrame()
+        {
+            yield return null;
+
+            ResolveReferences();
+            if (panelPlacementController != null)
+            {
+                panelPlacementController.RecenterTrainingLayout();
+            }
+
+            _trainingLayoutRecenterCoroutine = null;
+        }
+
+        private void CancelTrainingLayoutRecenter()
+        {
+            if (_trainingLayoutRecenterCoroutine == null) return;
+
+            StopCoroutine(_trainingLayoutRecenterCoroutine);
+            _trainingLayoutRecenterCoroutine = null;
         }
 
         private void RefreshHtmlUIAndButtonBindings(string reason)

@@ -8,6 +8,7 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
+using UnityEngine.UI;
 using UnityEngine.Video;
 
 public static class RehabTrainingPanelSeparationTool
@@ -33,8 +34,11 @@ public static class RehabTrainingPanelSeparationTool
         public Transform RehabRoot;
         public Transform RehabUiRoot;
         public Transform SelectionRoot;
+        public Transform TrainingLayoutAnchor;
         public Transform TrainingRoot;
         public Transform ResultRoot;
+        public Transform ViewTransform;
+        public bool HadSeparatedPageRoots;
     }
 
     [MenuItem(SplitMenuPath)]
@@ -263,22 +267,40 @@ public static class RehabTrainingPanelSeparationTool
         }
         context.SpatialControl = spatialControls.Count == 1 ? spatialControls[0] : null;
 
-        var selectionCanvas = FindOwningCanvasTransform(context.SelectionPanel.transform);
-        var trainingCanvas = FindOwningCanvasTransform(context.TrainingPanel.transform);
-        var resultCanvas = FindOwningCanvasTransform(context.ResultPanel.transform);
-        if (selectionCanvas == null || selectionCanvas != trainingCanvas || selectionCanvas != resultCanvas)
-        {
-            error = "Selection, training and result pages must resolve to the same existing Canvas before migration.";
-            return false;
-        }
-        context.PageCanvasRoot = selectionCanvas;
-
         context.SelectionRoot = FindExpectedPageRoot(scene, context.SelectionPanel, "SelectionPanelRoot", out error);
         if (!string.IsNullOrEmpty(error)) return false;
         context.TrainingRoot = FindExpectedPageRoot(scene, context.TrainingPanel, "TrainingFunctionPanelRoot", out error);
         if (!string.IsNullOrEmpty(error)) return false;
         context.ResultRoot = FindExpectedPageRoot(scene, context.ResultPanel, "ResultPanelRoot", out error);
         if (!string.IsNullOrEmpty(error)) return false;
+        context.HadSeparatedPageRoots = context.SelectionRoot != null &&
+                                        context.TrainingRoot != null &&
+                                        context.ResultRoot != null;
+
+        var selectionCanvas = FindOwningCanvasTransform(context.SelectionPanel.transform);
+        var trainingCanvas = FindOwningCanvasTransform(context.TrainingPanel.transform);
+        var resultCanvas = FindOwningCanvasTransform(context.ResultPanel.transform);
+        if (selectionCanvas == null || resultCanvas == null)
+        {
+            error = "Selection and result pages must both resolve to an existing Canvas.";
+            return false;
+        }
+
+        var selectionUsesOwnCanvas = context.SelectionRoot != null && selectionCanvas == context.SelectionRoot;
+        if (selectionCanvas != resultCanvas && !selectionUsesOwnCanvas)
+        {
+            error = "Selection page must use the shared page Canvas before migration or its own SelectionPanelRoot Canvas after migration.";
+            return false;
+        }
+
+        var trainingUsesOwnCanvas = context.TrainingRoot != null && trainingCanvas == context.TrainingRoot;
+        var sharedPageCanvas = resultCanvas;
+        if (trainingCanvas == null || (trainingCanvas != sharedPageCanvas && !trainingUsesOwnCanvas))
+        {
+            error = "Training page must use the selection Canvas before migration or its own TrainingFunctionPanelRoot Canvas after migration.";
+            return false;
+        }
+        context.PageCanvasRoot = sharedPageCanvas;
 
         var existingRehabUiRoot = FindAncestorNamed(context.PageCanvasRoot, "RehabUIRoot");
         if (existingRehabUiRoot != null)
@@ -297,6 +319,18 @@ public static class RehabTrainingPanelSeparationTool
             return false;
         }
 
+        var anchorMatches = FindSceneTransforms(scene)
+            .Where(transform => transform.name == "TrainingLayoutAnchor")
+            .ToList();
+        if (anchorMatches.Count > 1)
+        {
+            error = "Ambiguous TrainingLayoutAnchor: found " + anchorMatches.Count + " objects.";
+            return false;
+        }
+        context.TrainingLayoutAnchor = anchorMatches.Count == 1 ? anchorMatches[0] : null;
+        context.ViewTransform = ResolveMainCameraTransform(scene, out error);
+        if (context.ViewTransform == null) return false;
+
         return true;
     }
 
@@ -313,18 +347,58 @@ public static class RehabTrainingPanelSeparationTool
             ReparentPreservingWorld(uiBranch, context.RehabUiRoot, "Move rehab UI branch under RehabUIRoot");
         }
 
-        if (context.VideoPanel.transform.parent != context.RehabUiRoot)
-        {
-            ReparentPreservingWorld(context.VideoPanel.transform, context.RehabUiRoot, "Move RehabVideoPanel under RehabUIRoot");
-        }
-
-        context.SelectionRoot = EnsureRectPageRoot(context.PageCanvasRoot, context.SelectionRoot, "SelectionPanelRoot");
-        context.TrainingRoot = EnsureRectPageRoot(context.PageCanvasRoot, context.TrainingRoot, "TrainingFunctionPanelRoot");
+        context.SelectionRoot = EnsureRectPageRoot(
+            context.PageCanvasRoot,
+            context.SelectionRoot,
+            "SelectionPanelRoot",
+            true);
+        context.TrainingRoot = EnsureRectPageRoot(
+            context.PageCanvasRoot,
+            context.TrainingRoot,
+            "TrainingFunctionPanelRoot",
+            true);
         context.ResultRoot = EnsureRectPageRoot(context.PageCanvasRoot, context.ResultRoot, "ResultPanelRoot");
 
         ReparentPreservingWorld(context.SelectionPanel.transform, context.SelectionRoot, "Move selection page");
         ReparentPreservingWorld(context.TrainingPanel.transform, context.TrainingRoot, "Move training page");
         ReparentPreservingWorld(context.ResultPanel.transform, context.ResultRoot, "Move result page");
+
+        if (!context.HadSeparatedPageRoots)
+        {
+            ApplyLegacyFixedSlotsBeforeAnchoring(context);
+        }
+
+        ReparentPreservingWorld(
+            context.SelectionRoot,
+            context.RehabUiRoot,
+            "Move SelectionPanelRoot under RehabUIRoot");
+        EnsureStandalonePageCanvas(context, context.SelectionRoot, "selection");
+
+        if (context.TrainingLayoutAnchor == null)
+        {
+            context.TrainingLayoutAnchor = CreateTransformRoot("TrainingLayoutAnchor", context.RehabUiRoot);
+            ApplyWorldPose(
+                context.TrainingLayoutAnchor,
+                new Pose(context.VideoPanel.transform.position, context.VideoPanel.transform.rotation),
+                "Place TrainingLayoutAnchor at authored video slot");
+        }
+        else if (context.TrainingLayoutAnchor.parent != context.RehabUiRoot)
+        {
+            ReparentPreservingWorld(
+                context.TrainingLayoutAnchor,
+                context.RehabUiRoot,
+                "Move TrainingLayoutAnchor under RehabUIRoot");
+        }
+
+        ReparentPreservingWorld(
+            context.TrainingRoot,
+            context.TrainingLayoutAnchor,
+            "Move TrainingFunctionPanelRoot under TrainingLayoutAnchor");
+        ReparentPreservingWorld(
+            context.VideoPanel.transform,
+            context.TrainingLayoutAnchor,
+            "Move RehabVideoPanel under TrainingLayoutAnchor");
+        EnsureStandalonePageCanvas(context, context.TrainingRoot, "training function");
     }
 
     private static void ApplySceneAuthoredLayout(SceneContext context)
@@ -341,6 +415,8 @@ public static class RehabTrainingPanelSeparationTool
 
         placement.selectionPanelDistance = Mathf.Max(0.1f, originalSelectionDistance);
         placement.selectionPanelHeight = originalSelectionHeight;
+        placement.trainingLayoutDistance = 1.8f;
+        placement.trainingLayoutHeightOffset = -0.1f;
         placement.promptPanelDistance = 1.8f;
         placement.videoPanelDistance = 2.2f;
         placement.videoPanelYawOffsetDegrees = 40f;
@@ -352,60 +428,111 @@ public static class RehabTrainingPanelSeparationTool
         }
         placement.minPanelSeparationMeters = Mathf.Max(0.25f, placement.minPanelSeparationMeters);
         placement.useSceneAuthoredTrainingLayout = true;
+    }
 
-        var headPosition = placement.headTransform != null
-            ? placement.headTransform.position
-            : new Vector3(0f, 1.6f, 0f);
-        var forward = placement.headTransform != null
-            ? Vector3.ProjectOnPlane(placement.headTransform.forward, Vector3.up)
+    private static void ApplyLegacyFixedSlotsBeforeAnchoring(SceneContext context)
+    {
+        var placement = context.Placement;
+        var view = context.ViewTransform;
+        var viewPosition = view != null ? view.position : new Vector3(0f, 1.55f, 0f);
+        var forward = view != null
+            ? Vector3.ProjectOnPlane(view.forward, Vector3.up)
             : Vector3.forward;
         if (forward.sqrMagnitude < 0.0001f) forward = Vector3.forward;
         forward.Normalize();
 
         var selectionPose = CreateSlotPose(
-            headPosition,
+            viewPosition,
             forward,
-            placement.selectionPanelDistance,
+            Mathf.Max(0.1f, placement.selectionPanelDistance),
             0f,
             placement.selectionPanelHeight);
-        var videoPose = CreateSlotPose(
-            headPosition,
-            forward,
-            placement.promptPanelDistance,
-            0f,
-            placement.panelHeight);
-        var trainingPose = CreateSlotPose(
-            headPosition,
-            forward,
-            placement.videoPanelDistance,
-            placement.videoPanelYawOffsetDegrees,
-            placement.panelHeight);
+        var videoPose = CreateSlotPose(viewPosition, forward, 1.8f, 0f, 1.45f);
+        var trainingPose = CreateSlotPose(viewPosition, forward, 2.2f, 40f, 1.45f);
 
         ApplyWorldPose(context.SelectionRoot, selectionPose, "Place SelectionPanelRoot");
         ApplyWorldPose(context.ResultRoot, selectionPose, "Place ResultPanelRoot");
-        ApplyWorldPose(context.VideoPanel.transform, videoPose, "Place RehabVideoPanel in prompt slot");
-        ApplyWorldPose(context.TrainingRoot, trainingPose, "Place TrainingFunctionPanelRoot in video slot");
+        ApplyWorldPose(context.VideoPanel.transform, videoPose, "Place RehabVideoPanel in authored video slot");
+        ApplyWorldPose(context.TrainingRoot, trainingPose, "Place TrainingFunctionPanelRoot in authored function slot");
 
         Undo.RecordObject(context.SelectionRoot, "Keep selection page scale");
         context.SelectionRoot.localScale = Vector3.one;
         Undo.RecordObject(context.ResultRoot, "Keep result page scale");
         context.ResultRoot.localScale = Vector3.one;
         Undo.RecordObject(context.TrainingRoot, "Set compact training function scale");
-        context.TrainingRoot.localScale = Vector3.one * placement.compactTrainingFunctionScale;
+        context.TrainingRoot.localScale = Vector3.one * 0.84f;
 
-        var trainingSlotDirection = Quaternion.AngleAxis(placement.videoPanelYawOffsetDegrees, Vector3.up) * forward;
+        var trainingSlotDirection = Quaternion.AngleAxis(40f, Vector3.up) * forward;
         EnsureMinimumTrainingPanelSeparation(context, trainingSlotDirection);
+    }
+
+    private static void EnsureStandalonePageCanvas(SceneContext context, Transform pageRoot, string pageLabel)
+    {
+        var sourceCanvas = context.PageCanvasRoot.GetComponent<Canvas>();
+        if (sourceCanvas == null)
+        {
+            throw new InvalidOperationException("The selection page Canvas is missing.");
+        }
+
+        var targetCanvas = pageRoot.GetComponent<Canvas>();
+        if (targetCanvas == null)
+        {
+            targetCanvas = Undo.AddComponent<Canvas>(pageRoot.gameObject);
+        }
+
+        Undo.RecordObject(targetCanvas, "Configure " + pageLabel + " World Space Canvas");
+        targetCanvas.renderMode = RenderMode.WorldSpace;
+        targetCanvas.worldCamera = sourceCanvas.worldCamera != null
+            ? sourceCanvas.worldCamera
+            : context.ViewTransform.GetComponent<Camera>();
+        targetCanvas.planeDistance = sourceCanvas.planeDistance;
+        targetCanvas.sortingLayerID = sourceCanvas.sortingLayerID;
+        targetCanvas.sortingOrder = sourceCanvas.sortingOrder;
+        targetCanvas.additionalShaderChannels = sourceCanvas.additionalShaderChannels;
+        EditorUtility.SetDirty(targetCanvas);
+
+        var sourceScaler = context.PageCanvasRoot.GetComponent<CanvasScaler>();
+        if (sourceScaler != null)
+        {
+            var targetScaler = pageRoot.GetComponent<CanvasScaler>();
+            if (targetScaler == null)
+            {
+                targetScaler = Undo.AddComponent<CanvasScaler>(pageRoot.gameObject);
+            }
+
+            Undo.RecordObject(targetScaler, "Copy " + pageLabel + " CanvasScaler settings");
+            EditorUtility.CopySerialized(sourceScaler, targetScaler);
+            EditorUtility.SetDirty(targetScaler);
+        }
+
+        foreach (var sourceRaycaster in context.PageCanvasRoot.GetComponents<BaseRaycaster>())
+        {
+            var raycasterType = sourceRaycaster.GetType();
+            var targetRaycaster = pageRoot.GetComponent(raycasterType);
+            if (targetRaycaster == null)
+            {
+                targetRaycaster = Undo.AddComponent(pageRoot.gameObject, raycasterType);
+            }
+
+            Undo.RecordObject(targetRaycaster, "Copy " + pageLabel + " Canvas raycaster settings");
+            EditorUtility.CopySerialized(sourceRaycaster, targetRaycaster);
+            EditorUtility.SetDirty(targetRaycaster);
+        }
     }
 
     private static void RebindSerializedReferences(SceneContext context)
     {
         var placement = context.Placement;
         Undo.RecordObject(placement, "Bind separated rehab panels");
+        placement.viewTransform = context.ViewTransform;
         placement.selectionPanelRoot = context.SelectionRoot;
+        placement.trainingLayoutAnchor = context.TrainingLayoutAnchor;
         placement.trainingFunctionPanelRoot = context.TrainingRoot;
         placement.promptPanelRoot = context.SelectionRoot;
         placement.videoPanelRoot = context.VideoPanel.transform;
         placement.videoLayoutController = context.VideoLayout;
+        placement.trainingLayoutDistance = 1.8f;
+        placement.trainingLayoutHeightOffset = -0.1f;
         placement.useSceneAuthoredTrainingLayout = true;
         EditorUtility.SetDirty(placement);
 
@@ -481,6 +608,7 @@ public static class RehabTrainingPanelSeparationTool
         SetActiveWithUndo(context.SelectionPanel, true, "Enable selection page");
         SetActiveWithUndo(context.TrainingPanel, true, "Prepare training page");
         SetActiveWithUndo(context.ResultPanel, true, "Prepare result page");
+        SetActiveWithUndo(context.TrainingLayoutAnchor.gameObject, true, "Enable training layout anchor");
         SetActiveWithUndo(context.SelectionRoot.gameObject, true, "Show selection root");
         SetActiveWithUndo(context.TrainingRoot.gameObject, false, "Hide training root");
         SetActiveWithUndo(context.ResultRoot.gameObject, false, "Hide result root");
@@ -496,6 +624,11 @@ public static class RehabTrainingPanelSeparationTool
         ValidatePageRoot(context.ResultRoot, context.ResultPanel, "ResultPanelRoot", issues);
         ValidateUniqueNamedObject(context.Scene, "RehabUIRoot", context.RehabUiRoot != null ? context.RehabUiRoot.gameObject : null, issues);
         ValidateUniqueNamedObject(context.Scene, "SelectionPanelRoot", context.SelectionRoot != null ? context.SelectionRoot.gameObject : null, issues);
+        ValidateUniqueNamedObject(
+            context.Scene,
+            "TrainingLayoutAnchor",
+            context.TrainingLayoutAnchor != null ? context.TrainingLayoutAnchor.gameObject : null,
+            issues);
         ValidateUniqueNamedObject(context.Scene, "TrainingFunctionPanelRoot", context.TrainingRoot != null ? context.TrainingRoot.gameObject : null, issues);
         ValidateUniqueNamedObject(context.Scene, "ResultPanelRoot", context.ResultRoot != null ? context.ResultRoot.gameObject : null, issues);
         ValidateUniqueNamedObject(context.Scene, "RehabVideoPanel", context.VideoPanel, issues);
@@ -503,6 +636,37 @@ public static class RehabTrainingPanelSeparationTool
         if (context.RehabUiRoot == null || context.VideoPanel == null || !context.VideoPanel.transform.IsChildOf(context.RehabUiRoot))
         {
             issues.Add("RehabVideoPanel must be under the unique RehabUIRoot after migration.");
+        }
+
+        if (context.SelectionRoot == null || context.SelectionRoot.parent != context.RehabUiRoot)
+        {
+            issues.Add("SelectionPanelRoot must be a direct child of RehabUIRoot.");
+        }
+        else if (context.SelectionRoot.GetComponent<Canvas>() == null)
+        {
+            issues.Add("SelectionPanelRoot needs its own World Space Canvas after leaving the shared page Canvas.");
+        }
+
+        if (context.TrainingLayoutAnchor == null || context.TrainingLayoutAnchor.parent != context.RehabUiRoot)
+        {
+            issues.Add("TrainingLayoutAnchor must be a direct child of RehabUIRoot.");
+        }
+        else
+        {
+            if (context.TrainingRoot == null || context.TrainingRoot.parent != context.TrainingLayoutAnchor)
+            {
+                issues.Add("TrainingFunctionPanelRoot must be a direct child of TrainingLayoutAnchor.");
+            }
+
+            if (context.VideoPanel == null || context.VideoPanel.transform.parent != context.TrainingLayoutAnchor)
+            {
+                issues.Add("RehabVideoPanel must be a direct child of TrainingLayoutAnchor.");
+            }
+        }
+
+        if (context.TrainingRoot != null && context.TrainingRoot.GetComponent<Canvas>() == null)
+        {
+            issues.Add("TrainingFunctionPanelRoot needs its own World Space Canvas after leaving the selection Canvas.");
         }
 
         var videoPanels = FindSceneComponents<RehabVideoGuideController>(context.Scene)
@@ -567,8 +731,49 @@ public static class RehabTrainingPanelSeparationTool
             }
         }
 
+        if (context.VideoGuide == null || context.VideoGuide.videoPanel != context.VideoPanel)
+        {
+            issues.Add("RehabVideoGuideController.videoPanel must reference the unique RehabVideoPanel.");
+        }
+        else
+        {
+            var guideQuad = context.VideoGuide.videoQuad;
+            if (guideQuad == null || guideQuad.transform.parent != context.VideoPanel.transform)
+            {
+                issues.Add("RehabVideoGuideController.videoQuad must remain a direct child of RehabVideoPanel.");
+            }
+
+            if (guideQuad != null && context.VideoGuide.displayRoot != null &&
+                guideQuad.transform.IsChildOf(context.VideoGuide.displayRoot.transform))
+            {
+                issues.Add("VideoQuad must not be a child of displayRoot/VideoCanvas.");
+            }
+
+            if (context.VideoGuide.videoPlayer == null || context.VideoGuide.renderTexture == null ||
+                context.VideoGuide.videoPlayer.targetTexture != context.VideoGuide.renderTexture)
+            {
+                issues.Add("VideoPlayer.targetTexture and RehabVideoGuideController.renderTexture must reference the same RenderTexture.");
+            }
+
+            if (context.VideoGuide.rawImage != null &&
+                context.VideoGuide.rawImage.texture != context.VideoGuide.renderTexture)
+            {
+                issues.Add("VideoCanvas RawImage must reference the configured rehab RenderTexture.");
+            }
+
+            var quadMaterial = context.VideoGuide.videoQuadRenderer != null
+                ? context.VideoGuide.videoQuadRenderer.sharedMaterial
+                : null;
+            if (quadMaterial == null || quadMaterial.mainTexture != context.VideoGuide.renderTexture)
+            {
+                issues.Add("VideoQuad material mainTexture must reference the configured rehab RenderTexture.");
+            }
+        }
+
         if (context.Placement == null ||
+            context.Placement.viewTransform == null ||
             context.Placement.selectionPanelRoot == null ||
+            context.Placement.trainingLayoutAnchor == null ||
             context.Placement.trainingFunctionPanelRoot == null ||
             context.Placement.videoPanelRoot == null ||
             context.Placement.videoLayoutController == null ||
@@ -576,7 +781,9 @@ public static class RehabTrainingPanelSeparationTool
         {
             issues.Add("RehabPanelPlacementController separated-layout references are incomplete.");
         }
-        else if (context.Placement.selectionPanelRoot != context.SelectionRoot ||
+        else if (context.Placement.viewTransform != context.ViewTransform ||
+                 context.Placement.selectionPanelRoot != context.SelectionRoot ||
+                 context.Placement.trainingLayoutAnchor != context.TrainingLayoutAnchor ||
                  context.Placement.trainingFunctionPanelRoot != context.TrainingRoot ||
                  context.Placement.videoPanelRoot != context.VideoPanel.transform ||
                  context.Placement.videoLayoutController != context.VideoLayout)
@@ -694,13 +901,17 @@ public static class RehabTrainingPanelSeparationTool
         }
     }
 
-    private static Transform EnsureRectPageRoot(Transform canvasRoot, Transform existingRoot, string name)
+    private static Transform EnsureRectPageRoot(
+        Transform canvasRoot,
+        Transform existingRoot,
+        string name,
+        bool preserveExistingParent = false)
     {
         var canvasRect = canvasRoot as RectTransform;
         var desiredSize = canvasRect != null ? canvasRect.rect.size : Vector2.zero;
         if (existingRoot != null)
         {
-            if (existingRoot.parent != canvasRoot)
+            if (!preserveExistingParent && existingRoot.parent != canvasRoot)
             {
                 ReparentPreservingWorld(existingRoot, canvasRoot, "Restore " + name + " under page Canvas");
             }
@@ -943,6 +1154,28 @@ public static class RehabTrainingPanelSeparationTool
         return results;
     }
 
+    private static Transform ResolveMainCameraTransform(Scene scene, out string error)
+    {
+        var mainCamera = Camera.main;
+        if (mainCamera != null && mainCamera.gameObject.scene == scene)
+        {
+            error = string.Empty;
+            return mainCamera.transform;
+        }
+
+        var taggedCameras = FindSceneComponents<Camera>(scene)
+            .Where(cameraComponent => cameraComponent.CompareTag("MainCamera"))
+            .ToList();
+        if (taggedCameras.Count == 1)
+        {
+            error = string.Empty;
+            return taggedCameras[0].transform;
+        }
+
+        error = "Expected exactly one XR Camera tagged MainCamera, found " + taggedCameras.Count + ".";
+        return null;
+    }
+
     private static List<Transform> FindSceneTransforms(Scene scene)
     {
         return FindSceneComponents<Transform>(scene);
@@ -1035,6 +1268,7 @@ public static class RehabTrainingPanelSeparationTool
     private static string DescribeHierarchy(SceneContext context)
     {
         return "Selection=" + GetHierarchyPath(context.SelectionPanel.transform) +
+               ", TrainingAnchor=" + GetHierarchyPath(context.TrainingLayoutAnchor) +
                ", Training=" + GetHierarchyPath(context.TrainingPanel.transform) +
                ", Result=" + GetHierarchyPath(context.ResultPanel.transform) +
                ", Video=" + GetHierarchyPath(context.VideoPanel.transform) + ".";

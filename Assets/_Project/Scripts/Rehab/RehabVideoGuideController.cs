@@ -552,9 +552,24 @@ namespace PicoElderCare.Rehab
                     videoQuad.SetActive(visible);
                 }
 
+                if (videoQuadRenderer != null)
+                {
+                    videoQuadRenderer.enabled = visible;
+                }
+
                 if (displayRoot != null)
                 {
-                    displayRoot.SetActive(false);
+                    var sharesHierarchyWithQuad = false;
+                    if (videoQuad != null)
+                    {
+                        var displayTransform = displayRoot.transform;
+                        var quadTransform = videoQuad.transform;
+                        sharesHierarchyWithQuad = quadTransform == displayTransform ||
+                                                  quadTransform.IsChildOf(displayTransform) ||
+                                                  displayTransform.IsChildOf(quadTransform);
+                    }
+
+                    displayRoot.SetActive(sharesHierarchyWithQuad ? visible : false);
                 }
 
                 SetSpatialControlsVisible(visible);

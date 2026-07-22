@@ -5,7 +5,9 @@ namespace PicoElderCare.Rehab
     public class RehabPanelPlacementController : MonoBehaviour
     {
         public Transform headTransform;
+        public Transform viewTransform;
         public Transform selectionPanelRoot;
+        public Transform trainingLayoutAnchor;
         public Transform trainingFunctionPanelRoot;
         public Transform promptPanelRoot;
         public Transform videoPanelRoot;
@@ -14,6 +16,8 @@ namespace PicoElderCare.Rehab
         public bool placeOnStart = false;
         public float selectionPanelDistance = 1.35f;
         public float selectionPanelHeight = 1.35f;
+        public float trainingLayoutDistance = 1.8f;
+        public float trainingLayoutHeightOffset = -0.1f;
         public float promptPanelDistance = 1.8f;
         public float videoPanelDistance = 2.2f;
         public float videoPanelYawOffsetDegrees = 40f;
@@ -46,7 +50,7 @@ namespace PicoElderCare.Rehab
         public void RecenterPanels()
         {
             ResolveReferences();
-            if (headTransform == null) return;
+            if (viewTransform == null) return;
 
             if (useSceneAuthoredTrainingLayout)
             {
@@ -55,8 +59,8 @@ namespace PicoElderCare.Rehab
                 return;
             }
 
-            var headPosition = headTransform.position;
-            var forward = GetHeadYawForward();
+            var headPosition = viewTransform.position;
+            var forward = GetViewYawForward();
             var promptPosition = headPosition + forward * Mathf.Max(0.1f, promptPanelDistance);
             promptPosition.y = panelHeight;
 
@@ -93,26 +97,51 @@ namespace PicoElderCare.Rehab
         public void RecenterSelectionPanel()
         {
             ResolveReferences();
-            if (headTransform == null) return;
+            if (viewTransform == null) return;
 
             RecenterSelectionPanelInternal();
             _hasPlacedPanels = true;
         }
 
+        public void RecenterTrainingLayout()
+        {
+            ResolveReferences();
+            if (viewTransform == null || trainingLayoutAnchor == null) return;
+
+            var viewPosition = viewTransform.position;
+            var forward = GetViewYawForward();
+            var position = viewPosition + forward * Mathf.Max(0.1f, trainingLayoutDistance);
+            position.y = viewPosition.y + trainingLayoutHeightOffset;
+
+            trainingLayoutAnchor.position = position;
+            trainingLayoutAnchor.rotation = CreatePanelRotation(position, viewPosition, forward);
+            _hasPlacedPanels = true;
+        }
+
         public void ResolveReferences()
         {
-            if (headTransform == null)
+            var mainCamera = Camera.main;
+            if (mainCamera != null)
+            {
+                viewTransform = mainCamera.transform;
+            }
+            else if (viewTransform == null)
             {
                 var tracker = FindObjectOfType<HandPoseTracker>(true);
                 if (tracker != null)
                 {
-                    headTransform = tracker.hmdTransform;
+                    viewTransform = tracker.hmdTransform;
                 }
             }
 
-            if (headTransform == null && Camera.main != null)
+            if (viewTransform == null && headTransform != null)
             {
-                headTransform = Camera.main.transform;
+                viewTransform = headTransform;
+            }
+
+            if (headTransform == null)
+            {
+                headTransform = viewTransform;
             }
 
             if (selectionPanelRoot == null)
@@ -173,9 +202,26 @@ namespace PicoElderCare.Rehab
                 }
             }
 
+            if (trainingLayoutAnchor == null)
+            {
+                if (trainingFunctionPanelRoot != null && videoPanelRoot != null &&
+                    trainingFunctionPanelRoot.parent == videoPanelRoot.parent)
+                {
+                    trainingLayoutAnchor = trainingFunctionPanelRoot.parent;
+                }
+                else
+                {
+                    var anchorObject = GameObject.Find("TrainingLayoutAnchor");
+                    if (anchorObject != null)
+                    {
+                        trainingLayoutAnchor = anchorObject.transform;
+                    }
+                }
+            }
+
             if (videoLayoutController != null)
             {
-                videoLayoutController.headTransform = headTransform;
+                videoLayoutController.headTransform = viewTransform;
                 if (videoPanelRoot != null)
                 {
                     videoLayoutController.panelRoot = videoPanelRoot;
@@ -186,20 +232,20 @@ namespace PicoElderCare.Rehab
         private void RecenterSelectionPanelInternal()
         {
             var target = selectionPanelRoot != null ? selectionPanelRoot : promptPanelRoot;
-            if (target == null || headTransform == null) return;
+            if (target == null || viewTransform == null) return;
 
-            var headPosition = headTransform.position;
-            var forward = GetHeadYawForward();
+            var headPosition = viewTransform.position;
+            var forward = GetViewYawForward();
             var position = headPosition + forward * Mathf.Max(0.1f, selectionPanelDistance);
             position.y = selectionPanelHeight;
             target.position = position;
             target.rotation = CreatePanelRotation(position, headPosition, forward);
         }
 
-        private Vector3 GetHeadYawForward()
+        private Vector3 GetViewYawForward()
         {
-            var forward = headTransform != null
-                ? Vector3.ProjectOnPlane(headTransform.forward, Vector3.up)
+            var forward = viewTransform != null
+                ? Vector3.ProjectOnPlane(viewTransform.forward, Vector3.up)
                 : Vector3.forward;
 
             if (forward.sqrMagnitude < 0.0001f)
