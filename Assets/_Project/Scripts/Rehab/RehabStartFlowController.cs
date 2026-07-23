@@ -375,8 +375,8 @@ namespace PicoElderCare.Rehab
             rect.anchorMin = new Vector2(0.5f, 0.5f);
             rect.anchorMax = new Vector2(0.5f, 0.5f);
             rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.anchoredPosition = new Vector2(0f, -176f);
-            rect.sizeDelta = new Vector2(210f, 76f);
+            rect.anchoredPosition = new Vector2(-232f, -174f);
+            rect.sizeDelta = new Vector2(186f, 64f);
 
             var image = go.GetComponent<Image>();
             image.color = new Color(0.05f, 0.45f, 0.38f, 0.95f);
@@ -398,6 +398,12 @@ namespace PicoElderCare.Rehab
             startButtonLabel.fontStyle = FontStyles.Bold;
             startButtonLabel.alignment = TextAlignmentOptions.Center;
             startButtonLabel.color = Color.white;
+            startButtonLabel.enableAutoSizing = true;
+            startButtonLabel.fontSizeMin = 22f;
+            startButtonLabel.fontSizeMax = 30f;
+            startButtonLabel.enableWordWrapping = false;
+            startButtonLabel.overflowMode = TextOverflowModes.Ellipsis;
+            startButtonLabel.margin = new Vector4(10f, 4f, 10f, 4f);
             startButtonLabel.raycastTarget = false;
             if (uiController != null)
             {

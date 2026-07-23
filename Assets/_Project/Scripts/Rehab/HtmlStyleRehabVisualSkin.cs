@@ -127,9 +127,12 @@ namespace PicoElderCare.Rehab
             StyleSafetyBanner(ui.rehabTrainingPanel);
             StyleTrainingStats(ui.rehabTrainingPanel);
             StyleTrainingDebugText(ui.rehabTrainingPanel);
-            StyleTrainingActionButton(FindButton(ui.rehabTrainingPanel, "StartButton"), "StartButton", Amber, true);
+            var startButton = FindButton(ui.rehabTrainingPanel, "StartButton");
+            ConfigureTrainingFooterButton(startButton, new Vector2(-232f, -174f));
+            ConfigureTrainingFooterButton(ui.trainingBackButton, new Vector2(232f, -174f));
+            StyleTrainingActionButton(startButton, "StartButton", Amber, true);
             StyleTrainingActionButton(ui.trainingBackButton, "TrainingBackButton", GoldStroke, false);
-            StyleBottomHint(ui.rehabTrainingPanel, "\u6df1\u547c\u5438 - \u653e\u677e\u80a9\u9888 - \u4fdd\u6301\u81ea\u7136\u7ad9\u7acb");
+            HideBottomHint(ui.rehabTrainingPanel);
             StyleBottomDock(ui.rehabTrainingPanel);
             Debug.Log("[HtmlStyleRehabVisualSkin] Styled training panel");
         }
@@ -137,6 +140,17 @@ namespace PicoElderCare.Rehab
         private static void StyleResultPanel(RehabModeSelectUI ui)
         {
             StylePanelFrame(ui.trainingResultPanel, "TrainingResult", "\u8bad\u7ec3\u7ed3\u679c", "\u7ed3\u679c\u5df2\u4fdd\u5b58\uff0c\u8bf7\u7a33\u6b65\u8fd4\u56de\u9009\u62e9\u9875");
+            var panelRect = GetRect(ui.trainingResultPanel, "TrainingResultPanel");
+            var panelRoot = GetPanelRoot(ui.trainingResultPanel);
+            var summary = FindChildText(ui.trainingResultPanel != null ? ui.trainingResultPanel.transform : null, "Summary");
+            if (panelRect != null && summary != null)
+            {
+                var size = GetUsableSize(panelRect);
+                StyleExistingText(summary, 22f, FontStyles.Normal, TextSecondary, TextAlignmentOptions.Center);
+                ConfigureTextLayout(summary, new Vector2(size.x - 120f, 68f), new Vector2(0f, 30f));
+                ConfigureTextFitting(summary, 18f, 22f, true, new Vector4(10f, 4f, 10f, 4f));
+                ClearVisualText(panelRoot, "HtmlVisual_Subtitle");
+            }
             StyleBackButton(ui.resultBackButton, "ResultBackButton", "\u8fd4\u56de\u9009\u62e9");
         }
 
@@ -188,6 +202,9 @@ namespace PicoElderCare.Rehab
             MoveToBack(root);
 
             var panelSize = GetUsableSize(rect);
+            HideLegacyGraphic(panel.transform, "PanelTopTrace");
+            HideLegacyGraphic(panel.transform, "PanelBottomTrace");
+            HideLegacyGraphic(panel.transform, "TitleTrace");
             EnsureRoundedDecor(root, "HtmlVisual_WoodWash", panelSize, Vector2.zero, WithAlpha(WoodMid, 0.98f), 34f, WithAlpha(WoodDark, 0.34f), new Vector2(1.8f, -1.8f));
             EnsureRoundedDecor(root, "HtmlVisual_WoodWarmLayer", panelSize - new Vector2(14f, 14f), new Vector2(0f, 1f), WithAlpha(new Color32(0xE9, 0xDC, 0xC0, 0xFF), 0.18f), 30f, Color.clear, Vector2.zero);
             EnsureRoundedDecor(root, "HtmlVisual_WoodStripeLeft", new Vector2(10f, panelSize.y - 18f), new Vector2(-panelSize.x * 0.39f, 0f), WithAlpha(WoodDark, 0.28f), 4f, Color.clear, Vector2.zero);
@@ -198,7 +215,25 @@ namespace PicoElderCare.Rehab
             EnsureRoundedDecor(root, "HtmlVisual_PaperGrainA", new Vector2(8f, 8f), new Vector2(-panelSize.x * 0.28f, panelSize.y * 0.25f), WithAlpha(GoldStroke, 0.16f), 4f, Color.clear, Vector2.zero);
             EnsureRoundedDecor(root, "HtmlVisual_PaperGrainB", new Vector2(6f, 6f), new Vector2(panelSize.x * 0.22f, panelSize.y * 0.13f), WithAlpha(GoldStroke, 0.13f), 3f, Color.clear, Vector2.zero);
             EnsureRoundedDecor(root, "HtmlVisual_PaperGrainC", new Vector2(7f, 7f), new Vector2(-panelSize.x * 0.08f, -panelSize.y * 0.16f), WithAlpha(GoldStroke, 0.12f), 3.5f, Color.clear, Vector2.zero);
-            EnsureRoundedDecor(root, "HtmlVisual_TitleDivider", new Vector2(panelSize.x - 180f, 3f), new Vector2(0f, panelSize.y * 0.23f), WithAlpha(GoldStroke, 0.58f), 1.5f, Color.clear, Vector2.zero);
+            var hasHeaderCopy = !string.IsNullOrEmpty(title) || !string.IsNullOrEmpty(subtitle);
+            if (hasHeaderCopy)
+            {
+                var isTrainingSelection = string.Equals(logName, "TrainingSelection", System.StringComparison.Ordinal);
+                if (isTrainingSelection)
+                {
+                    SetVisualDecorTransparent(root, "HtmlVisual_TitleDivider");
+                }
+                else
+                {
+                    var dividerWidth = Mathf.Min(panelSize.x - 220f, 360f);
+                    var dividerY = panelSize.y * 0.215f;
+                    EnsureRoundedDecor(root, "HtmlVisual_TitleDivider", new Vector2(dividerWidth, 3f), new Vector2(0f, dividerY), WithAlpha(GoldStroke, 0.58f), 1.5f, Color.clear, Vector2.zero);
+                }
+            }
+            else
+            {
+                SetVisualDecorTransparent(root, "HtmlVisual_TitleDivider");
+            }
             EnsureLeafDecor(root, panelSize);
 
             if (!string.IsNullOrEmpty(title))
@@ -208,10 +243,8 @@ namespace PicoElderCare.Rehab
                 if (existingTitle != null)
                 {
                     StyleExistingText(existingTitle, 42f, FontStyles.Bold, TextPrimary, TextAlignmentOptions.Center);
-                    if (isTrainingSelection)
-                    {
-                        ConfigureTextLayout(existingTitle, new Vector2(panelSize.x - 100f, 56f), new Vector2(0f, panelSize.y * 0.39f));
-                    }
+                    var titleY = isTrainingSelection ? panelSize.y * 0.39f : panelSize.y * 0.30f;
+                    ConfigureTextLayout(existingTitle, new Vector2(panelSize.x - 100f, 56f), new Vector2(0f, titleY));
                     ClearVisualText(root, "HtmlVisual_Title");
                 }
                 else
@@ -224,9 +257,9 @@ namespace PicoElderCare.Rehab
             if (!string.IsNullOrEmpty(subtitle))
             {
                 var isTrainingSelection = string.Equals(logName, "TrainingSelection", System.StringComparison.Ordinal);
-                var subtitleY = isTrainingSelection ? panelSize.y * 0.292f : panelSize.y * 0.205f;
+                var subtitleY = isTrainingSelection ? panelSize.y * 0.283f : panelSize.y * 0.205f;
                 var subtitleColor = isTrainingSelection ? TrainingTextSecondary : TextSecondary;
-                EnsureText(root, "HtmlVisual_Subtitle", subtitle, new Vector2(panelSize.x - 120f, 28f), new Vector2(0f, subtitleY), isTrainingSelection ? 19f : 18f, isTrainingSelection ? FontStyles.Bold : FontStyles.Normal, subtitleColor, TextAlignmentOptions.Center);
+                EnsureText(root, "HtmlVisual_Subtitle", subtitle, new Vector2(panelSize.x - 120f, isTrainingSelection ? 24f : 28f), new Vector2(0f, subtitleY), isTrainingSelection ? 18f : 18f, isTrainingSelection ? FontStyles.Bold : FontStyles.Normal, subtitleColor, TextAlignmentOptions.Center);
             }
 
             DisableRaycastForVisualTree(root.gameObject);
@@ -263,24 +296,24 @@ namespace PicoElderCare.Rehab
             EnsureRoundedDecor(root, "HtmlVisual_Shadow", size + new Vector2(20f, 18f), new Vector2(0f, -7f), new Color(0.28f, 0.18f, 0.06f, 0.25f), 25f, Color.clear, Vector2.zero);
             var cardSurface = EnsureRoundedDecor(root, "HtmlVisual_Background", size - new Vector2(2f, 2f), Vector2.zero, surfaceColor, 24f, WithAlpha(highlighted ? Amber : GoldStroke, 0.76f), new Vector2(1.8f, -1.8f));
             EnsureRoundedDecor(root, "HtmlVisual_InnerRice", size - new Vector2(18f, 18f), Vector2.zero, WithAlpha(RiceLight, highlighted ? 0.35f : 0.25f), 19f, WithAlpha(GoldStroke, 0.14f), new Vector2(0.8f, -0.8f));
-            EnsureRoundedDecor(root, "HtmlVisual_TopGlow", new Vector2(size.x - 54f, 5f), new Vector2(0f, size.y * 0.37f), WithAlpha(accent, highlighted ? 0.42f : 0.30f), 2.5f, Color.clear, Vector2.zero);
+            SetVisualDecorTransparent(root, "HtmlVisual_TopGlow");
             EnsureRoundedDecor(root, "HtmlVisual_SideAccent", new Vector2(5f, size.y - 48f), new Vector2(-size.x * 0.44f, 0f), WithAlpha(accent, 0.62f), 2.5f, Color.clear, Vector2.zero);
-            var iconPosition = new Vector2(-size.x * 0.34f, size.y * 0.06f);
+            var iconPosition = new Vector2(-size.x * 0.35f, 2f);
             EnsureRoundedDecor(root, "HtmlVisual_IconHaloOuter", new Vector2(70f, 70f), iconPosition, WithAlpha(accent, highlighted ? 0.22f : 0.18f), 35f, Color.clear, Vector2.zero);
             EnsureRoundedDecor(root, "HtmlVisual_IconHalo", new Vector2(54f, 54f), iconPosition, WithAlpha(RiceLight, 0.94f), 27f, WithAlpha(accent, 0.48f), new Vector2(1f, -1f));
             EnsureIconOrFallback(root, "HtmlVisual_Icon_" + logName, iconResourceName, ElderCareIconType.User, new Vector2(38f, 38f), iconPosition, highlighted ? GoldDeep : Jade);
             ClearVisualText(root, "HtmlVisual_Icon");
-            EnsureText(root, "HtmlVisual_Subtitle", subtitle, new Vector2(size.x - 104f, 30f), new Vector2(size.x * 0.14f, -10f), 18f, FontStyles.Bold, TrainingTextSecondary, TextAlignmentOptions.Center);
-            EnsurePill(root, "HtmlVisual_DurationPill", duration, new Vector2(112f, 32f), new Vector2(-size.x * 0.13f, -size.y * 0.27f), highlighted ? CardHighlight : CardNormal, GoldStroke, TextPrimary);
-            EnsurePill(root, "HtmlVisual_IntensityPill", intensity, new Vector2(102f, 32f), new Vector2(size.x * 0.27f, -size.y * 0.27f), highlighted ? CardHighlight : CardNormal, highlighted ? Jade : Amber, TextPrimary);
-            EnsureText(root, "HtmlVisual_Footer", footer, new Vector2(size.x - 36f, 26f), new Vector2(0f, -size.y * 0.41f), 15f, FontStyles.Bold, TrainingTextSecondary, TextAlignmentOptions.Center);
+            EnsureText(root, "HtmlVisual_Subtitle", subtitle, new Vector2(180f, 24f), new Vector2(38f, -7f), 16f, FontStyles.Bold, TrainingTextSecondary, TextAlignmentOptions.Center);
+            EnsurePill(root, "HtmlVisual_DurationPill", duration, new Vector2(108f, 28f), new Vector2(-29f, -43f), highlighted ? CardHighlight : CardNormal, GoldStroke, TextPrimary);
+            EnsurePill(root, "HtmlVisual_IntensityPill", intensity, new Vector2(96f, 28f), new Vector2(82f, -43f), highlighted ? CardHighlight : CardNormal, highlighted ? Jade : Amber, TextPrimary);
+            ClearVisualText(root, "HtmlVisual_Footer");
             SetVisualDecorTransparent(root, "HtmlVisual_AccentLine");
 
             if (!string.IsNullOrEmpty(ribbon))
             {
-                EnsureRoundedDecor(root, "HtmlVisual_Ribbon", new Vector2(122f, 32f), new Vector2(-size.x * 0.23f, size.y * 0.38f), WithAlpha(Amber, 0.98f), 16f, WithAlpha(GoldDeep, 0.50f), new Vector2(1.1f, -1.1f));
-                EnsureRoundedDecor(root, "HtmlVisual_RibbonDot", new Vector2(8f, 8f), new Vector2(-size.x * 0.39f, size.y * 0.38f), WithAlpha(CardHighlight, 0.95f), 4f, Color.clear, Vector2.zero);
-                EnsureText(root, "HtmlVisual_RibbonText", ribbon, new Vector2(108f, 32f), new Vector2(-size.x * 0.19f, size.y * 0.38f), 15f, FontStyles.Bold, new Color32(0xFF, 0xF8, 0xE4, 0xFF), TextAlignmentOptions.Center);
+                EnsureRoundedDecor(root, "HtmlVisual_Ribbon", new Vector2(90f, 24f), new Vector2(-95f, 55f), WithAlpha(Amber, 0.98f), 12f, WithAlpha(GoldDeep, 0.50f), new Vector2(1.1f, -1.1f));
+                SetVisualDecorTransparent(root, "HtmlVisual_RibbonDot");
+                EnsureText(root, "HtmlVisual_RibbonText", ribbon, new Vector2(82f, 22f), new Vector2(-95f, 55f), 13f, FontStyles.Bold, new Color32(0xFF, 0xF8, 0xE4, 0xFF), TextAlignmentOptions.Center);
             }
             else
             {
@@ -289,8 +322,8 @@ namespace PicoElderCare.Rehab
                 SetVisualDecorTransparent(root, "HtmlVisual_RibbonDot");
             }
 
-            StyleButtonLabel(button, title, 34f, TextPrimary, FontStyles.Bold, TextAlignmentOptions.Center, Vector4.zero);
-            ConfigureButtonLabelLayout(button, new Vector2(size.x - 86f, 46f), new Vector2(size.x * 0.14f, size.y * 0.18f));
+            StyleButtonLabel(button, title, 30f, TextPrimary, FontStyles.Bold, TextAlignmentOptions.Center, Vector4.zero);
+            ConfigureButtonLabelLayout(button, new Vector2(172f, 36f), new Vector2(43f, 30f));
             ConfigureHoverFeedback(button, root, cardSurface, hoverGlow, surfaceColor, accent, 1.045f, 5f);
             DisableRaycastForVisualTree(root.gameObject);
             LogStyledButton(logName, button, root);
@@ -361,7 +394,7 @@ namespace PicoElderCare.Rehab
             var fill = primary ? Amber : WoodMid;
             var textColor = primary ? new Color32(0xFF, 0xF8, 0xE4, 0xFF) : new Color32(0x4A, 0x38, 0x28, 0xFF);
             var surfaceColor = WithAlpha(fill, 0.98f);
-            var hoverGlow = EnsureRoundedDecor(root, "HtmlVisual_HoverGlow", size + new Vector2(12f, 10f), Vector2.zero, WithAlpha(accent, 0.05f), size.y * 0.54f, Color.clear, Vector2.zero);
+            var hoverGlow = EnsureRoundedDecor(root, "HtmlVisual_HoverGlow", size + new Vector2(8f, 4f), Vector2.zero, WithAlpha(accent, 0.05f), size.y * 0.54f, Color.clear, Vector2.zero);
             if (hoverGlow != null) hoverGlow.transform.SetSiblingIndex(0);
             var cardSurface = EnsureRoundedDecor(root, "HtmlVisual_Background", size - new Vector2(2f, 2f), Vector2.zero, surfaceColor, size.y * 0.48f, WithAlpha(GoldDeep, primary ? 0.58f : 0.72f), new Vector2(1.2f, -1.2f));
             EnsureRoundedDecor(root, "HtmlVisual_AccentLine", new Vector2(size.x - 70f, 3f), new Vector2(0f, -size.y * 0.28f), WithAlpha(primary ? new Color32(0xFF, 0xF8, 0xE4, 0xFF) : GoldStroke, 0.45f), 1.5f, Color.clear, Vector2.zero);
@@ -382,6 +415,7 @@ namespace PicoElderCare.Rehab
             if (title != null)
             {
                 StyleExistingText(title, 40f, FontStyles.Bold, TextPrimary, TextAlignmentOptions.Center);
+                ConfigureTextLayout(title, new Vector2(size.x - 100f, 52f), new Vector2(0f, size.y * 0.365f));
                 ClearVisualText(root, "HtmlVisual_DefaultTrainingTitle");
             }
             else
@@ -393,6 +427,7 @@ namespace PicoElderCare.Rehab
             if (status != null)
             {
                 StyleExistingText(status, 21f, FontStyles.Bold, TrainingTextSecondary, TextAlignmentOptions.Center);
+                ConfigureTextLayout(status, new Vector2(size.x - 120f, 34f), new Vector2(0f, 108f));
                 ClearVisualText(root, "HtmlVisual_DefaultTrainingSubtitle");
             }
             else
@@ -418,6 +453,7 @@ namespace PicoElderCare.Rehab
             MoveToBack(root);
 
             var size = GetUsableSize(rect);
+            HideLegacyGraphic(block, "TopTrace");
             var originalPanel = block.GetComponent<ElderCareRoundedPanel>();
             if (originalPanel != null)
             {
@@ -442,11 +478,12 @@ namespace PicoElderCare.Rehab
             if (existingLabel != null)
             {
                 StyleExistingText(existingLabel, 18f, FontStyles.Bold, Color.Lerp(accent, TextPrimary, 0.34f), TextAlignmentOptions.Center);
+                ConfigureTextLayout(existingLabel, new Vector2(182f, 26f), new Vector2(18f, 34f));
                 ClearVisualText(root, "HtmlVisual_LabelHint");
             }
             else
             {
-                EnsureText(root, "HtmlVisual_LabelHint", labelFallback, new Vector2(size.x - 78f, 30f), new Vector2(12f, size.y * 0.26f), 18f, FontStyles.Bold, Color.Lerp(accent, TextPrimary, 0.34f), TextAlignmentOptions.Center);
+                EnsureText(root, "HtmlVisual_LabelHint", labelFallback, new Vector2(182f, 26f), new Vector2(18f, 34f), 18f, FontStyles.Bold, Color.Lerp(accent, TextPrimary, 0.34f), TextAlignmentOptions.Center);
             }
 
             EnsureIconOrFallback(
@@ -455,17 +492,27 @@ namespace PicoElderCare.Rehab
                 blockName == "TimerBlock" ? "hourglass" : "check",
                 blockName == "TimerBlock" ? ElderCareIconType.Video : ElderCareIconType.Check,
                 new Vector2(20f, 20f),
-                new Vector2(-size.x * 0.34f, size.y * 0.26f),
+                new Vector2(-105f, 34f),
                 accent);
 
+            var value = FindChildText(block, "Value");
             if (blockName == "CompletionBlock")
             {
-                EnsureRoundedDecor(root, "HtmlVisual_RingOuter", new Vector2(78f, 78f), new Vector2(0f, -size.y * 0.1f), WithAlpha(new Color32(0xD0, 0xE4, 0xC6, 0xFF), 0.62f), 39f, Color.clear, Vector2.zero);
-                EnsureRoundedDecor(root, "HtmlVisual_RingAccent", new Vector2(62f, 62f), new Vector2(0f, -size.y * 0.1f), WithAlpha(Jade, 0.36f), 31f, Color.clear, Vector2.zero);
-                EnsureRoundedDecor(root, "HtmlVisual_RingInner", new Vector2(48f, 48f), new Vector2(0f, -size.y * 0.1f), WithAlpha(fill, 0.98f), 24f, Color.clear, Vector2.zero);
+                var ringPosition = new Vector2(-82f, -20f);
+                EnsureRoundedDecor(root, "HtmlVisual_RingOuter", new Vector2(68f, 68f), ringPosition, WithAlpha(new Color32(0xD0, 0xE4, 0xC6, 0xFF), 0.62f), 34f, Color.clear, Vector2.zero);
+                EnsureRoundedDecor(root, "HtmlVisual_RingAccent", new Vector2(54f, 54f), ringPosition, WithAlpha(Jade, 0.36f), 27f, Color.clear, Vector2.zero);
+                EnsureRoundedDecor(root, "HtmlVisual_RingInner", new Vector2(40f, 40f), ringPosition, WithAlpha(fill, 0.98f), 20f, Color.clear, Vector2.zero);
+                StyleExistingText(value, 30f, FontStyles.Bold, Jade, TextAlignmentOptions.Center);
+                ConfigureTextLayout(value, new Vector2(150f, 48f), new Vector2(40f, -20f));
             }
-
-            StyleExistingText(FindChildText(block, "Value"), blockName == "TimerBlock" ? 42f : 32f, FontStyles.Bold, blockName == "TimerBlock" ? Amber : Jade, TextAlignmentOptions.Center);
+            else
+            {
+                StyleExistingText(value, 38f, FontStyles.Bold, Amber, TextAlignmentOptions.Center);
+                ConfigureTextLayout(value, new Vector2(240f, 48f), new Vector2(0f, -20f));
+                SetVisualDecorTransparent(root, "HtmlVisual_RingOuter");
+                SetVisualDecorTransparent(root, "HtmlVisual_RingAccent");
+                SetVisualDecorTransparent(root, "HtmlVisual_RingInner");
+            }
             DisableRaycastForVisualTree(root.gameObject);
         }
 
@@ -474,6 +521,7 @@ namespace PicoElderCare.Rehab
             var safetyPanel = FindChildRecursive(panel != null ? panel.transform : null, "SafetyPanel");
             if (safetyPanel != null)
             {
+                ConfigureRect(safetyPanel.gameObject, new Vector2(606f, 48f), new Vector2(0f, -110f));
                 var image = safetyPanel.GetComponent<ElderCareRoundedPanel>();
                 if (image != null)
                 {
@@ -486,6 +534,8 @@ namespace PicoElderCare.Rehab
 
             var safetyText = FindChildText(panel != null ? panel.transform : null, "SafetyPromptText");
             StyleExistingText(safetyText, 20f, FontStyles.Bold, new Color32(0xFF, 0xF8, 0xE4, 0xFF), TextAlignmentOptions.Center);
+            ConfigureTextLayout(safetyText, new Vector2(560f, 36f), new Vector2(0f, -110f));
+            ConfigureTextFitting(safetyText, 16f, 20f, false, new Vector4(10f, 2f, 10f, 2f));
         }
 
         private static void StyleTrainingStats(GameObject panel)
@@ -504,12 +554,8 @@ namespace PicoElderCare.Rehab
             if (debugText == null) return;
 
             StyleExistingText(debugText, 13f, FontStyles.Bold, TrainingTextSecondary, TextAlignmentOptions.Center);
-            ConfigureTextLayout(debugText, new Vector2(270f, 30f), new Vector2(0f, -160f));
-            debugText.enableAutoSizing = true;
-            debugText.fontSizeMin = 10f;
-            debugText.fontSizeMax = 13f;
-            debugText.enableWordWrapping = true;
-            debugText.overflowMode = TextOverflowModes.Ellipsis;
+            ConfigureTextLayout(debugText, new Vector2(258f, 24f), new Vector2(0f, -174f));
+            ConfigureTextFitting(debugText, 10f, 13f, false, new Vector4(6f, 2f, 6f, 2f));
         }
 
         private static void EnsureStatCard(RectTransform root, string name, string label, string value, Vector2 position)
@@ -522,14 +568,16 @@ namespace PicoElderCare.Rehab
             DisableRaycastForVisualTree(group.gameObject);
         }
 
-        private static void StyleBottomHint(GameObject panel, string text)
+        private static void HideBottomHint(GameObject panel)
         {
             var root = GetPanelRoot(panel);
-            var rect = GetRect(panel, "TrainingPanel");
-            if (root == null || rect == null) return;
+            ClearVisualText(root, "HtmlVisual_BottomHint");
+        }
 
-            var size = GetUsableSize(rect);
-            EnsureText(root, "HtmlVisual_BottomHint", text, new Vector2(size.x - 110f, 26f), new Vector2(0f, -size.y * 0.43f), 15f, FontStyles.Bold, TrainingTextSecondary, TextAlignmentOptions.Center);
+        private static void ConfigureTrainingFooterButton(Button button, Vector2 position)
+        {
+            if (button == null) return;
+            ConfigureRect(button.gameObject, new Vector2(186f, 64f), position);
         }
 
         private static void StyleBottomDock(GameObject panel)
@@ -557,10 +605,21 @@ namespace PicoElderCare.Rehab
             root.localScale = Vector3.one;
 
             DisableLegacyVideoCoverSurfaces(root);
-            EnsureQuadDecor(root, "HtmlVisual_VideoTopLine", new Vector2(1.10f, 0.020f), new Vector3(0f, 0.548f, -0.018f), WithAlpha(Jade, 0.92f));
-            EnsureQuadDecor(root, "HtmlVisual_VideoBottomLine", new Vector2(1.10f, 0.016f), new Vector3(0f, -0.548f, -0.018f), WithAlpha(GoldStroke, 0.86f));
-            EnsureQuadDecor(root, "HtmlVisual_VideoLeftLine", new Vector2(0.018f, 1.08f), new Vector3(-0.548f, 0f, -0.018f), WithAlpha(GoldStroke, 0.86f));
-            EnsureQuadDecor(root, "HtmlVisual_VideoRightLine", new Vector2(0.018f, 1.08f), new Vector3(0.548f, 0f, -0.018f), WithAlpha(GoldStroke, 0.86f));
+            var hasClosedFrame = HasClosedVideoFrame(guide.videoQuad.transform);
+            if (hasClosedFrame)
+            {
+                SetQuadDecorVisible(root, "HtmlVisual_VideoTopLine", false);
+                SetQuadDecorVisible(root, "HtmlVisual_VideoBottomLine", false);
+                SetQuadDecorVisible(root, "HtmlVisual_VideoLeftLine", false);
+                SetQuadDecorVisible(root, "HtmlVisual_VideoRightLine", false);
+            }
+            else
+            {
+                EnsureQuadDecor(root, "HtmlVisual_VideoTopLine", new Vector2(1.10f, 0.020f), new Vector3(0f, 0.548f, -0.018f), WithAlpha(Jade, 0.92f));
+                EnsureQuadDecor(root, "HtmlVisual_VideoBottomLine", new Vector2(1.10f, 0.016f), new Vector3(0f, -0.548f, -0.018f), WithAlpha(GoldStroke, 0.86f));
+                EnsureQuadDecor(root, "HtmlVisual_VideoLeftLine", new Vector2(0.018f, 1.08f), new Vector3(-0.548f, 0f, -0.018f), WithAlpha(GoldStroke, 0.86f));
+                EnsureQuadDecor(root, "HtmlVisual_VideoRightLine", new Vector2(0.018f, 1.08f), new Vector3(0.548f, 0f, -0.018f), WithAlpha(GoldStroke, 0.86f));
+            }
             EnsureQuadDecor(root, "HtmlVisual_VideoTopPill", new Vector2(0.48f, 0.062f), new Vector3(0f, 0.605f, -0.018f), WithAlpha(CardNormal, 0.98f));
             EnsureQuadDecor(root, "HtmlVisual_VideoBottomPill", new Vector2(0.66f, 0.054f), new Vector3(0f, -0.605f, -0.018f), WithAlpha(RiceMid, 0.98f));
             EnsureWorldText(root, "HtmlVisual_VideoTitle", "\u52a8\u4f5c\u793a\u8303", new Vector3(0f, 0.605f, -0.022f), new Vector2(0.46f, 0.07f), 0.07f, FontStyles.Bold, TextPrimary);
@@ -681,6 +740,24 @@ namespace PicoElderCare.Rehab
 
                 var accent = child.name.IndexOf("Top", System.StringComparison.OrdinalIgnoreCase) >= 0;
                 renderer.sharedMaterial = GetVideoDecorMaterial(accent ? WithAlpha(Jade, 0.90f) : WithAlpha(GoldStroke, 0.92f));
+            }
+        }
+
+        private static bool HasClosedVideoFrame(Transform videoQuad)
+        {
+            if (videoQuad == null || videoQuad.parent == null) return false;
+
+            var frame = videoQuad.parent.Find("VideoClosedFrame");
+            return frame != null && frame.gameObject.activeSelf;
+        }
+
+        private static void SetQuadDecorVisible(Transform root, string name, bool visible)
+        {
+            var child = root != null ? root.Find(name) : null;
+            var renderer = child != null ? child.GetComponent<Renderer>() : null;
+            if (renderer != null)
+            {
+                renderer.enabled = visible;
             }
         }
 
@@ -981,6 +1058,7 @@ namespace PicoElderCare.Rehab
             label.enableWordWrapping = true;
             label.overflowMode = TextOverflowModes.Ellipsis;
             label.raycastTarget = false;
+            ConfigureTextFitting(label, Mathf.Max(11f, fontSize * 0.72f), fontSize, true, new Vector4(4f, 2f, 4f, 2f));
             return label;
         }
 
@@ -1019,6 +1097,7 @@ namespace PicoElderCare.Rehab
             label.enableWordWrapping = false;
             label.overflowMode = TextOverflowModes.Ellipsis;
             label.rectTransform.sizeDelta = size;
+            ConfigureTextFitting(label, Mathf.Max(0.025f, fontSize * 0.72f), fontSize, false, Vector4.zero);
             return label;
         }
 
@@ -1256,6 +1335,16 @@ namespace PicoElderCare.Rehab
             }
         }
 
+        private static void HideLegacyGraphic(Transform root, string name)
+        {
+            var target = FindChildRecursive(root, name);
+            var graphic = target != null ? target.GetComponent<Graphic>() : null;
+            if (graphic == null) return;
+
+            graphic.color = Color.clear;
+            graphic.raycastTarget = false;
+        }
+
         private static void StyleButtonLabel(Button button, string text, float fontSize, Color color, FontStyles style, TextAlignmentOptions alignment, Vector4 margin)
         {
             var label = FindPrimaryButtonLabel(button);
@@ -1270,6 +1359,7 @@ namespace PicoElderCare.Rehab
             label.enableWordWrapping = false;
             label.overflowMode = TextOverflowModes.Ellipsis;
             label.raycastTarget = false;
+            ConfigureTextFitting(label, Mathf.Max(12f, fontSize * 0.72f), fontSize, false, margin);
         }
 
         private static void StyleExistingButtonLabelOnly(Button button, float fontSize, Color color, FontStyles style)
@@ -1286,6 +1376,7 @@ namespace PicoElderCare.Rehab
             label.enableWordWrapping = false;
             label.overflowMode = TextOverflowModes.Ellipsis;
             label.raycastTarget = false;
+            ConfigureTextFitting(label, Mathf.Max(12f, fontSize * 0.72f), fontSize, false, new Vector4(6f, 2f, 6f, 2f));
         }
 
         private static void StyleExistingText(TMP_Text label, float fontSize, FontStyles style, Color color, TextAlignmentOptions alignment)
@@ -1298,6 +1389,24 @@ namespace PicoElderCare.Rehab
             label.alignment = alignment;
             label.color = color;
             label.raycastTarget = false;
+            ConfigureTextFitting(label, Mathf.Max(12f, fontSize * 0.72f), fontSize, false, new Vector4(6f, 2f, 6f, 2f));
+        }
+
+        private static void ConfigureTextFitting(
+            TMP_Text label,
+            float minimumFontSize,
+            float maximumFontSize,
+            bool wordWrapping,
+            Vector4 margin)
+        {
+            if (label == null) return;
+
+            label.enableAutoSizing = true;
+            label.fontSizeMin = Mathf.Max(0.001f, minimumFontSize);
+            label.fontSizeMax = Mathf.Max(label.fontSizeMin, maximumFontSize);
+            label.enableWordWrapping = wordWrapping;
+            label.overflowMode = TextOverflowModes.Ellipsis;
+            label.margin = margin;
         }
 
         private static void ConfigureButtonLabelLayout(Button button, Vector2 size, Vector2 position)
