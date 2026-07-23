@@ -125,6 +125,7 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
     private bool _buttonsWired;
     private bool _hasStartedServing;
     private bool _forceFullPanel;
+    private bool _forceMiniPanel;
     private bool _layoutBuilt;
     private bool _standaloneDifficultyPanelsSuppressed;
     private float _nextRefreshTime;
@@ -237,12 +238,14 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
             ballSpawner.StopServing();
             ballSpawner.ClearBallsWithoutScoring();
             _forceFullPanel = true;
+            _forceMiniPanel = false;
         }
         else
         {
             ballSpawner.StartServing();
             _hasStartedServing = true;
             _forceFullPanel = false;
+            _forceMiniPanel = false;
         }
 
         RefreshDisplay();
@@ -258,18 +261,21 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
         }
 
         _forceFullPanel = false;
+        _forceMiniPanel = false;
         RefreshDisplay();
     }
 
     public void ExpandFullPanel()
     {
         _forceFullPanel = true;
+        _forceMiniPanel = false;
         SetPanelVisibility(_hasStartedServing);
     }
 
     public void CollapseToMiniPanel()
     {
         _forceFullPanel = false;
+        _forceMiniPanel = true;
         SetPanelVisibility(true);
     }
 
@@ -370,8 +376,8 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
         SetText(accuracyText, $"<size=160%><b>{ReadAccuracy():0}%</b></size>\n{AccuracyLabel}");
         SetText(speedText, $"{HitSpeedLabel}  <b>{ReadLastHitSpeed():0.0} m/s</b>");
         SetText(difficultyText, ResolveDifficultyLabel());
-        SetText(serveSpeedText, $"{ServeSpeedPrefix}\n<b>{ResolveServeSpeed():0.0} m/s</b>");
-        SetText(spinText, $"{SpinSpeedLabel}\n<b>{ResolveServeSpin():0} rad/s</b>");
+        SetText(serveSpeedText, FormatServeSpeedText());
+        SetText(spinText, FormatSpinSpeedText());
         SetText(miniHitText, $"<size=160%><b>{ReadHitCount()}</b></size>\n{HitLabel}");
         SetText(miniAccuracyText, $"<size=160%><b>{ReadAccuracy():0}%</b></size>\n{AccuracyLabel}");
         SetButtonLabel(servingToggleButton, serving ? PauseServingLabel : (_hasStartedServing ? ContinueServingLabel : ResumeServingLabel));
@@ -453,6 +459,16 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
         return ballSpawner != null ? ballSpawner.sidespinRadiansPerSecond : 0f;
     }
 
+    private string FormatServeSpeedText()
+    {
+        return $"{ServeSpeedPrefix}  <b>{ResolveServeSpeed():0.0} m/s</b>";
+    }
+
+    private string FormatSpinSpeedText()
+    {
+        return $"{SpinSpeedLabel}  <b>{ResolveServeSpin():0} rad/s</b>";
+    }
+
     private void RefreshDifficultyGears()
     {
         if (_difficultyGears == null) return;
@@ -482,7 +498,7 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
 
     private void SetPanelVisibility(bool compact)
     {
-        compact = compact && !_forceFullPanel;
+        compact = (compact || _forceMiniPanel) && !_forceFullPanel;
 
         if (_fullPanelGroup != null)
         {
@@ -601,8 +617,8 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
             _difficultyGears[i] = ConfigurePanel(GetOrCreateChild(panel, "Gear" + i), new Vector2(22f, 7f), new Vector2(-102f + (i - 2) * 28f, -40f), new Color(1f, 1f, 1f, 0.18f), 4f, false);
         }
 
-        serveSpeedText = CreateInlineInfoText(panel, "ServeSpeed", ServeSpeedPrefix, IconSpeed, new Vector2(160f, 20f), ElderCareUiTheme.Gold);
-        spinText = CreateInlineInfoText(panel, "SpinSpeed", SpinSpeedLabel, IconSpin, new Vector2(160f, -24f), ElderCareUiTheme.Gold);
+        serveSpeedText = CreateInlineInfoText(panel, "ServeSpeed", FormatServeSpeedText(), IconSpeed, new Vector2(160f, 20f), ElderCareUiTheme.Gold);
+        spinText = CreateInlineInfoText(panel, "SpinSpeed", FormatSpinSpeedText(), IconSpin, new Vector2(160f, -24f), ElderCareUiTheme.Gold);
         speedText = null;
     }
 
@@ -667,7 +683,12 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
     private TMP_Text CreateInlineInfoText(RectTransform parent, string name, string label, string iconResource, Vector2 position, Color accent)
     {
         ConfigureSvgIcon(GetOrCreateChild(parent, name + "Icon"), iconResource, new Vector2(18f, 18f), new Vector2(position.x - 88f, position.y), 0.94f);
-        return ConfigureText(GetOrCreateChild(parent, name + "Text"), label, new Vector2(170f, 32f), new Vector2(position.x + 10f, position.y), 17f, FontStyles.Bold, accent, TextAlignmentOptions.Left);
+        var text = ConfigureText(GetOrCreateChild(parent, name + "Text"), label, new Vector2(188f, 34f), new Vector2(position.x + 18f, position.y), 17f, FontStyles.Bold, accent, TextAlignmentOptions.Left);
+        text.enableWordWrapping = false;
+        text.fontSizeMin = 14f;
+        text.fontSizeMax = 17f;
+        text.margin = new Vector4(3f, 2f, 3f, 2f);
+        return text;
     }
 
     private TMP_Text ConfigureBadge(RectTransform parent, string name, string label, Vector2 size, Vector2 position, Color accent, string iconResource)
@@ -697,7 +718,7 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
         var image = handle.GetComponent<Image>();
         if (image == null) image = handle.AddComponent<Image>();
         image.raycastTarget = true;
-        image.color = new Color(0.35f, 0.75f, 0.9f, 0f);
+        image.color = WithAlpha(ElderCareUiTheme.Cyan, 0.045f);
 
         var drag = handle.GetComponent<WorldSpaceUiRayDragHandle>();
         if (drag == null) drag = handle.AddComponent<WorldSpaceUiRayDragHandle>();
@@ -706,7 +727,7 @@ public class PingPongUnifiedControlPanel : MonoBehaviour
         drag.headTransform = placer != null ? placer.headTransform : Camera.main != null ? Camera.main.transform : null;
         drag.handleGraphic = image;
         drag.normalColor = image.color;
-        drag.activeColor = new Color(0.68f, 1f, 1f, 0.18f);
+        drag.activeColor = WithAlpha(ElderCareUiTheme.Cyan, 0.085f);
         drag.minDistanceMeters = 0.9f;
         drag.maxDistanceMeters = 3.8f;
         drag.lockWorldHeight = true;
