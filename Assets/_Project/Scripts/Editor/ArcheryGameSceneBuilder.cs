@@ -321,35 +321,42 @@ public static class ArcheryGameSceneBuilder
         bowObject.transform.localPosition = new Vector3(0.2f, 1.2f, 0.4f);
         bowObject.transform.localRotation = Quaternion.identity;
 
+        // Keep the Bow root's forward axis aligned with the shot direction. The generated
+        // bow mesh was authored the other way around, so flip visuals without reversing aim.
+        var visualRoot = GetOrCreateChild("BowVisualRoot", bowObject.transform);
+        visualRoot.transform.localPosition = Vector3.zero;
+        visualRoot.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
+        visualRoot.transform.localScale = Vector3.one;
+
         var riserMaterial = CreateOrLoadMaterial("ArcheryBowRiser", new Color(0.42f, 0.28f, 0.16f));
         var limbMaterial = CreateOrLoadMaterial("ArcheryBowLimb", new Color(0.56f, 0.4f, 0.24f));
 
-        var riser = CreatePrimitiveChild("Riser", bowObject.transform, PrimitiveType.Cube,
+        var riser = CreatePrimitiveChild("Riser", visualRoot.transform, PrimitiveType.Cube,
             Vector3.zero, Vector3.zero, new Vector3(0.035f, 0.34f, 0.05f), riserMaterial);
         RemovePrimitiveCollider(riser);
 
-        var grip = CreatePrimitiveChild("Grip", bowObject.transform, PrimitiveType.Cube,
+        var grip = CreatePrimitiveChild("Grip", visualRoot.transform, PrimitiveType.Cube,
             new Vector3(0f, -0.02f, -0.008f), Vector3.zero, new Vector3(0.045f, 0.15f, 0.06f), riserMaterial);
         RemovePrimitiveCollider(grip);
 
-        var upperLimb = CreatePrimitiveChild("UpperLimb", bowObject.transform, PrimitiveType.Cube,
+        var upperLimb = CreatePrimitiveChild("UpperLimb", visualRoot.transform, PrimitiveType.Cube,
             new Vector3(0f, 0.32f, 0.02f), new Vector3(10f, 0f, 0f), new Vector3(0.028f, 0.46f, 0.02f), limbMaterial);
         RemovePrimitiveCollider(upperLimb);
-        var lowerLimb = CreatePrimitiveChild("LowerLimb", bowObject.transform, PrimitiveType.Cube,
+        var lowerLimb = CreatePrimitiveChild("LowerLimb", visualRoot.transform, PrimitiveType.Cube,
             new Vector3(0f, -0.32f, 0.02f), new Vector3(-10f, 0f, 0f), new Vector3(0.028f, 0.46f, 0.02f), limbMaterial);
         RemovePrimitiveCollider(lowerLimb);
 
-        var stringTop = GetOrCreateChild("StringTopAnchor", bowObject.transform);
+        var stringTop = GetOrCreateChild("StringTopAnchor", visualRoot.transform);
         stringTop.transform.localPosition = new Vector3(0f, 0.53f, 0.055f);
         stringTop.transform.localRotation = Quaternion.identity;
-        var stringBottom = GetOrCreateChild("StringBottomAnchor", bowObject.transform);
+        var stringBottom = GetOrCreateChild("StringBottomAnchor", visualRoot.transform);
         stringBottom.transform.localPosition = new Vector3(0f, -0.53f, 0.055f);
         stringBottom.transform.localRotation = Quaternion.identity;
-        var nockRest = GetOrCreateChild("NockRest", bowObject.transform);
+        var nockRest = GetOrCreateChild("NockRest", visualRoot.transform);
         nockRest.transform.localPosition = new Vector3(0f, 0f, 0.055f);
         nockRest.transform.localRotation = Quaternion.identity;
 
-        var stringObject = GetOrCreateChild("BowString", bowObject.transform);
+        var stringObject = GetOrCreateChild("BowString", visualRoot.transform);
         var stringLine = EnsureComponent<LineRenderer>(stringObject);
         if (stringLine != null)
         {
@@ -364,7 +371,7 @@ public static class ArcheryGameSceneBuilder
             stringLine.SetPosition(2, stringBottom.transform.position);
         }
 
-        var nockedArrow = GetOrCreateChild("NockedArrowVisual", bowObject.transform);
+        var nockedArrow = GetOrCreateChild("NockedArrowVisual", visualRoot.transform);
         nockedArrow.transform.localPosition = new Vector3(0f, 0f, 0.055f);
         nockedArrow.transform.localRotation = Quaternion.identity;
         BuildArrowVisualChildren(nockedArrow.transform);
@@ -412,6 +419,7 @@ public static class ArcheryGameSceneBuilder
             }
         }
 
+        EditorUtility.SetDirty(visualRoot);
         EditorUtility.SetDirty(bowObject);
         return bow;
     }
