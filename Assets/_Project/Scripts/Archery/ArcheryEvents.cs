@@ -68,19 +68,39 @@ public struct ArrowMissedInfo
     }
 }
 
+public struct ArcheryRoundResult
+{
+    public int totalScore;
+    public int arrowsPerRound;
+    public int stars;
+    public bool isNewBest;
+
+    public ArcheryRoundResult(int totalScore, int arrowsPerRound, int stars, bool isNewBest)
+    {
+        this.totalScore = totalScore;
+        this.arrowsPerRound = arrowsPerRound;
+        this.stars = stars;
+        this.isNewBest = isNewBest;
+    }
+}
+
 public static class ArcheryEvents
 {
+    public static event Action OnArrowNocked;
     public static event Action<float> OnDrawChanged;
     public static event Action<ArrowReleasedInfo> OnArrowReleased;
     public static event Action<ArrowHitInfo> OnArrowHit;
     public static event Action<ArrowMissedInfo> OnArrowMissed;
     public static event Action OnSessionStarted;
     public static event Action OnSessionFinished;
+    public static event Action<ArcheryRoundResult> OnRoundFinished;
 
+    public static void ArrowNocked() => OnArrowNocked?.Invoke();
     public static void DrawChanged(float draw01) => OnDrawChanged?.Invoke(draw01);
     public static void ArrowReleased(ArrowReleasedInfo info) => OnArrowReleased?.Invoke(info);
     public static void ArrowHit(ArrowHitInfo info) => OnArrowHit?.Invoke(info);
     public static void ArrowMissed(ArrowMissedInfo info) => OnArrowMissed?.Invoke(info);
     public static void SessionStarted() => OnSessionStarted?.Invoke();
     public static void SessionFinished() => OnSessionFinished?.Invoke();
+    public static void RoundFinished(ArcheryRoundResult result) => OnRoundFinished?.Invoke(result);
 }

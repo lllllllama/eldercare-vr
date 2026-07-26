@@ -7,7 +7,9 @@ public class BowController : MonoBehaviour
     [Header("双手柄绑定")]
     public Transform bowHandTransform;
     public Transform stringHandTransform;
+    public XRNode bowHandNode = XRNode.LeftHand;
     public XRNode stringHandNode = XRNode.RightHand;
+    public bool bowInLeftHand = true;
     public MonoBehaviour drawInputSourceBehaviour;
     public bool autoCreateDrawInputSource = true;
 
@@ -19,8 +21,11 @@ public class BowController : MonoBehaviour
     public Transform nockRest;
     public Transform stringTopAnchor;
     public Transform stringBottomAnchor;
+    public Transform upperLimbTransform;
+    public Transform lowerLimbTransform;
     public LineRenderer stringLine;
     public Transform nockedArrowVisual;
+    public float limbBendDegrees = ArcheryGeometry.BowLimbBendDegrees;
 
     [Header("拉弓参数")]
     public float restSeparationMeters = ArcheryGeometry.DrawRestSeparationMeters;
@@ -28,6 +33,7 @@ public class BowController : MonoBehaviour
     public float minFireDraw01 = ArcheryGeometry.MinFireDraw01;
     public float nockCatchRadiusMeters = ArcheryGeometry.NockCatchRadiusMeters;
     public bool requireNockProximity = true;
+    public float aimSmoothingSeconds = ArcheryGeometry.AimSmoothingSeconds;
 
     [Header("放箭参数")]
     public GameObject arrowTemplate;
@@ -36,11 +42,17 @@ public class BowController : MonoBehaviour
     public float maxLaunchSpeed = ArcheryGeometry.MaxLaunchSpeedMetersPerSecond;
     public bool firingEnabled = true;
 
+    [Header("适老辅助")]
+    public Transform aimAssistTarget;
+    public float aimAssistMaxDegrees;
+    public ArcheryTrajectoryHint trajectoryHint;
+    public bool showTrajectoryPreview = true;
+
     [Header("震动反馈")]
     public bool enableHaptics = true;
     public float drawHapticInterval01 = 0.08f;
-    public float releaseHapticAmplitude = 0.8f;
-    public float releaseHapticSeconds = 0.08f;
+    public float releaseHapticAmplitude = 0.85f;
+    public float releaseHapticSeconds = 0.09f;
 
     private readonly List<InputDevice> _hapticDevices = new List<InputDevice>();
     private IGripInputSource _drawInput;
@@ -48,6 +60,10 @@ public class BowController : MonoBehaviour
     private bool _gripWasPressed;
     private float _lastReportedDraw01;
     private float _lastHapticDraw01;
+    private Vector3 _smoothedAimDirection = Vector3.forward;
+    private Quaternion _upperLimbRestRotation;
+    private Quaternion _lowerLimbRestRotation;
+    private bool _limbRestRotationsCaptured;
     private ArcherySolver.DrawState _currentDraw;
 
     public bool IsDrawing => _isDrawing;
@@ -56,6 +72,7 @@ public class BowController : MonoBehaviour
     private void Awake()
     {
         ResolveDrawInputSource();
+        CaptureLimbRestRotations();
     }
 
     private void OnDisable()
@@ -93,9 +110,11 @@ public class BowController : MonoBehaviour
                 restSeparationMeters,
                 maxDrawLengthMeters,
                 minFireDraw01);
+            _currentDraw.aimDirection = SmoothAimDirection(_currentDraw.aimDirection);
 
             AimBowAlongDraw();
             UpdateDrawVisuals();
+            UpdateTrajectoryPreview();
             ReportDrawProgress();
 
             if (!gripPressed)
@@ -131,6 +150,40 @@ public class BowController : MonoBehaviour
         }
     }
 
+    public void SetAimAssist(Transform target, float maxCorrectionDegrees, bool showPreview)
+    {
+        aimAssistTarget = target;
+        aimAssistMaxDegrees = Mathf.Max(0f, maxCorrectionDegrees);
+        showTrajectoryPreview = showPreview;
+        if (!showPreview && trajectoryHint != null)
+        {
+            trajectoryHint.Hide();
+        }
+    }
+
+    public void SetBowInLeftHand(bool leftHanded)
+    {
+        if (bowInLeftHand == leftHanded) return;
+
+        SwapHands();
+    }
+
+    public void SwapHands()
+    {
+        CancelDraw();
+
+        var handTransform = bowHandTransform;
+        bowHandTransform = stringHandTransform;
+        stringHandTransform = handTransform;
+
+        var handNode = bowHandNode;
+        bowHandNode = stringHandNode;
+        stringHandNode = handNode;
+
+        bowInLeftHand = !bowInLeftHand;
+        ApplyStringHandNodeToInputSource();
+    }
+
     public void CancelDraw()
     {
         _isDrawing = false;
@@ -145,7 +198,10 @@ public class BowController : MonoBehaviour
         _isDrawing = true;
         _lastReportedDraw01 = 0f;
         _lastHapticDraw01 = 0f;
-        SendHaptic(0.25f, 0.04f);
+        _smoothedAimDirection = ComputeRawAimDirection();
+        ArcheryEvents.ArrowNocked();
+        SendHaptic(stringHandNode, 0.3f, 0.045f);
+        SendHaptic(bowHandNode, 0.18f, 0.035f);
     }
 
     private void Fire()
@@ -154,18 +210,33 @@ public class BowController : MonoBehaviour
 
         var launchOrigin = ComputeNockPoint(_currentDraw);
         var velocity = ArcherySolver.ComputeReleaseVelocity(_currentDraw, minLaunchSpeed, maxLaunchSpeed);
+        velocity = ApplyAimAssist(launchOrigin, velocity);
+
         var arrow = SpawnArrow();
         if (arrow != null && velocity.sqrMagnitude > 0.001f)
         {
             arrow.Launch(launchOrigin, velocity);
             ArcheryEvents.ArrowReleased(new ArrowReleasedInfo(arrow.gameObject, launchOrigin, velocity, _currentDraw.draw01));
-            SendHaptic(releaseHapticAmplitude, releaseHapticSeconds);
+            SendHaptic(stringHandNode, releaseHapticAmplitude, releaseHapticSeconds);
+            SendHaptic(bowHandNode, releaseHapticAmplitude * 0.7f, releaseHapticSeconds);
         }
 
         _lastReportedDraw01 = 0f;
         _lastHapticDraw01 = 0f;
         ArcheryEvents.DrawChanged(0f);
         UpdateRestVisuals();
+    }
+
+    private Vector3 ApplyAimAssist(Vector3 origin, Vector3 velocity)
+    {
+        if (aimAssistTarget == null || aimAssistMaxDegrees <= 0f) return velocity;
+
+        return ArcherySolver.ComputeAssistedVelocity(
+            origin,
+            velocity,
+            aimAssistTarget.position,
+            aimAssistMaxDegrees,
+            ArcheryGeometry.ArrowGravityMetersPerSecondSquared);
     }
 
     private ArrowProjectile SpawnArrow()
@@ -203,6 +274,23 @@ public class BowController : MonoBehaviour
         transform.rotation = Quaternion.LookRotation(_currentDraw.aimDirection, up);
     }
 
+    private Vector3 ComputeRawAimDirection()
+    {
+        if (bowHandTransform == null || stringHandTransform == null) return transform.forward;
+
+        var offset = bowHandTransform.position - stringHandTransform.position;
+        return offset.sqrMagnitude > 0.000001f ? offset.normalized : transform.forward;
+    }
+
+    private Vector3 SmoothAimDirection(Vector3 rawAimDirection)
+    {
+        if (aimSmoothingSeconds <= 0.0001f) return rawAimDirection;
+
+        var blend = Time.deltaTime / (aimSmoothingSeconds + Time.deltaTime);
+        _smoothedAimDirection = Vector3.Slerp(_smoothedAimDirection, rawAimDirection, blend).normalized;
+        return _smoothedAimDirection;
+    }
+
     private bool IsStringHandNearNock()
     {
         if (!requireNockProximity) return true;
@@ -233,6 +321,7 @@ public class BowController : MonoBehaviour
     {
         var nockPoint = ComputeNockPoint(_currentDraw);
         UpdateStringLine(nockPoint);
+        ApplyLimbBend(_currentDraw.draw01);
 
         if (nockedArrowVisual != null)
         {
@@ -245,11 +334,59 @@ public class BowController : MonoBehaviour
     private void UpdateRestVisuals()
     {
         UpdateStringLine(GetStringRestPoint());
+        ApplyLimbBend(0f);
 
         if (nockedArrowVisual != null && nockedArrowVisual.gameObject.activeSelf)
         {
             nockedArrowVisual.gameObject.SetActive(false);
         }
+
+        if (trajectoryHint != null)
+        {
+            trajectoryHint.Hide();
+        }
+    }
+
+    private void UpdateTrajectoryPreview()
+    {
+        if (trajectoryHint == null) return;
+
+        if (!showTrajectoryPreview || _currentDraw.draw01 < 0.02f)
+        {
+            trajectoryHint.Hide();
+            return;
+        }
+
+        var origin = ComputeNockPoint(_currentDraw);
+        var velocity = _currentDraw.aimDirection *
+                       ArcherySolver.ComputeLaunchSpeed(_currentDraw.draw01, minLaunchSpeed, maxLaunchSpeed);
+        velocity = ApplyAimAssist(origin, velocity);
+        trajectoryHint.ShowPreview(origin, velocity);
+    }
+
+    private void ApplyLimbBend(float draw01)
+    {
+        if (!_limbRestRotationsCaptured) return;
+
+        var bend = limbBendDegrees * Mathf.Clamp01(draw01);
+        if (upperLimbTransform != null)
+        {
+            upperLimbTransform.localRotation = _upperLimbRestRotation * Quaternion.Euler(-bend, 0f, 0f);
+        }
+
+        if (lowerLimbTransform != null)
+        {
+            lowerLimbTransform.localRotation = _lowerLimbRestRotation * Quaternion.Euler(bend, 0f, 0f);
+        }
+    }
+
+    private void CaptureLimbRestRotations()
+    {
+        if (_limbRestRotationsCaptured) return;
+
+        _upperLimbRestRotation = upperLimbTransform != null ? upperLimbTransform.localRotation : Quaternion.identity;
+        _lowerLimbRestRotation = lowerLimbTransform != null ? lowerLimbTransform.localRotation : Quaternion.identity;
+        _limbRestRotationsCaptured = true;
     }
 
     private void UpdateStringLine(Vector3 nockPoint)
@@ -274,7 +411,8 @@ public class BowController : MonoBehaviour
         if (_currentDraw.draw01 - _lastHapticDraw01 >= drawHapticInterval01)
         {
             _lastHapticDraw01 = _currentDraw.draw01;
-            SendHaptic(0.12f + 0.35f * _currentDraw.draw01, 0.03f);
+            SendHaptic(stringHandNode, 0.12f + 0.38f * _currentDraw.draw01, 0.03f);
+            SendHaptic(bowHandNode, 0.06f + 0.2f * _currentDraw.draw01, 0.025f);
         }
     }
 
@@ -283,6 +421,7 @@ public class BowController : MonoBehaviour
         if (drawInputSourceBehaviour is IGripInputSource assigned)
         {
             _drawInput = assigned;
+            ApplyStringHandNodeToInputSource();
             return;
         }
 
@@ -299,11 +438,23 @@ public class BowController : MonoBehaviour
         _drawInput = created;
     }
 
-    private void SendHaptic(float amplitude, float seconds)
+    private void ApplyStringHandNodeToInputSource()
+    {
+        if (drawInputSourceBehaviour is PicoGripOrTriggerInputSource gripOrTrigger)
+        {
+            gripOrTrigger.controllerNode = stringHandNode;
+        }
+        else if (drawInputSourceBehaviour is PicoGripInputSource grip)
+        {
+            grip.controllerNode = stringHandNode;
+        }
+    }
+
+    private void SendHaptic(XRNode node, float amplitude, float seconds)
     {
         if (!enableHaptics) return;
 
-        InputDevices.GetDevicesAtXRNode(stringHandNode, _hapticDevices);
+        InputDevices.GetDevicesAtXRNode(node, _hapticDevices);
         foreach (var device in _hapticDevices)
         {
             if (device.TryGetHapticCapabilities(out var capabilities) && capabilities.supportsImpulse)

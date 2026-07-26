@@ -16,6 +16,7 @@ public class ArrowProjectile : MonoBehaviour
     private bool _inFlight;
     private float _flightSeconds;
     private float _stuckSeconds;
+    private TrailRenderer _trail;
 
     public bool InFlight => _inFlight;
     public Vector3 Velocity => _velocity;
@@ -29,6 +30,17 @@ public class ArrowProjectile : MonoBehaviour
         _stuckSeconds = 0f;
         AlignToVelocity();
         gameObject.SetActive(true);
+
+        if (_trail == null)
+        {
+            _trail = GetComponentInChildren<TrailRenderer>(true);
+        }
+
+        if (_trail != null)
+        {
+            _trail.Clear();
+            _trail.emitting = true;
+        }
     }
 
     private void FixedUpdate()
@@ -82,7 +94,10 @@ public class ArrowProjectile : MonoBehaviour
     private void HandleImpact(RaycastHit hit, Vector3 flightDirection)
     {
         _inFlight = false;
-        transform.rotation = Quaternion.LookRotation(flightDirection, Vector3.up);
+        StopTrail();
+        // 绕箭轴随机滚转一下，插靶后的尾羽姿态更自然。
+        transform.rotation = Quaternion.AngleAxis(Random.Range(0f, 360f), flightDirection) *
+                             Quaternion.LookRotation(flightDirection, Vector3.up);
         transform.position = hit.point + flightDirection * stickDepthMeters - flightDirection * arrowLengthMeters;
 
         var target = hit.collider != null ? hit.collider.GetComponentInParent<ArcheryTarget>() : null;
@@ -99,7 +114,16 @@ public class ArrowProjectile : MonoBehaviour
     private void FinishAsMiss(ArcheryMissReason reason)
     {
         _inFlight = false;
+        StopTrail();
         ArcheryEvents.ArrowMissed(new ArrowMissedInfo(gameObject, transform.position, reason));
+    }
+
+    private void StopTrail()
+    {
+        if (_trail != null)
+        {
+            _trail.emitting = false;
+        }
     }
 
     private void AlignToVelocity()

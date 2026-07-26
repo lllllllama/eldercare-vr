@@ -35,6 +35,17 @@ public static class ArcheryGeometry
     public const float MaxTargetCenterHeightMeters = 1.75f;
     public const float DefaultSeatedEyeHeightMeters = 1.2f;
 
+    // 适老辅助：防手抖平滑、限角度辅助瞄准、弹道预览
+    public const float AimSmoothingSeconds = 0.06f;
+    public const float AimAssistDefaultDegrees = 4f;
+    public const float AimAssistMaxAngleFromIdealDegrees = 30f;
+    public const float TrajectoryPreviewStepSeconds = 0.033f;
+    public const float TrajectoryPreviewMaxSeconds = 2.5f;
+    public const int TrajectoryPreviewPointCapacity = 60;
+
+    // 手感：弓臂弯曲与震动
+    public const float BowLimbBendDegrees = 14f;
+
     public static float TargetDistanceForDifficulty(ArcheryDifficulty difficulty)
     {
         switch (difficulty)

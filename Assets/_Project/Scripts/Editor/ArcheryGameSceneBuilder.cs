@@ -12,6 +12,7 @@ public static class ArcheryGameSceneBuilder
     private static readonly Color PanelBackgroundColor = new Color(0.05f, 0.08f, 0.14f, 0.96f);
     private static readonly Color ButtonColor = new Color(0.12f, 0.32f, 0.55f, 0.95f);
     private static readonly Color ButtonAccentColor = new Color(0.06f, 0.52f, 0.5f, 0.95f);
+    private static readonly Color ButtonSecondaryColor = new Color(0.2f, 0.26f, 0.4f, 0.95f);
 
     [MenuItem("Tools/PICO ElderCare/Build Archery Game Objects")]
     public static void BuildArcheryGameObjectsMenu()
@@ -42,7 +43,10 @@ public static class ArcheryGameSceneBuilder
         var target = BuildTargetRig(archeryRoot.transform, out var targetRig, out var targetHeightPivot);
         var arrowTemplate = BuildArrowTemplate(archeryRoot.transform);
         var arrowContainer = GetOrCreateChild("ArrowContainer", archeryRoot.transform).transform;
-        var bow = BuildBow(archeryRoot.transform, arrowTemplate, arrowContainer);
+        var trajectoryHint = BuildTrajectoryHint(archeryRoot.transform);
+        var bow = BuildBow(archeryRoot.transform, arrowTemplate, arrowContainer, trajectoryHint);
+        var goldParticles = BuildHitParticles(archeryRoot.transform, "GoldHitParticles", new Color(1f, 0.84f, 0.25f), 1.9f, 0.05f);
+        var dustParticles = BuildHitParticles(archeryRoot.transform, "HitDustParticles", new Color(0.92f, 0.86f, 0.7f), 0.9f, 0.035f);
         var panel = BuildScoreCanvas(archeryRoot.transform, menu);
 
         var managers = GetOrCreate("Managers");
@@ -58,10 +62,17 @@ public static class ArcheryGameSceneBuilder
         manager.headTransform = Camera.main != null ? Camera.main.transform : null;
         manager.arrowContainer = arrowContainer;
         manager.scorePanel = panel;
+        manager.goldHitParticles = goldParticles;
+        manager.hitDustParticles = dustParticles;
         manager.arrowsPerRound = 10;
         manager.difficulty = ArcheryDifficulty.Medium;
         manager.alignLaneToUserOnStart = true;
         manager.calibrateTargetHeightOnStart = true;
+        manager.spawnScorePopups = true;
+        manager.enableAimAssist = true;
+        manager.aimAssistDegrees = ArcheryGeometry.AimAssistDefaultDegrees;
+
+        BuildAudioManager(managers.transform, bow);
 
         if (panel != null)
         {
@@ -186,6 +197,7 @@ public static class ArcheryGameSceneBuilder
         template.transform.localRotation = Quaternion.identity;
 
         BuildArrowVisualChildren(template.transform);
+        BuildArrowTrail(template.transform);
 
         var projectile = EnsureComponent<ArrowProjectile>(template);
         if (projectile != null)
@@ -205,34 +217,87 @@ public static class ArcheryGameSceneBuilder
         return template;
     }
 
-    private static void BuildArrowVisualChildren(Transform arrowRoot)
+    private static void BuildArrowTrail(Transform arrowRoot)
     {
-        var shaft = CreatePrimitiveChild("Shaft", arrowRoot, PrimitiveType.Cylinder,
-            new Vector3(0f, 0f, ArcheryGeometry.ArrowLengthMeters * 0.5f), new Vector3(90f, 0f, 0f),
-            new Vector3(0.012f, ArcheryGeometry.ArrowLengthMeters * 0.5f - 0.01f, 0.012f),
-            CreateOrLoadMaterial("ArcheryArrowShaft", new Color(0.76f, 0.6f, 0.35f)));
-        RemovePrimitiveCollider(shaft);
+        var trailGo = GetOrCreateChild("Trail", arrowRoot);
+        trailGo.transform.localPosition = new Vector3(0f, 0f, ArcheryGeometry.ArrowLengthMeters * 0.5f);
+        trailGo.transform.localRotation = Quaternion.identity;
 
-        var tip = CreatePrimitiveChild("Tip", arrowRoot, PrimitiveType.Sphere,
-            new Vector3(0f, 0f, ArcheryGeometry.ArrowLengthMeters), Vector3.zero,
-            new Vector3(0.022f, 0.022f, 0.022f),
-            CreateOrLoadMaterial("ArcheryArrowTip", new Color(0.55f, 0.57f, 0.6f)));
-        RemovePrimitiveCollider(tip);
+        var trail = EnsureComponent<TrailRenderer>(trailGo);
+        if (trail == null) return;
 
-        var fletchMaterial = CreateOrLoadMaterial("ArcheryArrowFletch", new Color(0.85f, 0.22f, 0.2f));
-        var fletchVertical = CreatePrimitiveChild("Fletch_Vertical", arrowRoot, PrimitiveType.Cube,
-            new Vector3(0f, 0f, 0.07f), Vector3.zero, new Vector3(0.003f, 0.06f, 0.08f), fletchMaterial);
-        RemovePrimitiveCollider(fletchVertical);
-        var fletchHorizontal = CreatePrimitiveChild("Fletch_Horizontal", arrowRoot, PrimitiveType.Cube,
-            new Vector3(0f, 0f, 0.07f), new Vector3(0f, 0f, 90f), new Vector3(0.003f, 0.06f, 0.08f), fletchMaterial);
-        RemovePrimitiveCollider(fletchHorizontal);
+        trail.time = 0.22f;
+        trail.startWidth = 0.016f;
+        trail.endWidth = 0f;
+        trail.minVertexDistance = 0.04f;
+        trail.emitting = false;
+        trail.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+        trail.receiveShadows = false;
+        trail.sharedMaterial = CreateOrLoadLineMaterial("ArcheryArrowTrail", new Color(0.85f, 0.95f, 1f, 0.8f));
 
-        var nock = CreatePrimitiveChild("Nock", arrowRoot, PrimitiveType.Sphere,
-            Vector3.zero, Vector3.zero, new Vector3(0.016f, 0.016f, 0.016f), fletchMaterial);
-        RemovePrimitiveCollider(nock);
+        var gradient = new Gradient();
+        gradient.SetKeys(
+            new[]
+            {
+                new GradientColorKey(new Color(0.85f, 0.95f, 1f), 0f),
+                new GradientColorKey(new Color(0.85f, 0.95f, 1f), 1f)
+            },
+            new[]
+            {
+                new GradientAlphaKey(0.55f, 0f),
+                new GradientAlphaKey(0f, 1f)
+            });
+        trail.colorGradient = gradient;
     }
 
-    private static BowController BuildBow(Transform archeryRoot, GameObject arrowTemplate, Transform arrowContainer)
+    private static ArcheryTrajectoryHint BuildTrajectoryHint(Transform archeryRoot)
+    {
+        var hintGo = GetOrCreateChild("TrajectoryHint", archeryRoot);
+        hintGo.transform.localPosition = Vector3.zero;
+        hintGo.transform.localRotation = Quaternion.identity;
+
+        var line = EnsureComponent<LineRenderer>(hintGo);
+        if (line != null)
+        {
+            line.useWorldSpace = true;
+            line.positionCount = 0;
+            line.startWidth = 0.014f;
+            line.endWidth = 0.006f;
+            line.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            line.receiveShadows = false;
+            line.sharedMaterial = CreateOrLoadLineMaterial("ArcheryTrajectory", new Color(0.45f, 0.92f, 0.85f, 0.7f));
+
+            var gradient = new Gradient();
+            gradient.SetKeys(
+                new[]
+                {
+                    new GradientColorKey(new Color(0.45f, 0.92f, 0.85f), 0f),
+                    new GradientColorKey(new Color(0.45f, 0.92f, 0.85f), 1f)
+                },
+                new[]
+                {
+                    new GradientAlphaKey(0.65f, 0f),
+                    new GradientAlphaKey(0.05f, 1f)
+                });
+            line.colorGradient = gradient;
+            line.enabled = false;
+        }
+
+        var hint = EnsureComponent<ArcheryTrajectoryHint>(hintGo);
+        if (hint != null)
+        {
+            hint.line = line;
+            hint.gravityMetersPerSecondSquared = ArcheryGeometry.ArrowGravityMetersPerSecondSquared;
+            hint.linearDragPerSecond = ArcheryGeometry.ArrowLinearDragPerSecond;
+            hint.stepSeconds = ArcheryGeometry.TrajectoryPreviewStepSeconds;
+            hint.maxSeconds = ArcheryGeometry.TrajectoryPreviewMaxSeconds;
+        }
+
+        EditorUtility.SetDirty(hintGo);
+        return hint;
+    }
+
+    private static BowController BuildBow(Transform archeryRoot, GameObject arrowTemplate, Transform arrowContainer, ArcheryTrajectoryHint trajectoryHint)
     {
         var bowObject = GetOrCreateChild("Bow", archeryRoot);
         bowObject.transform.localPosition = new Vector3(0.2f, 1.2f, 0.4f);
@@ -275,7 +340,7 @@ public static class ArcheryGameSceneBuilder
             stringLine.widthMultiplier = 0.006f;
             stringLine.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             stringLine.receiveShadows = false;
-            stringLine.sharedMaterial = CreateOrLoadMaterial("ArcheryBowString", new Color(0.92f, 0.92f, 0.9f));
+            stringLine.sharedMaterial = CreateOrLoadLineMaterial("ArcheryBowString", new Color(0.92f, 0.92f, 0.9f, 1f));
             stringLine.SetPosition(0, stringTop.transform.position);
             stringLine.SetPosition(1, nockRest.transform.position);
             stringLine.SetPosition(2, stringBottom.transform.position);
@@ -287,26 +352,36 @@ public static class ArcheryGameSceneBuilder
         BuildArrowVisualChildren(nockedArrow.transform);
         nockedArrow.SetActive(false);
 
+        BuildBowAudioSources(bowObject.transform);
+
         var bow = EnsureComponent<BowController>(bowObject);
         if (bow != null)
         {
             bow.bowHandTransform = FindControllerTransform(false);
             bow.stringHandTransform = FindControllerTransform(true);
+            bow.bowHandNode = XRNode.LeftHand;
             bow.stringHandNode = XRNode.RightHand;
+            bow.bowInLeftHand = true;
             bow.autoCreateDrawInputSource = true;
             bow.nockRest = nockRest.transform;
             bow.stringTopAnchor = stringTop.transform;
             bow.stringBottomAnchor = stringBottom.transform;
+            bow.upperLimbTransform = upperLimb.transform;
+            bow.lowerLimbTransform = lowerLimb.transform;
+            bow.limbBendDegrees = ArcheryGeometry.BowLimbBendDegrees;
             bow.stringLine = stringLine;
             bow.nockedArrowVisual = nockedArrow.transform;
             bow.restSeparationMeters = ArcheryGeometry.DrawRestSeparationMeters;
             bow.maxDrawLengthMeters = ArcheryGeometry.MaxDrawLengthMeters;
             bow.minFireDraw01 = ArcheryGeometry.MinFireDraw01;
             bow.nockCatchRadiusMeters = ArcheryGeometry.NockCatchRadiusMeters;
+            bow.aimSmoothingSeconds = ArcheryGeometry.AimSmoothingSeconds;
             bow.arrowTemplate = arrowTemplate;
             bow.arrowContainer = arrowContainer;
             bow.minLaunchSpeed = ArcheryGeometry.MinLaunchSpeedMetersPerSecond;
             bow.maxLaunchSpeed = ArcheryGeometry.MaxLaunchSpeedMetersPerSecond;
+            bow.trajectoryHint = trajectoryHint;
+            bow.showTrajectoryPreview = true;
 
             if (bow.bowHandTransform == null)
             {
@@ -323,6 +398,135 @@ public static class ArcheryGameSceneBuilder
         return bow;
     }
 
+    private static void BuildArrowVisualChildren(Transform arrowRoot)
+    {
+        var shaft = CreatePrimitiveChild("Shaft", arrowRoot, PrimitiveType.Cylinder,
+            new Vector3(0f, 0f, ArcheryGeometry.ArrowLengthMeters * 0.5f), new Vector3(90f, 0f, 0f),
+            new Vector3(0.012f, ArcheryGeometry.ArrowLengthMeters * 0.5f - 0.01f, 0.012f),
+            CreateOrLoadMaterial("ArcheryArrowShaft", new Color(0.76f, 0.6f, 0.35f)));
+        RemovePrimitiveCollider(shaft);
+
+        var tip = CreatePrimitiveChild("Tip", arrowRoot, PrimitiveType.Sphere,
+            new Vector3(0f, 0f, ArcheryGeometry.ArrowLengthMeters), Vector3.zero,
+            new Vector3(0.022f, 0.022f, 0.022f),
+            CreateOrLoadMaterial("ArcheryArrowTip", new Color(0.55f, 0.57f, 0.6f)));
+        RemovePrimitiveCollider(tip);
+
+        var fletchMaterial = CreateOrLoadMaterial("ArcheryArrowFletch", new Color(0.85f, 0.22f, 0.2f));
+        var fletchVertical = CreatePrimitiveChild("Fletch_Vertical", arrowRoot, PrimitiveType.Cube,
+            new Vector3(0f, 0f, 0.07f), Vector3.zero, new Vector3(0.003f, 0.06f, 0.08f), fletchMaterial);
+        RemovePrimitiveCollider(fletchVertical);
+        var fletchHorizontal = CreatePrimitiveChild("Fletch_Horizontal", arrowRoot, PrimitiveType.Cube,
+            new Vector3(0f, 0f, 0.07f), new Vector3(0f, 0f, 90f), new Vector3(0.003f, 0.06f, 0.08f), fletchMaterial);
+        RemovePrimitiveCollider(fletchHorizontal);
+
+        var nock = CreatePrimitiveChild("Nock", arrowRoot, PrimitiveType.Sphere,
+            Vector3.zero, Vector3.zero, new Vector3(0.016f, 0.016f, 0.016f), fletchMaterial);
+        RemovePrimitiveCollider(nock);
+    }
+
+    private static void BuildBowAudioSources(Transform bowTransform)
+    {
+        ConfigureBowAudioSource(GetOrCreateChild("BowAudio_Main", bowTransform));
+        ConfigureBowAudioSource(GetOrCreateChild("BowAudio_Tick", bowTransform));
+    }
+
+    private static void ConfigureBowAudioSource(GameObject audioObject)
+    {
+        audioObject.transform.localPosition = Vector3.zero;
+        var source = EnsureComponent<AudioSource>(audioObject);
+        if (source == null) return;
+
+        source.playOnAwake = false;
+        source.loop = false;
+        source.spatialBlend = 1f;
+        source.minDistance = 0.6f;
+        source.maxDistance = 18f;
+        source.rolloffMode = AudioRolloffMode.Linear;
+        EditorUtility.SetDirty(audioObject);
+    }
+
+    private static void BuildAudioManager(Transform managers, BowController bow)
+    {
+        var audioObject = GetOrCreateChild("ArcheryAudioManager", managers);
+        var audioManager = EnsureComponent<ArcheryAudioManager>(audioObject);
+        if (audioManager == null) return;
+
+        var bowTransform = bow != null ? bow.transform : null;
+        audioManager.bowSource = FindChildComponent<AudioSource>(bowTransform, "BowAudio_Main");
+        audioManager.drawTickSource = FindChildComponent<AudioSource>(bowTransform, "BowAudio_Tick");
+        audioManager.volume = 0.85f;
+        audioManager.drawTickInterval01 = 0.08f;
+        EditorUtility.SetDirty(audioObject);
+    }
+
+    private static T FindChildComponent<T>(Transform parent, string childName) where T : Component
+    {
+        if (parent == null) return null;
+
+        var child = parent.Find(childName);
+        return child != null ? child.GetComponent<T>() : null;
+    }
+
+    private static ParticleSystem BuildHitParticles(Transform archeryRoot, string name, Color color, float speed, float size)
+    {
+        var particleGo = GetOrCreateChild(name, archeryRoot);
+        particleGo.transform.localPosition = new Vector3(0f, -5f, 0f);
+        particleGo.transform.localRotation = Quaternion.identity;
+
+        var particles = EnsureComponent<ParticleSystem>(particleGo);
+        if (particles == null) return null;
+
+        var main = particles.main;
+        main.playOnAwake = false;
+        main.loop = false;
+        main.startLifetime = 0.55f;
+        main.startSpeed = speed;
+        main.startSize = size;
+        main.startColor = color;
+        main.gravityModifier = 0.55f;
+        main.maxParticles = 256;
+        main.simulationSpace = ParticleSystemSimulationSpace.World;
+
+        var emission = particles.emission;
+        emission.enabled = true;
+        emission.rateOverTime = 0f;
+
+        var shape = particles.shape;
+        shape.enabled = true;
+        shape.shapeType = ParticleSystemShapeType.Sphere;
+        shape.radius = 0.045f;
+
+        var renderer = particleGo.GetComponent<ParticleSystemRenderer>();
+        if (renderer != null)
+        {
+            renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            renderer.receiveShadows = false;
+            renderer.sharedMaterial = LoadParticleMaterial();
+        }
+
+        EditorUtility.SetDirty(particleGo);
+        return particles;
+    }
+
+    private static Material LoadParticleMaterial()
+    {
+        foreach (var builtinName in new[] { "Default-Particle.mat", "Default-ParticleSystem.mat", "Sprites-Default.mat" })
+        {
+            try
+            {
+                var builtin = AssetDatabase.GetBuiltinExtraResource<Material>(builtinName);
+                if (builtin != null) return builtin;
+            }
+            catch (System.Exception)
+            {
+                // 某些 Unity 版本没有这个内置资源名，继续尝试下一个。
+            }
+        }
+
+        return CreateOrLoadLineMaterial("ArcheryParticleFallback", Color.white);
+    }
+
     private static ArcheryScorePanel BuildScoreCanvas(Transform archeryRoot, ElderCareHomeMenu menu)
     {
         var canvasGo = GetOrCreateChild("ArcheryScoreCanvas", archeryRoot);
@@ -333,38 +537,46 @@ public static class ArcheryGameSceneBuilder
         canvas.worldCamera = Camera.main;
         canvas.sortingOrder = 18;
 
-        var canvasRect = ConfigureRect(canvasGo, new Vector2(900f, 780f), Vector2.zero);
-        canvasGo.transform.localPosition = new Vector3(-1.35f, 1.45f, 2.1f);
+        var canvasRect = ConfigureRect(canvasGo, new Vector2(900f, 980f), Vector2.zero);
+        canvasGo.transform.localPosition = new Vector3(-1.4f, 1.5f, 2.1f);
         canvasGo.transform.localRotation = Quaternion.Euler(0f, -26f, 0f);
-        canvasGo.transform.localScale = Vector3.one * 0.0015f;
+        canvasGo.transform.localScale = Vector3.one * 0.0014f;
+
         EnsureComponent<GraphicRaycaster>(canvasGo);
         AddComponentIfTypeExists(canvasGo, "UnityEngine.XR.Interaction.Toolkit.UI.TrackedDeviceGraphicRaycaster, Unity.XR.Interaction.Toolkit");
         EnsureUiEventSystem();
 
-        CreateRoundedPanel(canvasRect, "Background", new Vector2(900f, 780f), Vector2.zero, PanelBackgroundColor, 36f);
-        CreateText(canvasRect, "Title", "射箭训练", new Vector2(0f, 320f), new Vector2(700f, 90f), 62, FontStyle.Bold, Color.white, TextAnchor.MiddleCenter);
-        CreateRoundedPanel(canvasRect, "TitleDivider", new Vector2(220f, 4f), new Vector2(0f, 262f), new Color(1f, 1f, 1f, 0.5f), 2f);
+        CreateRoundedPanel(canvasRect, "Background", new Vector2(900f, 980f), Vector2.zero, PanelBackgroundColor, 36f);
+        CreateText(canvasRect, "Title", "射箭训练", new Vector2(0f, 430f), new Vector2(700f, 84f), 58, FontStyle.Bold, Color.white, TextAnchor.MiddleCenter);
+        CreateRoundedPanel(canvasRect, "TitleDivider", new Vector2(220f, 4f), new Vector2(0f, 378f), new Color(1f, 1f, 1f, 0.5f), 2f);
 
-        CreateText(canvasRect, "ScoreLabel", "总分", new Vector2(-230f, 190f), new Vector2(280f, 70f), 40, FontStyle.Normal, new Color(1f, 1f, 1f, 0.78f), TextAnchor.MiddleCenter);
-        var scoreValue = CreateText(canvasRect, "ScoreValue", "0 分", new Vector2(140f, 190f), new Vector2(420f, 84f), 58, FontStyle.Bold, new Color(1f, 0.85f, 0.35f), TextAnchor.MiddleCenter);
+        CreateText(canvasRect, "ScoreLabel", "总分", new Vector2(-230f, 305f), new Vector2(280f, 70f), 38, FontStyle.Normal, new Color(1f, 1f, 1f, 0.78f), TextAnchor.MiddleCenter);
+        var scoreValue = CreateText(canvasRect, "ScoreValue", "0 分", new Vector2(140f, 305f), new Vector2(420f, 80f), 54, FontStyle.Bold, new Color(1f, 0.85f, 0.35f), TextAnchor.MiddleCenter);
 
-        CreateText(canvasRect, "ArrowsLabel", "剩余箭数", new Vector2(-230f, 105f), new Vector2(280f, 60f), 36, FontStyle.Normal, new Color(1f, 1f, 1f, 0.78f), TextAnchor.MiddleCenter);
-        var arrowsValue = CreateText(canvasRect, "ArrowsValue", "10 / 10", new Vector2(140f, 105f), new Vector2(420f, 64f), 44, FontStyle.Bold, Color.white, TextAnchor.MiddleCenter);
+        CreateText(canvasRect, "ArrowsLabel", "剩余箭数", new Vector2(-230f, 225f), new Vector2(280f, 60f), 34, FontStyle.Normal, new Color(1f, 1f, 1f, 0.78f), TextAnchor.MiddleCenter);
+        var arrowsValue = CreateText(canvasRect, "ArrowsValue", "10 / 10", new Vector2(140f, 225f), new Vector2(420f, 64f), 42, FontStyle.Bold, Color.white, TextAnchor.MiddleCenter);
 
-        CreateText(canvasRect, "LastHitLabel", "上一箭", new Vector2(-230f, 30f), new Vector2(280f, 60f), 36, FontStyle.Normal, new Color(1f, 1f, 1f, 0.78f), TextAnchor.MiddleCenter);
-        var lastHitValue = CreateText(canvasRect, "LastHitValue", "--", new Vector2(140f, 30f), new Vector2(420f, 64f), 44, FontStyle.Bold, Color.white, TextAnchor.MiddleCenter);
+        CreateText(canvasRect, "LastHitLabel", "上一箭", new Vector2(-230f, 150f), new Vector2(280f, 60f), 34, FontStyle.Normal, new Color(1f, 1f, 1f, 0.78f), TextAnchor.MiddleCenter);
+        var lastHitValue = CreateText(canvasRect, "LastHitValue", "--", new Vector2(140f, 150f), new Vector2(420f, 64f), 42, FontStyle.Bold, Color.white, TextAnchor.MiddleCenter);
 
-        CreateText(canvasRect, "DifficultyLabel", "目标距离", new Vector2(-230f, -45f), new Vector2(280f, 60f), 36, FontStyle.Normal, new Color(1f, 1f, 1f, 0.78f), TextAnchor.MiddleCenter);
-        var difficultyValue = CreateText(canvasRect, "DifficultyValue", "中距 6 米", new Vector2(140f, -45f), new Vector2(420f, 64f), 40, FontStyle.Bold, Color.white, TextAnchor.MiddleCenter);
+        CreateText(canvasRect, "BestLabel", "历史最佳", new Vector2(-230f, 75f), new Vector2(280f, 60f), 34, FontStyle.Normal, new Color(1f, 1f, 1f, 0.78f), TextAnchor.MiddleCenter);
+        var bestValue = CreateText(canvasRect, "BestValue", "--", new Vector2(140f, 75f), new Vector2(420f, 64f), 40, FontStyle.Bold, new Color(0.65f, 0.92f, 1f), TextAnchor.MiddleCenter);
 
-        var nearButton = CreateActionButton(canvasRect, "DifficultyNearButton", "近距", new Vector2(250f, 84f), new Vector2(-290f, -140f), ButtonColor);
-        var mediumButton = CreateActionButton(canvasRect, "DifficultyMediumButton", "中距", new Vector2(250f, 84f), new Vector2(0f, -140f), ButtonColor);
-        var farButton = CreateActionButton(canvasRect, "DifficultyFarButton", "远距", new Vector2(250f, 84f), new Vector2(290f, -140f), ButtonColor);
+        CreateText(canvasRect, "DifficultyLabel", "目标距离", new Vector2(-230f, 0f), new Vector2(280f, 60f), 34, FontStyle.Normal, new Color(1f, 1f, 1f, 0.78f), TextAnchor.MiddleCenter);
+        var difficultyValue = CreateText(canvasRect, "DifficultyValue", "中距 6 米", new Vector2(140f, 0f), new Vector2(420f, 64f), 38, FontStyle.Bold, Color.white, TextAnchor.MiddleCenter);
 
-        var restartButton = CreateActionButton(canvasRect, "RestartButton", "再来一轮", new Vector2(380f, 100f), new Vector2(-210f, -265f), ButtonAccentColor);
-        var homeButton = CreateActionButton(canvasRect, "HomeButton", "返回首页", new Vector2(380f, 100f), new Vector2(210f, -265f), new Color(0.34f, 0.22f, 0.5f, 0.95f));
+        var nearButton = CreateActionButton(canvasRect, "DifficultyNearButton", "近距", new Vector2(250f, 84f), new Vector2(-290f, -95f), ButtonColor, out _);
+        var mediumButton = CreateActionButton(canvasRect, "DifficultyMediumButton", "中距", new Vector2(250f, 84f), new Vector2(0f, -95f), ButtonColor, out _);
+        var farButton = CreateActionButton(canvasRect, "DifficultyFarButton", "远距", new Vector2(250f, 84f), new Vector2(290f, -95f), ButtonColor, out _);
 
-        var statusText = CreateText(canvasRect, "StatusText", "握紧右手手柄搭弦，向后拉再松开放箭", new Vector2(0f, -350f), new Vector2(820f, 60f), 30, FontStyle.Normal, new Color(1f, 1f, 1f, 0.66f), TextAnchor.MiddleCenter);
+        var assistButton = CreateActionButton(canvasRect, "AssistToggleButton", "辅助瞄准：开", new Vector2(280f, 84f), new Vector2(-300f, -200f), ButtonSecondaryColor, out var assistLabel);
+        var handednessButton = CreateActionButton(canvasRect, "HandednessButton", "持弓手：左手", new Vector2(280f, 84f), new Vector2(0f, -200f), ButtonSecondaryColor, out var handednessLabel);
+        var recenterButton = CreateActionButton(canvasRect, "RecenterButton", "重新对准", new Vector2(280f, 84f), new Vector2(300f, -200f), ButtonSecondaryColor, out _);
+
+        var restartButton = CreateActionButton(canvasRect, "RestartButton", "再来一轮", new Vector2(380f, 100f), new Vector2(-210f, -315f), ButtonAccentColor, out _);
+        var homeButton = CreateActionButton(canvasRect, "HomeButton", "返回首页", new Vector2(380f, 100f), new Vector2(210f, -315f), new Color(0.34f, 0.22f, 0.5f, 0.95f), out _);
+
+        var statusText = CreateText(canvasRect, "StatusText", "握紧右手手柄搭弦，向后拉再松开放箭", new Vector2(0f, -425f), new Vector2(840f, 60f), 30, FontStyle.Normal, new Color(1f, 1f, 1f, 0.66f), TextAnchor.MiddleCenter);
 
         var panel = EnsureComponent<ArcheryScorePanel>(canvasGo);
         if (panel != null)
@@ -374,20 +586,26 @@ public static class ArcheryGameSceneBuilder
             panel.scoreValueText = scoreValue;
             panel.arrowsValueText = arrowsValue;
             panel.lastHitValueText = lastHitValue;
+            panel.bestScoreValueText = bestValue;
             panel.difficultyValueText = difficultyValue;
             panel.statusText = statusText;
+            panel.assistButtonLabel = assistLabel;
+            panel.handednessButtonLabel = handednessLabel;
             panel.restartButton = restartButton;
             panel.homeButton = homeButton;
             panel.difficultyNearButton = nearButton;
             panel.difficultyMediumButton = mediumButton;
             panel.difficultyFarButton = farButton;
+            panel.assistToggleButton = assistButton;
+            panel.handednessButton = handednessButton;
+            panel.recenterButton = recenterButton;
         }
 
         EditorUtility.SetDirty(canvasGo);
         return panel;
     }
 
-    private static Button CreateActionButton(RectTransform parent, string name, string label, Vector2 size, Vector2 position, Color color)
+    private static Button CreateActionButton(RectTransform parent, string name, string label, Vector2 size, Vector2 position, Color color, out Text labelText)
     {
         var root = GetOrCreateChild(name, parent);
         var rootRect = ConfigureRect(root, size, position);
@@ -398,7 +616,7 @@ public static class ArcheryGameSceneBuilder
             panel.raycastTarget = true;
         }
 
-        CreateText(rootRect, "Label", label, Vector2.zero, new Vector2(size.x - 30f, size.y - 16f), Mathf.RoundToInt(size.y * 0.42f), FontStyle.Bold, Color.white, TextAnchor.MiddleCenter);
+        labelText = CreateText(rootRect, "Label", label, Vector2.zero, new Vector2(size.x - 30f, size.y - 16f), Mathf.RoundToInt(size.y * 0.4f), FontStyle.Bold, Color.white, TextAnchor.MiddleCenter);
 
         var button = EnsureComponent<Button>(root);
         if (button != null)
@@ -614,6 +832,30 @@ public static class ArcheryGameSceneBuilder
         {
             Debug.LogError($"Could not find a valid shader for material: {materialName}");
             return null;
+        }
+
+        material = new Material(shader);
+        material.color = color;
+        EnsureFolderPath(MaterialRoot);
+        AssetDatabase.CreateAsset(material, matPath);
+        return material;
+    }
+
+    private static Material CreateOrLoadLineMaterial(string materialName, Color color)
+    {
+        var matPath = $"{MaterialRoot}/{materialName}.mat";
+        var material = AssetDatabase.LoadAssetAtPath<Material>(matPath);
+        if (material != null) return material;
+
+        var shader =
+            Shader.Find("Sprites/Default") ??
+            Shader.Find("Universal Render Pipeline/Unlit") ??
+            Shader.Find("Unlit/Color") ??
+            Shader.Find("Legacy Shaders/Particles/Alpha Blended");
+
+        if (shader == null)
+        {
+            return CreateOrLoadMaterial(materialName, color);
         }
 
         material = new Material(shader);

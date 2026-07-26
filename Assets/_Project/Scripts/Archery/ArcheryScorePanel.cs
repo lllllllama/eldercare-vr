@@ -12,8 +12,11 @@ public class ArcheryScorePanel : MonoBehaviour
     public Text scoreValueText;
     public Text arrowsValueText;
     public Text lastHitValueText;
+    public Text bestScoreValueText;
     public Text difficultyValueText;
     public Text statusText;
+    public Text assistButtonLabel;
+    public Text handednessButtonLabel;
 
     [Header("按钮")]
     public Button restartButton;
@@ -21,6 +24,9 @@ public class ArcheryScorePanel : MonoBehaviour
     public Button difficultyNearButton;
     public Button difficultyMediumButton;
     public Button difficultyFarButton;
+    public Button assistToggleButton;
+    public Button handednessButton;
+    public Button recenterButton;
 
     private Font _runtimeFont;
 
@@ -36,6 +42,9 @@ public class ArcheryScorePanel : MonoBehaviour
         BindButton(difficultyNearButton, HandleNearClick);
         BindButton(difficultyMediumButton, HandleMediumClick);
         BindButton(difficultyFarButton, HandleFarClick);
+        BindButton(assistToggleButton, HandleAssistClick);
+        BindButton(handednessButton, HandleHandednessClick);
+        BindButton(recenterButton, HandleRecenterClick);
     }
 
     private void OnDisable()
@@ -45,6 +54,9 @@ public class ArcheryScorePanel : MonoBehaviour
         UnbindButton(difficultyNearButton, HandleNearClick);
         UnbindButton(difficultyMediumButton, HandleMediumClick);
         UnbindButton(difficultyFarButton, HandleFarClick);
+        UnbindButton(assistToggleButton, HandleAssistClick);
+        UnbindButton(handednessButton, HandleHandednessClick);
+        UnbindButton(recenterButton, HandleRecenterClick);
     }
 
     public void SetScore(int totalScore)
@@ -76,6 +88,30 @@ public class ArcheryScorePanel : MonoBehaviour
         if (difficultyValueText != null)
         {
             difficultyValueText.text = message;
+        }
+    }
+
+    public void SetBestScore(int bestScore)
+    {
+        if (bestScoreValueText != null)
+        {
+            bestScoreValueText.text = bestScore > 0 ? $"{bestScore} 分" : "--";
+        }
+    }
+
+    public void SetAssistLabel(string message)
+    {
+        if (assistButtonLabel != null)
+        {
+            assistButtonLabel.text = message;
+        }
+    }
+
+    public void SetHandednessLabel(string message)
+    {
+        if (handednessButtonLabel != null)
+        {
+            handednessButtonLabel.text = message;
         }
     }
 
@@ -124,6 +160,30 @@ public class ArcheryScorePanel : MonoBehaviour
         if (manager != null)
         {
             manager.SetDifficultyFar();
+        }
+    }
+
+    private void HandleAssistClick()
+    {
+        if (manager != null)
+        {
+            manager.ToggleAimAssist();
+        }
+    }
+
+    private void HandleHandednessClick()
+    {
+        if (manager != null)
+        {
+            manager.ToggleBowHand();
+        }
+    }
+
+    private void HandleRecenterClick()
+    {
+        if (manager != null)
+        {
+            manager.RecenterLane();
         }
     }
 

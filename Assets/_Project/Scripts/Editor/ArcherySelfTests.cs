@@ -20,6 +20,14 @@ public static class ArcherySelfTests
         TargetRegisterHitRaisesScoredEvent();
         HomeMenuArcheryModuleTogglesGameplayRoots();
         DifficultyDistancesAreOrdered();
+        AimAssistPullsShotTowardTargetCenter();
+        AimAssistIgnoresWildAim();
+        AimAssistZeroDegreesChangesNothing();
+        StarRatingMatchesScoreThresholds();
+        TrajectorySamplingFollowsGravity();
+        EncouragementCoversAllStarLevels();
+        SwapHandsSwapsRolesAndNodes();
+        AudioSynthCreatesPlayableClips();
         Debug.Log("Archery self tests passed.");
     }
 
@@ -265,6 +273,152 @@ public static class ArcherySelfTests
 
         AssertTrue(near < medium && medium < far, "Difficulty distances should increase from near to far.");
         AssertTrue(near >= 3f, "Even the near target should sit a comfortable distance away.");
+    }
+
+    private static void AimAssistPullsShotTowardTargetCenter()
+    {
+        var origin = new Vector3(0f, 1.2f, 0f);
+        var targetCenter = new Vector3(0f, 1.2f, 6f);
+        var offAim = (new Vector3(1f, 1.2f, 6f) - origin).normalized * 20f;
+
+        var idealDirection = ComputeIdealAssistDirection(origin, offAim.magnitude, targetCenter);
+        var before = Vector3.Angle(offAim.normalized, idealDirection);
+
+        var assisted = ArcherySolver.ComputeAssistedVelocity(
+            origin, offAim, targetCenter,
+            ArcheryGeometry.AimAssistDefaultDegrees,
+            ArcheryGeometry.ArrowGravityMetersPerSecondSquared);
+        var after = Vector3.Angle(assisted.normalized, idealDirection);
+
+        AssertTrue(after < before, "Aim assist should rotate the shot toward the drop-compensated target direction.");
+        AssertTrue(before - after <= ArcheryGeometry.AimAssistDefaultDegrees + 0.01f, "Aim assist correction should stay within the configured cap.");
+        AssertTrue(Mathf.Abs(assisted.magnitude - offAim.magnitude) < 0.001f, "Aim assist should not change the arrow speed.");
+    }
+
+    private static void AimAssistIgnoresWildAim()
+    {
+        var origin = new Vector3(0f, 1.2f, 0f);
+        var targetCenter = new Vector3(0f, 1.2f, 6f);
+        var wildAim = Vector3.back * 18f;
+
+        var assisted = ArcherySolver.ComputeAssistedVelocity(
+            origin, wildAim, targetCenter,
+            ArcheryGeometry.AimAssistDefaultDegrees,
+            ArcheryGeometry.ArrowGravityMetersPerSecondSquared);
+
+        AssertTrue(assisted == wildAim, "Aim assist should not hijack shots aimed far away from the target.");
+    }
+
+    private static void AimAssistZeroDegreesChangesNothing()
+    {
+        var origin = new Vector3(0f, 1.2f, 0f);
+        var velocity = new Vector3(0.4f, 0.1f, 18f);
+
+        var assisted = ArcherySolver.ComputeAssistedVelocity(
+            origin, velocity, new Vector3(0f, 1.2f, 6f), 0f,
+            ArcheryGeometry.ArrowGravityMetersPerSecondSquared);
+
+        AssertTrue(assisted == velocity, "Zero correction degrees should disable aim assist entirely.");
+    }
+
+    private static Vector3 ComputeIdealAssistDirection(Vector3 origin, float speed, Vector3 targetCenter)
+    {
+        var distance = (targetCenter - origin).magnitude;
+        var flightSeconds = distance / speed;
+        var drop = 0.5f * ArcheryGeometry.ArrowGravityMetersPerSecondSquared * flightSeconds * flightSeconds;
+        return (targetCenter + Vector3.up * drop - origin).normalized;
+    }
+
+    private static void StarRatingMatchesScoreThresholds()
+    {
+        AssertTrue(ArcherySolver.ComputeStarRating(100, 10, 10) == 5, "A perfect round should earn five stars.");
+        AssertTrue(ArcherySolver.ComputeStarRating(90, 10, 10) == 5, "Ninety percent should earn five stars.");
+        AssertTrue(ArcherySolver.ComputeStarRating(70, 10, 10) == 4, "Seventy percent should earn four stars.");
+        AssertTrue(ArcherySolver.ComputeStarRating(69, 10, 10) == 3, "Just under seventy percent should earn three stars.");
+        AssertTrue(ArcherySolver.ComputeStarRating(50, 10, 10) == 3, "Fifty percent should earn three stars.");
+        AssertTrue(ArcherySolver.ComputeStarRating(30, 10, 10) == 2, "Thirty percent should earn two stars.");
+        AssertTrue(ArcherySolver.ComputeStarRating(1, 10, 10) == 1, "Any score above zero should earn at least one star.");
+        AssertTrue(ArcherySolver.ComputeStarRating(0, 10, 10) == 0, "A zero-score round should earn zero stars.");
+    }
+
+    private static void TrajectorySamplingFollowsGravity()
+    {
+        var buffer = new Vector3[ArcheryGeometry.TrajectoryPreviewPointCapacity];
+        var count = ArcherySolver.SampleTrajectory(
+            new Vector3(0f, 1.5f, 0f),
+            Vector3.forward * 12f,
+            ArcheryGeometry.ArrowGravityMetersPerSecondSquared,
+            ArcheryGeometry.ArrowLinearDragPerSecond,
+            ArcheryGeometry.TrajectoryPreviewStepSeconds,
+            ArcheryGeometry.TrajectoryPreviewMaxSeconds,
+            buffer);
+
+        AssertTrue(count > 5, "Trajectory sampling should produce a usable preview arc.");
+        AssertTrue(buffer[count - 1].z > buffer[0].z, "Trajectory samples should move down-range.");
+        AssertTrue(buffer[count - 1].y < buffer[0].y, "Trajectory samples should sink under gravity.");
+    }
+
+    private static void EncouragementCoversAllStarLevels()
+    {
+        for (var stars = 0; stars <= 5; stars++)
+        {
+            AssertTrue(!string.IsNullOrEmpty(ArcheryGameManager.EncouragementForStars(stars)), $"Star level {stars} should have an encouragement message.");
+            AssertTrue(ArcheryGameManager.StarsText(stars).Length == 5, $"Star text for level {stars} should always render five glyphs.");
+        }
+    }
+
+    private static void SwapHandsSwapsRolesAndNodes()
+    {
+        var bowObject = new GameObject("ArcheryTestBow");
+        var leftHand = new GameObject("ArcheryTestLeftHand");
+        var rightHand = new GameObject("ArcheryTestRightHand");
+        try
+        {
+            var bow = bowObject.AddComponent<BowController>();
+            bow.bowHandTransform = leftHand.transform;
+            bow.stringHandTransform = rightHand.transform;
+            bow.bowHandNode = UnityEngine.XR.XRNode.LeftHand;
+            bow.stringHandNode = UnityEngine.XR.XRNode.RightHand;
+            bow.bowInLeftHand = true;
+
+            bow.SwapHands();
+            AssertTrue(bow.bowHandTransform == rightHand.transform, "Swapping hands should move the bow to the other hand.");
+            AssertTrue(bow.stringHandTransform == leftHand.transform, "Swapping hands should move the string hand to the other hand.");
+            AssertTrue(bow.stringHandNode == UnityEngine.XR.XRNode.LeftHand, "Swapping hands should swap the haptic/input nodes.");
+            AssertTrue(!bow.bowInLeftHand, "Swapping hands should flip the handedness flag.");
+
+            bow.SetBowInLeftHand(false);
+            AssertTrue(!bow.bowInLeftHand, "Setting the current handedness again should be a no-op.");
+
+            bow.SetBowInLeftHand(true);
+            AssertTrue(bow.bowInLeftHand && bow.bowHandTransform == leftHand.transform, "Setting handedness back should restore the original assignment.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(bowObject);
+            Object.DestroyImmediate(leftHand);
+            Object.DestroyImmediate(rightHand);
+        }
+    }
+
+    private static void AudioSynthCreatesPlayableClips()
+    {
+        var clips = new[]
+        {
+            ArcheryAudioSynth.CreateNockClick(),
+            ArcheryAudioSynth.CreateDrawTick(),
+            ArcheryAudioSynth.CreateReleaseTwang(),
+            ArcheryAudioSynth.CreateHitThud(),
+            ArcheryAudioSynth.CreateMissThud(),
+            ArcheryAudioSynth.CreateRingChime(440f, "ArcheryTestChime"),
+            ArcheryAudioSynth.CreateGoldFanfare(),
+            ArcheryAudioSynth.CreateRoundEndArpeggio()
+        };
+
+        foreach (var clip in clips)
+        {
+            AssertTrue(clip != null && clip.samples > 0 && clip.channels == 1, "Synthesized archery audio clips should be valid mono clips.");
+        }
     }
 
     private static void AssertTrue(bool condition, string message)

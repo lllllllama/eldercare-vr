@@ -110,6 +110,76 @@ public static class ArcherySolver
         return false;
     }
 
+    public static Vector3 ComputeAssistedVelocity(
+        Vector3 origin,
+        Vector3 velocity,
+        Vector3 targetCenter,
+        float maxCorrectionDegrees,
+        float gravityMetersPerSecondSquared)
+    {
+        var speed = velocity.magnitude;
+        if (speed < 0.01f || maxCorrectionDegrees <= 0f) return velocity;
+
+        var toTarget = targetCenter - origin;
+        var distance = toTarget.magnitude;
+        if (distance < 0.5f) return velocity;
+
+        // 用无阻力近似补偿重力下坠，得到指向“抬高后的瞄准点”的理想方向。
+        var flightSeconds = distance / speed;
+        var dropCompensation = 0.5f * gravityMetersPerSecondSquared * flightSeconds * flightSeconds;
+        var idealDirection = (targetCenter + Vector3.up * dropCompensation - origin).normalized;
+
+        var currentDirection = velocity / speed;
+        if (Vector3.Angle(currentDirection, idealDirection) > ArcheryGeometry.AimAssistMaxAngleFromIdealDegrees)
+        {
+            return velocity;
+        }
+
+        var assistedDirection = Vector3.RotateTowards(
+            currentDirection,
+            idealDirection,
+            maxCorrectionDegrees * Mathf.Deg2Rad,
+            0f);
+        return assistedDirection * speed;
+    }
+
+    public static int ComputeStarRating(int totalScore, int arrowsPerRound, int maxRingScore)
+    {
+        var maxScore = Mathf.Max(1, arrowsPerRound * maxRingScore);
+        var ratio = Mathf.Clamp01((float)totalScore / maxScore);
+        if (ratio >= 0.9f) return 5;
+        if (ratio >= 0.7f) return 4;
+        if (ratio >= 0.5f) return 3;
+        if (ratio >= 0.3f) return 2;
+        return totalScore > 0 ? 1 : 0;
+    }
+
+    public static int SampleTrajectory(
+        Vector3 origin,
+        Vector3 velocity,
+        float gravityMetersPerSecondSquared,
+        float linearDragPerSecond,
+        float stepSeconds,
+        float maxSeconds,
+        Vector3[] buffer)
+    {
+        if (buffer == null || buffer.Length == 0 || stepSeconds <= 0f) return 0;
+
+        var position = origin;
+        var count = 0;
+        var elapsed = 0f;
+        buffer[count++] = position;
+        while (count < buffer.Length && elapsed < maxSeconds)
+        {
+            SimulateArrowStep(ref position, ref velocity, gravityMetersPerSecondSquared, linearDragPerSecond, stepSeconds);
+            elapsed += stepSeconds;
+            buffer[count++] = position;
+            if (position.y < 0f) break;
+        }
+
+        return count;
+    }
+
     public static float ComputeTargetCenterHeight(float headHeightMeters)
     {
         var height = headHeightMeters > 0.05f
