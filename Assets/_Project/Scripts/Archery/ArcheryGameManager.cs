@@ -28,6 +28,10 @@ public class ArcheryGameManager : MonoBehaviour
     public bool calibrateTargetHeightOnStart = true;
     public bool spawnScorePopups = true;
 
+    [Header("启动重对准（独立场景）")]
+    public float startupRealignSeconds = 0.5f;
+    public int startupRealignFrames = 6;
+
     [Header("适老辅助")]
     public bool enableAimAssist = true;
     public float aimAssistDegrees = ArcheryGeometry.AimAssistDefaultDegrees;
@@ -52,11 +56,35 @@ public class ArcheryGameManager : MonoBehaviour
         if (autoStartSessionOnStart)
         {
             StartSession();
+            // 场景刚加载完的头显 pose 往往还没稳定跟踪，Start 里那次对齐
+            // 可能对着默认原点。启动后的短暂窗口内持续重对齐，直到跟踪稳定。
+            if (alignLaneToUserOnStart)
+            {
+                StartCoroutine(RealignLaneDuringStartup());
+            }
+
             return;
         }
 
         ApplySettingsToBow();
         UpdatePanel();
+    }
+
+    private System.Collections.IEnumerator RealignLaneDuringStartup()
+    {
+        var elapsedSeconds = 0f;
+        var elapsedFrames = 0;
+        while (elapsedSeconds < startupRealignSeconds || elapsedFrames < startupRealignFrames)
+        {
+            yield return null;
+            elapsedSeconds += Time.unscaledDeltaTime;
+            elapsedFrames++;
+
+            // 玩家一旦开始拉弓或已放箭，说明已经进入游玩，立即停止自动重对准。
+            if (_arrowsReleased > 0 || (bow != null && bow.IsDrawing)) yield break;
+
+            AlignLaneToUser();
+        }
     }
 
     private void OnEnable()

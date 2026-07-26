@@ -122,13 +122,19 @@
 
 适合 CI 或者本地冒烟验证。所有命令在项目根目录执行。
 
-**构建 MR 版本**
+**生成全部导航与训练场景（主导航 / 健康游戏选择 / 乒乓球 / 射箭 / 康复）**
+
+```powershell
+& 'C:\Program Files\Unity\Hub\Editor\2022.3.62f3\Editor\Unity.exe' -batchmode -quit -projectPath . -executeMethod RehabSceneBuilder.BuildUnifiedMvpScenes -logFile 'Logs\unity_unified_build.log'
+```
+
+**构建 MR 版本（仅乒乓球训练场景，不含射箭）**
 
 ```powershell
 & 'C:\Program Files\Unity\Hub\Editor\2022.3.62f3\Editor\Unity.exe' -batchmode -quit -projectPath . -executeMethod PingPongDemoSceneBuilder.BuildMixedRealityDemoScene -logFile 'Logs\unity_mr_build.log'
 ```
 
-**构建 VR 版本**
+**构建 VR 版本（仅乒乓球训练场景，不含射箭；射箭场景用 `ArcheryGameSceneBuilder.BuildArcheryTrainingScene`）**
 
 ```powershell
 & 'C:\Program Files\Unity\Hub\Editor\2022.3.62f3\Editor\Unity.exe' -batchmode -quit -projectPath . -executeMethod PingPongDemoSceneBuilder.BuildDemoScene -logFile 'Logs\unity_vr_build.log'

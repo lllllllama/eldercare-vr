@@ -20,6 +20,8 @@ public class BowController : MonoBehaviour
     public Transform headTransform;
     [Tooltip("At rest, keep Bow.forward pointing away from the user.")]
     public bool keepForwardAwayFromUserAtRest = true;
+    [Tooltip("Hysteresis band for the rest-pose 180° flip, as a dot-product threshold.")]
+    [Range(0f, 0.5f)] public float restFlipHysteresis = 0.2f;
 
     [Header("弓体部件")]
     public Transform nockRest;
@@ -61,6 +63,7 @@ public class BowController : MonoBehaviour
     private IGripInputSource _drawInput;
     private bool _isDrawing;
     private bool _gripWasPressed;
+    private bool _restFlipApplied;
     private float _lastReportedDraw01;
     private float _lastHapticDraw01;
     private Vector3 _smoothedAimDirection = Vector3.forward;
@@ -276,7 +279,23 @@ public class BowController : MonoBehaviour
                 if (towardUser.sqrMagnitude > 0.0001f)
                 {
                     var proposedForward = rotation * Vector3.forward;
-                    if (Vector3.Dot(proposedForward, towardUser.normalized) > 0f)
+                    var towardDot = Vector3.Dot(proposedForward, towardUser.normalized);
+
+                    // 带迟滞的翻转：手柄朝向与用户方向接近垂直时 dot 会在 0 附近
+                    // 来回穿越，无迟滞会导致弓在手里高频 180° 来回翻转闪烁。
+                    if (_restFlipApplied)
+                    {
+                        if (towardDot < -restFlipHysteresis)
+                        {
+                            _restFlipApplied = false;
+                        }
+                    }
+                    else if (towardDot > restFlipHysteresis)
+                    {
+                        _restFlipApplied = true;
+                    }
+
+                    if (_restFlipApplied)
                     {
                         rotation *= Quaternion.Euler(0f, 180f, 0f);
                     }

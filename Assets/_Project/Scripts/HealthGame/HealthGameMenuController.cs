@@ -29,7 +29,9 @@ namespace PicoElderCare.HealthGame
             LoadScene(mainEntrySceneName);
         }
 
-        private static void LoadScene(string sceneName)
+        private bool _sceneLoadStarted;
+
+        private void LoadScene(string sceneName)
         {
             if (string.IsNullOrWhiteSpace(sceneName))
             {
@@ -43,7 +45,12 @@ namespace PicoElderCare.HealthGame
                 return;
             }
 
-            SceneManager.LoadScene(sceneName);
+            // 异步加载避免 VR 里同步 LoadScene 的整帧冻结黑闪；
+            // 同时挡掉老年用户容易出现的按钮连点导致的重复加载。
+            if (_sceneLoadStarted) return;
+
+            _sceneLoadStarted = true;
+            SceneManager.LoadSceneAsync(sceneName);
         }
     }
 }
