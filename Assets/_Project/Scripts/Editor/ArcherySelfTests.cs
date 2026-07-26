@@ -30,8 +30,10 @@ public static class ArcherySelfTests
         TrajectorySamplingFollowsGravity();
         EncouragementCoversAllStarLevels();
         SwapHandsSwapsRolesAndNodes();
+        BowDirectionProtectionWorksAcrossHandModes();
         AudioSynthCreatesPlayableClips();
         ArrowHitMaskExcludesInvisibleAndBodyLayers();
+        StandaloneBowHierarchyUsesFunctionalStringRig();
         StandaloneSceneExcludesRoomSensingCollisions();
         Debug.Log("Archery self tests passed.");
     }
@@ -508,6 +510,146 @@ public static class ArcherySelfTests
         {
             EditorSceneManager.CloseScene(scene, true);
         }
+    }
+
+    private static void BowDirectionProtectionWorksAcrossHandModes()
+    {
+        var bowObject = new GameObject("ArcheryTestProtectedBow");
+        var leftHand = new GameObject("ArcheryTestProtectedLeftHand");
+        var rightHand = new GameObject("ArcheryTestProtectedRightHand");
+        var head = new GameObject("ArcheryTestHead");
+        try
+        {
+            leftHand.transform.rotation = Quaternion.LookRotation(Vector3.back, Vector3.up);
+            rightHand.transform.rotation = Quaternion.LookRotation(Vector3.back, Vector3.up);
+            head.transform.position = Vector3.back;
+
+            var bow = bowObject.AddComponent<BowController>();
+            bow.bowHandTransform = leftHand.transform;
+            bow.stringHandTransform = rightHand.transform;
+            bow.headTransform = head.transform;
+            bow.keepForwardAwayFromUserAtRest = true;
+
+            var followMethod = typeof(BowController).GetMethod("FollowBowHand", BindingFlags.NonPublic | BindingFlags.Instance);
+            AssertTrue(followMethod != null, "BowController should expose its private hand-follow routine for regression checks.");
+
+            followMethod.Invoke(bow, null);
+            AssertTrue(
+                Vector3.Dot(bow.transform.forward, head.transform.position - bow.transform.position) < 0f,
+                "A left-hand bow must keep Bow.forward away from the user at rest.");
+
+            bow.SwapHands();
+            followMethod.Invoke(bow, null);
+            AssertTrue(
+                Vector3.Dot(bow.transform.forward, head.transform.position - bow.transform.position) < 0f,
+                "A right-hand bow must keep the same local orientation convention at rest.");
+
+            var drawField = typeof(BowController).GetField("_currentDraw", BindingFlags.NonPublic | BindingFlags.Instance);
+            var aimMethod = typeof(BowController).GetMethod("AimBowAlongDraw", BindingFlags.NonPublic | BindingFlags.Instance);
+            AssertTrue(drawField != null && aimMethod != null, "BowController draw orientation members should remain available.");
+
+            drawField.SetValue(bow, new ArcherySolver.DrawState
+            {
+                aimDirection = Vector3.back,
+                drawLengthMeters = 0.2f,
+                draw01 = 0.5f,
+                canFire = true
+            });
+            aimMethod.Invoke(bow, null);
+
+            var protectedState = (ArcherySolver.DrawState)drawField.GetValue(bow);
+            AssertTrue(
+                Vector3.Dot(bow.transform.forward, head.transform.position - bow.transform.position) < 0f,
+                "Drawing must not rotate Bow.forward toward the user.");
+            AssertTrue(
+                Vector3.Dot(protectedState.aimDirection, head.transform.position - bow.transform.position) < 0f,
+                "The protected launch direction must not point toward the user.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(bowObject);
+            Object.DestroyImmediate(leftHand);
+            Object.DestroyImmediate(rightHand);
+            Object.DestroyImmediate(head);
+        }
+    }
+
+    private static void StandaloneBowHierarchyUsesFunctionalStringRig()
+    {
+        const string scenePath = "Assets/_Project/Scenes/03_ArcheryTraining.unity";
+        var scene = EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Additive);
+        try
+        {
+            BowController bow = null;
+            foreach (var root in scene.GetRootGameObjects())
+            {
+                if (bow == null) bow = root.GetComponentInChildren<BowController>(true);
+            }
+
+            AssertTrue(bow != null, "The standalone archery scene should contain a BowController.");
+            var bowTransform = bow.transform;
+            var visualRoot = bowTransform.Find("BowVisualRoot");
+            var stringRig = bowTransform.Find("BowStringRig");
+            AssertTrue(visualRoot != null, "Bow should contain BowVisualRoot.");
+            AssertTrue(stringRig != null, "Bow should contain BowStringRig.");
+            AssertTrue(Quaternion.Angle(stringRig.localRotation, Quaternion.identity) < 0.001f, "BowStringRig rotation must be identity.");
+            AssertTrue((stringRig.localScale - Vector3.one).sqrMagnitude < 0.000001f, "BowStringRig scale must be one.");
+
+            var functionalNames = new[]
+            {
+                "StringTopAnchor",
+                "StringBottomAnchor",
+                "NockRest",
+                "BowString",
+                "NockedArrowVisual"
+            };
+            foreach (var name in functionalNames)
+            {
+                var node = stringRig.Find(name);
+                AssertTrue(node != null && node.parent == stringRig, $"{name} must be a direct child of BowStringRig.");
+                AssertTrue(CountNamedDescendants(bowTransform, name) == 1, $"Bow must contain exactly one {name} node.");
+                AssertTrue(!node.IsChildOf(visualRoot), $"{name} must not inherit BowVisualRoot rotation.");
+            }
+
+            var visualNames = new[] { "Riser", "Grip", "UpperLimb", "LowerLimb" };
+            foreach (var name in visualNames)
+            {
+                var node = visualRoot.Find(name);
+                AssertTrue(node != null && node.parent == visualRoot, $"{name} must be a direct child of BowVisualRoot.");
+                AssertTrue(CountNamedDescendants(bowTransform, name) == 1, $"Bow must contain exactly one {name} node.");
+                AssertTrue(!node.IsChildOf(stringRig), $"{name} must not be part of BowStringRig.");
+            }
+
+            AssertTrue(bow.nockRest == stringRig.Find("NockRest"), "BowController.nockRest must reference BowStringRig/NockRest.");
+            AssertTrue(bow.stringTopAnchor == stringRig.Find("StringTopAnchor"), "BowController.stringTopAnchor must reference BowStringRig/StringTopAnchor.");
+            AssertTrue(bow.stringBottomAnchor == stringRig.Find("StringBottomAnchor"), "BowController.stringBottomAnchor must reference BowStringRig/StringBottomAnchor.");
+            AssertTrue(bow.stringLine != null && bow.stringLine.transform == stringRig.Find("BowString"), "BowController.stringLine must reference BowStringRig/BowString.");
+            AssertTrue(bow.nockedArrowVisual == stringRig.Find("NockedArrowVisual"), "BowController.nockedArrowVisual must reference BowStringRig/NockedArrowVisual.");
+            AssertTrue(bow.upperLimbTransform == visualRoot.Find("UpperLimb"), "BowController.upperLimbTransform must reference BowVisualRoot/UpperLimb.");
+            AssertTrue(bow.lowerLimbTransform == visualRoot.Find("LowerLimb"), "BowController.lowerLimbTransform must reference BowVisualRoot/LowerLimb.");
+
+            AssertTrue(bow.nockRest.localPosition.z < 0f, "NockRest must be on Bow local -Z.");
+            AssertTrue(bow.stringTopAnchor.localPosition.z < 0f, "StringTopAnchor must be on Bow local -Z.");
+            AssertTrue(bow.stringBottomAnchor.localPosition.z < 0f, "StringBottomAnchor must be on Bow local -Z.");
+            AssertTrue(
+                Vector3.Dot(bow.nockedArrowVisual.forward, bowTransform.forward) > 0.999f,
+                "NockedArrowVisual must extend along Bow local +Z.");
+        }
+        finally
+        {
+            EditorSceneManager.CloseScene(scene, true);
+        }
+    }
+
+    private static int CountNamedDescendants(Transform root, string name)
+    {
+        var count = 0;
+        foreach (var candidate in root.GetComponentsInChildren<Transform>(true))
+        {
+            if (candidate != root && candidate.name == name) count++;
+        }
+
+        return count;
     }
 
     private static void AssertTrue(bool condition, string message)

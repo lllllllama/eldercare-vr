@@ -16,6 +16,11 @@ public class BowController : MonoBehaviour
     public Vector3 bowHandPositionOffset = Vector3.zero;
     public Vector3 bowHandRotationOffsetEuler = Vector3.zero;
 
+    [Header("Orientation")]
+    public Transform headTransform;
+    [Tooltip("At rest, keep Bow.forward pointing away from the user.")]
+    public bool keepForwardAwayFromUserAtRest = true;
+
     [Header("弓体部件")]
     public Transform nockRest;
     public Transform stringTopAnchor;
@@ -71,6 +76,11 @@ public class BowController : MonoBehaviour
     {
         ResolveDrawInputSource();
         CaptureLimbRestRotations();
+    }
+
+    private void Start()
+    {
+        ValidateBowOrientation();
     }
 
     private void OnDisable()
@@ -257,7 +267,23 @@ public class BowController : MonoBehaviour
         transform.position = bowHandTransform.TransformPoint(bowHandPositionOffset);
         if (!_isDrawing)
         {
-            transform.rotation = bowHandTransform.rotation * Quaternion.Euler(bowHandRotationOffsetEuler);
+            var rotation = bowHandTransform.rotation * Quaternion.Euler(bowHandRotationOffsetEuler);
+            var head = ResolveHeadTransform();
+
+            if (keepForwardAwayFromUserAtRest && head != null)
+            {
+                var towardUser = head.position - transform.position;
+                if (towardUser.sqrMagnitude > 0.0001f)
+                {
+                    var proposedForward = rotation * Vector3.forward;
+                    if (Vector3.Dot(proposedForward, towardUser.normalized) > 0f)
+                    {
+                        rotation *= Quaternion.Euler(0f, 180f, 0f);
+                    }
+                }
+            }
+
+            transform.rotation = rotation;
         }
     }
 
@@ -265,13 +291,68 @@ public class BowController : MonoBehaviour
     {
         if (bowHandTransform == null) return;
 
+        var aimDirection = _currentDraw.aimDirection;
+        var head = ResolveHeadTransform();
+        if (head != null)
+        {
+            var towardUser = head.position - transform.position;
+            if (towardUser.sqrMagnitude > 0.0001f &&
+                Vector3.Dot(aimDirection, towardUser.normalized) > 0f)
+            {
+                aimDirection = -aimDirection;
+            }
+        }
+
+        // Fire(), the trajectory preview and the nocked-arrow visual all consume this
+        // state, so keep the protected direction as the single launch direction.
+        _currentDraw.aimDirection = aimDirection;
+
         var up = bowHandTransform.up;
-        if (Mathf.Abs(Vector3.Dot(up.normalized, _currentDraw.aimDirection)) > 0.98f)
+        if (Mathf.Abs(Vector3.Dot(up.normalized, aimDirection)) > 0.98f)
         {
             up = Vector3.up;
         }
 
-        transform.rotation = Quaternion.LookRotation(_currentDraw.aimDirection, up);
+        transform.rotation = Quaternion.LookRotation(aimDirection, up);
+    }
+
+    private Transform ResolveHeadTransform()
+    {
+        if (headTransform != null)
+        {
+            return headTransform;
+        }
+
+        if (Camera.main != null)
+        {
+            headTransform = Camera.main.transform;
+        }
+
+        return headTransform;
+    }
+
+    [ContextMenu("Validate Bow Orientation")]
+    private void ValidateBowOrientation()
+    {
+        if (nockRest != null)
+        {
+            var stringSide = Vector3.Dot(nockRest.position - transform.position, transform.forward);
+            if (stringSide >= 0f)
+            {
+                Debug.LogWarning(
+                    "Bow string is on the target-facing side. NockRest must be located on Bow local -Z.",
+                    this);
+            }
+        }
+
+        var head = ResolveHeadTransform();
+        if (head == null) return;
+
+        var userSide = Vector3.Dot(head.position - transform.position, transform.forward);
+        if (userSide >= 0f)
+        {
+            Debug.LogWarning("Bow.forward is pointing toward the user.", this);
+        }
     }
 
     private Vector3 ComputeRawAimDirection()

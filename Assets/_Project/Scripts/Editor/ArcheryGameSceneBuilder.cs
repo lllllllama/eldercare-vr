@@ -10,6 +10,7 @@ public static class ArcheryGameSceneBuilder
     private const string ArcheryTrainingScenePath = "Assets/_Project/Scenes/03_ArcheryTraining.unity";
     private const string MaterialRoot = "Assets/_Project/Materials/Archery";
     private const string ElderCareUiFontPath = "Assets/_Project/Fonts/NotoSansCJKsc-Regular.otf";
+    private const float BowStringLocalZ = -0.055f;
 
     private static readonly Color PanelBackgroundColor = new Color(0.05f, 0.08f, 0.14f, 0.96f);
     private static readonly Color ButtonColor = new Color(0.12f, 0.32f, 0.55f, 0.95f);
@@ -30,6 +31,45 @@ public static class ArcheryGameSceneBuilder
         {
             EditorUtility.DisplayDialog("Archery", "独立射箭训练场景已生成。", "OK");
         }
+    }
+
+    [MenuItem("Tools/PICO ElderCare/Archery/Repair Bow Orientation")]
+    public static void RepairBowOrientation()
+    {
+        if (!EnsureEditMode()) return;
+        if (!Application.isBatchMode && !EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
+
+        var scene = EditorSceneManager.OpenScene(ArcheryTrainingScenePath, OpenSceneMode.Single);
+        var archeryRoot = FindTransformInScene(scene, "Archery");
+        if (archeryRoot == null)
+        {
+            Debug.LogError($"Could not repair the bow because 'Archery' was not found in {ArcheryTrainingScenePath}.");
+            return;
+        }
+
+        var arrowTemplate = FindDescendantByName(archeryRoot, "ArrowTemplate");
+        var arrowContainer = FindDescendantByName(archeryRoot, "ArrowContainer");
+        var trajectoryTransform = FindDescendantByName(archeryRoot, "TrajectoryHint");
+        var trajectoryHint = trajectoryTransform != null
+            ? trajectoryTransform.GetComponent<ArcheryTrajectoryHint>()
+            : null;
+
+        var bow = BuildBow(
+            archeryRoot,
+            arrowTemplate != null ? arrowTemplate.gameObject : null,
+            arrowContainer,
+            trajectoryHint);
+
+        if (bow == null)
+        {
+            Debug.LogError("Bow orientation repair failed because BowController could not be configured.");
+            return;
+        }
+
+        EditorSceneManager.MarkSceneDirty(scene);
+        EditorSceneManager.SaveScene(scene, ArcheryTrainingScenePath);
+        AssetDatabase.SaveAssets();
+        Debug.Log("Archery bow orientation repaired without rebuilding the rest of the scene.");
     }
 
     internal static void BuildArcheryTrainingSceneInternal()
@@ -321,12 +361,30 @@ public static class ArcheryGameSceneBuilder
         bowObject.transform.localPosition = new Vector3(0.2f, 1.2f, 0.4f);
         bowObject.transform.localRotation = Quaternion.identity;
 
-        // Keep the Bow root's forward axis aligned with the shot direction. The generated
-        // bow mesh was authored the other way around, so flip visuals without reversing aim.
-        var visualRoot = GetOrCreateChild("BowVisualRoot", bowObject.transform);
+        // Bow +Z is always the launch direction. Only the authored bow body needs the
+        // visual correction; string and nock references stay in Bow's functional space.
+        var visualRoot = GetOrCreateUniqueBowSection("BowVisualRoot", bowObject.transform);
         visualRoot.transform.localPosition = Vector3.zero;
         visualRoot.transform.localRotation = Quaternion.Euler(0f, 180f, 0f);
         visualRoot.transform.localScale = Vector3.one;
+
+        var stringRig = GetOrCreateUniqueBowSection("BowStringRig", bowObject.transform);
+        stringRig.transform.localPosition = Vector3.zero;
+        stringRig.transform.localRotation = Quaternion.identity;
+        stringRig.transform.localScale = Vector3.one;
+
+        // Migrate older generated hierarchies before creating or configuring anything.
+        // This makes the builder repeatable and prevents one functional node from living
+        // under both BowVisualRoot and BowStringRig.
+        MoveUniqueBowNode("Riser", bowObject.transform, visualRoot.transform);
+        MoveUniqueBowNode("Grip", bowObject.transform, visualRoot.transform);
+        MoveUniqueBowNode("UpperLimb", bowObject.transform, visualRoot.transform);
+        MoveUniqueBowNode("LowerLimb", bowObject.transform, visualRoot.transform);
+        MoveUniqueBowNode("StringTopAnchor", bowObject.transform, stringRig.transform);
+        MoveUniqueBowNode("StringBottomAnchor", bowObject.transform, stringRig.transform);
+        MoveUniqueBowNode("NockRest", bowObject.transform, stringRig.transform);
+        MoveUniqueBowNode("BowString", bowObject.transform, stringRig.transform);
+        MoveUniqueBowNode("NockedArrowVisual", bowObject.transform, stringRig.transform);
 
         var riserMaterial = CreateOrLoadMaterial("ArcheryBowRiser", new Color(0.42f, 0.28f, 0.16f));
         var limbMaterial = CreateOrLoadMaterial("ArcheryBowLimb", new Color(0.56f, 0.4f, 0.24f));
@@ -346,17 +404,23 @@ public static class ArcheryGameSceneBuilder
             new Vector3(0f, -0.32f, 0.02f), new Vector3(-10f, 0f, 0f), new Vector3(0.028f, 0.46f, 0.02f), limbMaterial);
         RemovePrimitiveCollider(lowerLimb);
 
-        var stringTop = GetOrCreateChild("StringTopAnchor", visualRoot.transform);
-        stringTop.transform.localPosition = new Vector3(0f, 0.53f, 0.055f);
+        var stringTop = GetOrCreateChild("StringTopAnchor", stringRig.transform);
+        stringTop.transform.localPosition = new Vector3(0f, 0.53f, BowStringLocalZ);
         stringTop.transform.localRotation = Quaternion.identity;
-        var stringBottom = GetOrCreateChild("StringBottomAnchor", visualRoot.transform);
-        stringBottom.transform.localPosition = new Vector3(0f, -0.53f, 0.055f);
+        stringTop.transform.localScale = Vector3.one;
+        var stringBottom = GetOrCreateChild("StringBottomAnchor", stringRig.transform);
+        stringBottom.transform.localPosition = new Vector3(0f, -0.53f, BowStringLocalZ);
         stringBottom.transform.localRotation = Quaternion.identity;
-        var nockRest = GetOrCreateChild("NockRest", visualRoot.transform);
-        nockRest.transform.localPosition = new Vector3(0f, 0f, 0.055f);
+        stringBottom.transform.localScale = Vector3.one;
+        var nockRest = GetOrCreateChild("NockRest", stringRig.transform);
+        nockRest.transform.localPosition = new Vector3(0f, 0f, BowStringLocalZ);
         nockRest.transform.localRotation = Quaternion.identity;
+        nockRest.transform.localScale = Vector3.one;
 
-        var stringObject = GetOrCreateChild("BowString", visualRoot.transform);
+        var stringObject = GetOrCreateChild("BowString", stringRig.transform);
+        stringObject.transform.localPosition = Vector3.zero;
+        stringObject.transform.localRotation = Quaternion.identity;
+        stringObject.transform.localScale = Vector3.one;
         var stringLine = EnsureComponent<LineRenderer>(stringObject);
         if (stringLine != null)
         {
@@ -371,9 +435,10 @@ public static class ArcheryGameSceneBuilder
             stringLine.SetPosition(2, stringBottom.transform.position);
         }
 
-        var nockedArrow = GetOrCreateChild("NockedArrowVisual", visualRoot.transform);
-        nockedArrow.transform.localPosition = new Vector3(0f, 0f, 0.055f);
+        var nockedArrow = GetOrCreateChild("NockedArrowVisual", stringRig.transform);
+        nockedArrow.transform.localPosition = new Vector3(0f, 0f, BowStringLocalZ);
         nockedArrow.transform.localRotation = Quaternion.identity;
+        nockedArrow.transform.localScale = Vector3.one;
         BuildArrowVisualChildren(nockedArrow.transform);
         nockedArrow.SetActive(false);
 
@@ -388,6 +453,8 @@ public static class ArcheryGameSceneBuilder
             bow.stringHandNode = XRNode.RightHand;
             bow.bowInLeftHand = true;
             bow.autoCreateDrawInputSource = true;
+            bow.headTransform = Camera.main != null ? Camera.main.transform : null;
+            bow.keepForwardAwayFromUserAtRest = true;
             bow.nockRest = nockRest.transform;
             bow.stringTopAnchor = stringTop.transform;
             bow.stringBottomAnchor = stringBottom.transform;
@@ -420,6 +487,7 @@ public static class ArcheryGameSceneBuilder
         }
 
         EditorUtility.SetDirty(visualRoot);
+        EditorUtility.SetDirty(stringRig);
         EditorUtility.SetDirty(bowObject);
         return bow;
     }
@@ -966,6 +1034,116 @@ public static class ArcheryGameSceneBuilder
         }
 
         return false;
+    }
+
+    private static Transform FindTransformInScene(UnityEngine.SceneManagement.Scene scene, string name)
+    {
+        foreach (var root in scene.GetRootGameObjects())
+        {
+            var match = FindDescendantByName(root.transform, name);
+            if (match != null) return match;
+        }
+
+        return null;
+    }
+
+    private static Transform FindDescendantByName(Transform root, string name)
+    {
+        if (root == null) return null;
+
+        foreach (var candidate in root.GetComponentsInChildren<Transform>(true))
+        {
+            if (candidate.name == name) return candidate;
+        }
+
+        return null;
+    }
+
+    private static GameObject GetOrCreateUniqueBowSection(string name, Transform bowRoot)
+    {
+        var matches = FindNamedBowDescendants(bowRoot, name);
+        Transform selected = null;
+        foreach (var match in matches)
+        {
+            if (match.parent == bowRoot)
+            {
+                selected = match;
+                break;
+            }
+        }
+
+        if (selected == null && matches.Count > 0)
+        {
+            selected = matches[0];
+        }
+
+        if (selected == null)
+        {
+            selected = new GameObject(name).transform;
+        }
+
+        selected.SetParent(bowRoot, false);
+        selected.name = name;
+
+        foreach (var duplicate in matches)
+        {
+            if (duplicate == null || duplicate == selected) continue;
+
+            while (duplicate.childCount > 0)
+            {
+                duplicate.GetChild(0).SetParent(selected, false);
+            }
+
+            Object.DestroyImmediate(duplicate.gameObject);
+        }
+
+        return selected.gameObject;
+    }
+
+    private static GameObject MoveUniqueBowNode(string name, Transform bowRoot, Transform targetParent)
+    {
+        var matches = FindNamedBowDescendants(bowRoot, name);
+        Transform selected = null;
+        foreach (var match in matches)
+        {
+            if (match.parent == targetParent)
+            {
+                selected = match;
+                break;
+            }
+        }
+
+        if (selected == null && matches.Count > 0)
+        {
+            selected = matches[0];
+        }
+
+        if (selected == null) return null;
+
+        selected.SetParent(targetParent, false);
+        foreach (var duplicate in matches)
+        {
+            if (duplicate == null || duplicate == selected) continue;
+            Object.DestroyImmediate(duplicate.gameObject);
+        }
+
+        return selected.gameObject;
+    }
+
+    private static System.Collections.Generic.List<Transform> FindNamedBowDescendants(Transform bowRoot, string name)
+    {
+        var matches = new System.Collections.Generic.List<Transform>();
+        if (bowRoot == null) return matches;
+
+        foreach (var candidate in bowRoot.GetComponentsInChildren<Transform>(true))
+        {
+            if (candidate != bowRoot && candidate.name == name)
+            {
+                matches.Add(candidate);
+            }
+        }
+
+        return matches;
     }
 
     private static GameObject GetOrCreate(string name, Transform parent = null)
