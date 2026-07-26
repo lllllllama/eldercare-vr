@@ -48,6 +48,9 @@ public class ElderCareHomeMenu : MonoBehaviour
         }
     }
 
+#if ENABLE_LEGACY_INPUT_MANAGER
+    // 项目 activeInputHandler 为 Input System-only 时旧版 Input API 会抛异常，
+    // 这个编辑器快捷键只在旧输入管线可用时编译。
     private void Update()
     {
         if (Input.GetKeyDown(KeyCode.Escape))
@@ -55,6 +58,7 @@ public class ElderCareHomeMenu : MonoBehaviour
             ShowHome();
         }
     }
+#endif
 
     public void SelectModule(string moduleId, string moduleTitle)
     {

@@ -95,7 +95,12 @@ public class MrBackgroundVisualSuppressor : MonoBehaviour
 
     private readonly List<Renderer> _knownRenderers = new List<Renderer>();
     private readonly List<Graphic> _knownGraphics = new List<Graphic>();
+    private readonly HashSet<Renderer> _knownRendererSet = new HashSet<Renderer>();
+    private readonly HashSet<Graphic> _knownGraphicSet = new HashSet<Graphic>();
     private readonly HashSet<Renderer> _loggedHiddenRenderers = new HashSet<Renderer>();
+    // 只缓存“确认受保护”的正向结论：即使保护组件之后被移除，最坏也是多显示，
+    // 不会把该显示的东西误隐藏；反向（未保护）永不缓存，保留运行期补挂保护的语义。
+    private readonly HashSet<Transform> _confirmedProtectedTransforms = new HashSet<Transform>();
     private float _nextScanTime;
     private float _enabledTime;
     private bool _keepVisibleTagAvailable = true;
@@ -146,6 +151,7 @@ public class MrBackgroundVisualSuppressor : MonoBehaviour
             var renderer = _knownRenderers[i];
             if (renderer == null)
             {
+                _knownRendererSet.Remove(renderer);
                 _knownRenderers.RemoveAt(i);
                 continue;
             }
@@ -173,6 +179,7 @@ public class MrBackgroundVisualSuppressor : MonoBehaviour
             var graphic = _knownGraphics[i];
             if (graphic == null)
             {
+                _knownGraphicSet.Remove(graphic);
                 _knownGraphics.RemoveAt(i);
                 continue;
             }
@@ -238,13 +245,13 @@ public class MrBackgroundVisualSuppressor : MonoBehaviour
 
     private void AddRendererCandidate(Renderer renderer)
     {
-        if (renderer == null || _knownRenderers.Contains(renderer)) return;
+        if (renderer == null || !_knownRendererSet.Add(renderer)) return;
         _knownRenderers.Add(renderer);
     }
 
     private void AddGraphicCandidate(Graphic graphic)
     {
-        if (graphic == null || _knownGraphics.Contains(graphic)) return;
+        if (graphic == null || !_knownGraphicSet.Add(graphic)) return;
         _knownGraphics.Add(graphic);
     }
 
@@ -336,6 +343,19 @@ public class MrBackgroundVisualSuppressor : MonoBehaviour
     private bool IsRendererProtected(Transform target)
     {
         if (target == null) return true;
+        if (_confirmedProtectedTransforms.Contains(target)) return true;
+
+        var isProtected = ComputeRendererProtected(target);
+        if (isProtected)
+        {
+            _confirmedProtectedTransforms.Add(target);
+        }
+
+        return isProtected;
+    }
+
+    private bool ComputeRendererProtected(Transform target)
+    {
         if (target.GetComponentInParent<MrKeepVisible>(true) != null) return true;
         if (target.GetComponentInParent<RehabVideoGuideController>(true) != null) return true;
         if (target.GetComponentInParent<RehabVideoPanelLayoutController>(true) != null) return true;

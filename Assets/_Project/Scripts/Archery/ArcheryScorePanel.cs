@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 public class ArcheryScorePanel : MonoBehaviour
@@ -6,6 +7,7 @@ public class ArcheryScorePanel : MonoBehaviour
     [Header("绑定")]
     public ArcheryGameManager manager;
     public ElderCareHomeMenu homeMenu;
+    public BowController bow;
     public Font uiFont;
 
     [Header("文本")]
@@ -29,10 +31,36 @@ public class ArcheryScorePanel : MonoBehaviour
     public Button recenterButton;
 
     private Font _runtimeFont;
+    private BaseRaycaster[] _raycasters;
+    private bool _raycastBlocked;
 
     private void Awake()
     {
+        // 必须禁用 Canvas 上所有 BaseRaycaster：实机 XR 点击走的是 XRI 的
+        // TrackedDeviceGraphicRaycaster，只禁 GraphicRaycaster 等于没防护。
+        _raycasters = GetComponents<BaseRaycaster>();
         ApplyReadableFont();
+    }
+
+    private void Update()
+    {
+        // 深拉弓时屏蔽面板射线点击：满弓松手时扳机释放若恰好扫过面板，会误触
+        // “返回首页”等按钮。阈值取 35% 拉距——坐姿双手搁腿点按钮时两手自然间距
+        // 折算约 22% 拉距，取 35% 保证正常点按钮不受影响；浅拉距下的误放箭
+        // 由按钮点击回调里的 CancelDrawBeforeUiAction 兜底。
+        var shouldBlock = bow != null && bow.IsDrawing && bow.CurrentDraw01 > 0.35f;
+        if (shouldBlock == _raycastBlocked) return;
+
+        _raycastBlocked = shouldBlock;
+        if (_raycasters == null) return;
+
+        foreach (var raycaster in _raycasters)
+        {
+            if (raycaster != null)
+            {
+                raycaster.enabled = !shouldBlock;
+            }
+        }
     }
 
     private void OnEnable()
@@ -125,6 +153,7 @@ public class ArcheryScorePanel : MonoBehaviour
 
     private void HandleRestartClick()
     {
+        CancelDrawBeforeUiAction();
         if (manager != null)
         {
             manager.RestartRound();
@@ -133,6 +162,7 @@ public class ArcheryScorePanel : MonoBehaviour
 
     private void HandleHomeClick()
     {
+        CancelDrawBeforeUiAction();
         if (homeMenu != null)
         {
             homeMenu.ShowHome();
@@ -141,6 +171,7 @@ public class ArcheryScorePanel : MonoBehaviour
 
     private void HandleNearClick()
     {
+        CancelDrawBeforeUiAction();
         if (manager != null)
         {
             manager.SetDifficultyNear();
@@ -149,6 +180,7 @@ public class ArcheryScorePanel : MonoBehaviour
 
     private void HandleMediumClick()
     {
+        CancelDrawBeforeUiAction();
         if (manager != null)
         {
             manager.SetDifficultyMedium();
@@ -157,6 +189,7 @@ public class ArcheryScorePanel : MonoBehaviour
 
     private void HandleFarClick()
     {
+        CancelDrawBeforeUiAction();
         if (manager != null)
         {
             manager.SetDifficultyFar();
@@ -165,6 +198,7 @@ public class ArcheryScorePanel : MonoBehaviour
 
     private void HandleAssistClick()
     {
+        CancelDrawBeforeUiAction();
         if (manager != null)
         {
             manager.ToggleAimAssist();
@@ -173,6 +207,7 @@ public class ArcheryScorePanel : MonoBehaviour
 
     private void HandleHandednessClick()
     {
+        CancelDrawBeforeUiAction();
         if (manager != null)
         {
             manager.ToggleBowHand();
@@ -181,9 +216,21 @@ public class ArcheryScorePanel : MonoBehaviour
 
     private void HandleRecenterClick()
     {
+        CancelDrawBeforeUiAction();
         if (manager != null)
         {
             manager.RecenterLane();
+        }
+    }
+
+    private void CancelDrawBeforeUiAction()
+    {
+        // 扳机既是 UI 点击键又是拉弓键：按钮点击发生在 Update 阶段，早于
+        // BowController.LateUpdate 的放箭判定。这里先取消搭弦，保证“点按钮”
+        // 永远不会在松开扳机的同一帧误射一支箭。
+        if (bow != null && bow.IsDrawing)
+        {
+            bow.CancelDraw();
         }
     }
 

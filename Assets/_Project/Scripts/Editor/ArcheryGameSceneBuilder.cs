@@ -71,6 +71,7 @@ public static class ArcheryGameSceneBuilder
         manager.spawnScorePopups = true;
         manager.enableAimAssist = true;
         manager.aimAssistDegrees = ArcheryGeometry.AimAssistDefaultDegrees;
+        manager.popupFont = AssetDatabase.LoadAssetAtPath<Font>(ElderCareUiFontPath);
 
         BuildAudioManager(managers.transform, bow);
 
@@ -78,6 +79,7 @@ public static class ArcheryGameSceneBuilder
         {
             panel.manager = manager;
             panel.homeMenu = menu;
+            panel.bow = bow;
             EditorUtility.SetDirty(panel.gameObject);
         }
 
@@ -511,20 +513,69 @@ public static class ArcheryGameSceneBuilder
 
     private static Material LoadParticleMaterial()
     {
-        foreach (var builtinName in new[] { "Default-Particle.mat", "Default-ParticleSystem.mat", "Sprites-Default.mat" })
+        // 不依赖内置资源名（各 Unity 版本不一致），自己生成软圆光斑贴图 + 内置管线粒子材质，
+        // 确保被打进包且粒子不是方块。
+        var matPath = $"{MaterialRoot}/ArcheryParticle.mat";
+        var material = AssetDatabase.LoadAssetAtPath<Material>(matPath);
+        if (material != null) return material;
+
+        var texture = CreateOrLoadSoftCircleTexture();
+        var shader =
+            Shader.Find("Legacy Shaders/Particles/Alpha Blended") ??
+            Shader.Find("Particles/Standard Unlit") ??
+            Shader.Find("Sprites/Default");
+        if (shader == null)
         {
-            try
+            return CreateOrLoadLineMaterial("ArcheryParticleFallback", Color.white);
+        }
+
+        material = new Material(shader);
+        if (texture != null)
+        {
+            material.mainTexture = texture;
+        }
+
+        EnsureFolderPath(MaterialRoot);
+        AssetDatabase.CreateAsset(material, matPath);
+        return material;
+    }
+
+    private static Texture2D CreateOrLoadSoftCircleTexture()
+    {
+        var texturePath = $"{MaterialRoot}/ArcherySoftParticle.png";
+        var existing = AssetDatabase.LoadAssetAtPath<Texture2D>(texturePath);
+        if (existing != null) return existing;
+
+        const int size = 64;
+        var texture = new Texture2D(size, size, TextureFormat.RGBA32, false);
+        var center = (size - 1) * 0.5f;
+        for (var y = 0; y < size; y++)
+        {
+            for (var x = 0; x < size; x++)
             {
-                var builtin = AssetDatabase.GetBuiltinExtraResource<Material>(builtinName);
-                if (builtin != null) return builtin;
-            }
-            catch (System.Exception)
-            {
-                // 某些 Unity 版本没有这个内置资源名，继续尝试下一个。
+                var radial = Mathf.Sqrt((x - center) * (x - center) + (y - center) * (y - center)) / center;
+                var alpha = Mathf.Clamp01(1f - radial);
+                alpha *= alpha;
+                texture.SetPixel(x, y, new Color(1f, 1f, 1f, alpha));
             }
         }
 
-        return CreateOrLoadLineMaterial("ArcheryParticleFallback", Color.white);
+        texture.Apply();
+        EnsureFolderPath(MaterialRoot);
+        System.IO.File.WriteAllBytes(texturePath, texture.EncodeToPNG());
+        Object.DestroyImmediate(texture);
+        AssetDatabase.ImportAsset(texturePath);
+
+        var importer = AssetImporter.GetAtPath(texturePath) as TextureImporter;
+        if (importer != null)
+        {
+            importer.alphaIsTransparency = true;
+            importer.mipmapEnabled = false;
+            importer.wrapMode = TextureWrapMode.Clamp;
+            importer.SaveAndReimport();
+        }
+
+        return AssetDatabase.LoadAssetAtPath<Texture2D>(texturePath);
     }
 
     private static ArcheryScorePanel BuildScoreCanvas(Transform archeryRoot, ElderCareHomeMenu menu)
@@ -635,8 +686,10 @@ public static class ArcheryGameSceneBuilder
 
     private static LayerMask BuildArrowHitLayerMask()
     {
+        // RoomSensing 是 MR 房间感知网格层：它的渲染体被透视背景抑制器隐藏，
+        // 碰撞体却还在——不剔除的话箭会撞上“隐形墙”凭空消失，MR 下基本不可玩。
         var mask = ~0;
-        foreach (var layerName in new[] { "Controller", "Racket", "PlayerBody", "TableSafetyZone" })
+        foreach (var layerName in new[] { "Controller", "Racket", "PlayerBody", "TableSafetyZone", "RoomSensing" })
         {
             var layer = LayerMask.NameToLayer(layerName);
             if (layer >= 0)
@@ -905,7 +958,28 @@ public static class ArcheryGameSceneBuilder
 
     private static GameObject GetOrCreate(string name, Transform parent = null)
     {
-        var go = GameObject.Find(name) ?? new GameObject(name);
+        // GameObject.Find 找不到被停用的对象：若场景在 Archery 根被停用时保存过，
+        // 重建会生成重复模块并撕裂菜单接线。先按名扫描全部根对象（含 inactive）。
+        GameObject go = null;
+        foreach (var root in UnityEngine.SceneManagement.SceneManager.GetActiveScene().GetRootGameObjects())
+        {
+            if (root != null && root.name == name)
+            {
+                go = root;
+                break;
+            }
+        }
+
+        if (go == null)
+        {
+            go = GameObject.Find(name) ?? new GameObject(name);
+        }
+
+        if (!go.activeSelf)
+        {
+            go.SetActive(true);
+        }
+
         if (parent != null) go.transform.SetParent(parent);
         return go;
     }

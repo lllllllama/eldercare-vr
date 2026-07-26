@@ -1,3 +1,4 @@
+using System.Reflection;
 using UnityEditor;
 using UnityEngine;
 
@@ -28,6 +29,7 @@ public static class ArcherySelfTests
         EncouragementCoversAllStarLevels();
         SwapHandsSwapsRolesAndNodes();
         AudioSynthCreatesPlayableClips();
+        ArrowHitMaskExcludesInvisibleAndBodyLayers();
         Debug.Log("Archery self tests passed.");
     }
 
@@ -419,6 +421,24 @@ public static class ArcherySelfTests
         {
             AssertTrue(clip != null && clip.samples > 0 && clip.channels == 1, "Synthesized archery audio clips should be valid mono clips.");
         }
+    }
+
+    private static void ArrowHitMaskExcludesInvisibleAndBodyLayers()
+    {
+        var method = typeof(ArcheryGameSceneBuilder).GetMethod("BuildArrowHitLayerMask", BindingFlags.NonPublic | BindingFlags.Static);
+        AssertTrue(method != null, "ArcheryGameSceneBuilder should expose BuildArrowHitLayerMask for regression checks.");
+
+        var mask = (LayerMask)method.Invoke(null, null);
+        foreach (var layerName in new[] { "Controller", "Racket", "PlayerBody", "TableSafetyZone", "RoomSensing" })
+        {
+            var layer = LayerMask.NameToLayer(layerName);
+            if (layer >= 0)
+            {
+                AssertTrue((mask.value & (1 << layer)) == 0, $"Arrow hit mask should exclude the {layerName} layer.");
+            }
+        }
+
+        AssertTrue((mask.value & 1) != 0, "Arrow hit mask should keep the Default layer so targets remain hittable.");
     }
 
     private static void AssertTrue(bool condition, string message)

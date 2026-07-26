@@ -1,4 +1,3 @@
-using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.XR;
 
@@ -54,7 +53,6 @@ public class BowController : MonoBehaviour
     public float releaseHapticAmplitude = 0.85f;
     public float releaseHapticSeconds = 0.09f;
 
-    private readonly List<InputDevice> _hapticDevices = new List<InputDevice>();
     private IGripInputSource _drawInput;
     private bool _isDrawing;
     private bool _gripWasPressed;
@@ -125,6 +123,8 @@ public class BowController : MonoBehaviour
                 }
                 else
                 {
+                    // 拉弓不足就松手：给一个轻微“失败”提示震动，让玩家知道要再拉开一点。
+                    SendHaptic(stringHandNode, 0.15f, 0.03f);
                     CancelDraw();
                 }
             }
@@ -351,7 +351,8 @@ public class BowController : MonoBehaviour
     {
         if (trajectoryHint == null) return;
 
-        if (!showTrajectoryPreview || _currentDraw.draw01 < 0.02f)
+        // 只有当前松手真的会放箭时才显示弹道，避免“有弧线却射不出去”的矛盾反馈。
+        if (!showTrajectoryPreview || !_currentDraw.canFire || !firingEnabled)
         {
             trajectoryHint.Hide();
             return;
@@ -454,13 +455,12 @@ public class BowController : MonoBehaviour
     {
         if (!enableHaptics) return;
 
-        InputDevices.GetDevicesAtXRNode(node, _hapticDevices);
-        foreach (var device in _hapticDevices)
+        var device = InputDevices.GetDeviceAtXRNode(node);
+        if (device.isValid &&
+            device.TryGetHapticCapabilities(out var capabilities) &&
+            capabilities.supportsImpulse)
         {
-            if (device.TryGetHapticCapabilities(out var capabilities) && capabilities.supportsImpulse)
-            {
-                device.SendHapticImpulse(0u, Mathf.Clamp01(amplitude), Mathf.Max(0.01f, seconds));
-            }
+            device.SendHapticImpulse(0u, Mathf.Clamp01(amplitude), Mathf.Max(0.01f, seconds));
         }
     }
 }

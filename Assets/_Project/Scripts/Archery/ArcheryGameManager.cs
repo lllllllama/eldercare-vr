@@ -18,6 +18,7 @@ public class ArcheryGameManager : MonoBehaviour
     public ArcheryScorePanel scorePanel;
     public ParticleSystem goldHitParticles;
     public ParticleSystem hitDustParticles;
+    public Font popupFont;
 
     [Header("训练配置")]
     public int arrowsPerRound = 10;
@@ -66,6 +67,18 @@ public class ArcheryGameManager : MonoBehaviour
 
     public void StartSession()
     {
+        StartSessionInternal(true);
+    }
+
+    public void RestartRound()
+    {
+        // 再来一轮不重新对准箭道：按按钮时玩家通常正看着侧面的计分板，
+        // 若按头部朝向重对准，箭道会一轮一轮往面板方向漂移。
+        StartSessionInternal(false);
+    }
+
+    private void StartSessionInternal(bool realignLane)
+    {
         _totalScore = 0;
         _arrowsReleased = 0;
         _arrowsResolved = 0;
@@ -75,7 +88,7 @@ public class ArcheryGameManager : MonoBehaviour
 
         ClearArrows();
 
-        if (alignLaneToUserOnStart)
+        if (alignLaneToUserOnStart && realignLane)
         {
             AlignLaneToUser();
         }
@@ -94,9 +107,10 @@ public class ArcheryGameManager : MonoBehaviour
         PlayerPrefs.Save();
 
         UpdatePanel();
+        var stringHandLabel = bow != null && !bow.bowInLeftHand ? "左手" : "右手";
         SetStatus(sessionCount <= 2
-            ? "第一次玩？右手靠近弓身握紧手柄搭弦，慢慢向后拉，松手放箭"
-            : "握紧右手手柄搭弦，向后拉再松开放箭");
+            ? $"第一次玩？{stringHandLabel}靠近弓身握紧手柄搭弦，慢慢向后拉，松手放箭"
+            : $"握紧{stringHandLabel}手柄搭弦，向后拉再松开放箭");
         SetLastHitText("--");
         ArcheryEvents.SessionStarted();
     }
@@ -115,15 +129,20 @@ public class ArcheryGameManager : MonoBehaviour
         ArcheryEvents.SessionFinished();
     }
 
-    public void RestartRound()
-    {
-        StartSession();
-    }
-
     public void SetDifficulty(ArcheryDifficulty newDifficulty)
     {
+        var changed = difficulty != newDifficulty;
         difficulty = newDifficulty;
         ApplyDifficulty();
+
+        // 回合中途换靶距会导致：分数混档、在飞的箭对着瞬移后的靶。
+        // 直接以新靶距重开本轮，规则对老年玩家也最好理解。
+        if (_sessionActive && changed)
+        {
+            StartSessionInternal(false);
+            SetStatus($"已切换到{DifficultyLabel(newDifficulty)}，本轮重新开始");
+        }
+
         UpdatePanel();
     }
 
@@ -274,7 +293,8 @@ public class ArcheryGameManager : MonoBehaviour
         {
             var position = info.position;
             position.y = Mathf.Max(0.4f, position.y);
-            ArcheryScorePopup.Spawn(position, "脱靶", new Color(1f, 1f, 1f, 0.72f), 0.026f);
+            position += TowardHeadDirection(position) * 0.3f;
+            ArcheryScorePopup.Spawn(position, "脱靶", new Color(1f, 1f, 1f, 0.72f), 0.026f, popupFont);
         }
 
         UpdatePanel();
@@ -290,7 +310,9 @@ public class ArcheryGameManager : MonoBehaviour
             var color = isGold
                 ? new Color(1f, 0.84f, 0.25f)
                 : (info.score > 0 ? Color.white : new Color(1f, 1f, 1f, 0.72f));
-            ArcheryScorePopup.Spawn(info.hitPoint + Vector3.up * 0.12f, message, color, isGold ? 0.042f : 0.032f);
+            // 飘分往玩家方向推出一段距离，避免文字嵌进靶板平面产生穿插。
+            var popupPosition = info.hitPoint + Vector3.up * 0.12f + TowardHeadDirection(info.hitPoint) * 0.3f;
+            ArcheryScorePopup.Spawn(popupPosition, message, color, isGold ? 0.042f : 0.032f, popupFont);
         }
 
         if (hitDustParticles != null)
@@ -329,6 +351,16 @@ public class ArcheryGameManager : MonoBehaviour
         UpdatePanel();
         SetStatus($"{StarsText(stars)} {EncouragementForStars(stars)}{(isNewBest ? " 刷新个人纪录！" : "")} 点击“再来一轮”继续");
         ArcheryEvents.RoundFinished(new ArcheryRoundResult(_totalScore, arrowsPerRound, stars, isNewBest));
+    }
+
+    private Vector3 TowardHeadDirection(Vector3 fromPosition)
+    {
+        var head = ResolveHeadTransform();
+        if (head == null) return Vector3.up * 0.2f;
+
+        var toward = head.position - fromPosition;
+        toward.y = 0f;
+        return toward.sqrMagnitude > 0.0001f ? toward.normalized : Vector3.up * 0.2f;
     }
 
     private Transform ResolveHeadTransform()

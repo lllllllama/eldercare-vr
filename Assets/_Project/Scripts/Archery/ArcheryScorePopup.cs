@@ -13,15 +13,19 @@ public class ArcheryScorePopup : MonoBehaviour
     private float _age;
     private Transform _cameraTransform;
 
-    public static ArcheryScorePopup Spawn(Vector3 worldPosition, string message, Color color, float characterSize = 0.032f)
+    public static ArcheryScorePopup Spawn(Vector3 worldPosition, string message, Color color, float characterSize = 0.032f, Font font = null)
     {
         var go = new GameObject("ArcheryScorePopup");
         go.transform.position = worldPosition;
+        // MR 模式下背景抑制器按层级扫描渲染物，根级生成的飘分挂上保护标记以免被隐藏。
+        go.AddComponent<MrKeepVisible>();
 
         var popup = go.AddComponent<ArcheryScorePopup>();
         var text = go.AddComponent<TextMesh>();
         text.text = message;
-        text.font = ResolveFont();
+        // 真机上必须优先用项目自带的中文字体：Android/PICO 的 OS 字体名解析不可靠，
+        // 回落字体没有中文字形会导致飘分显示为方块。
+        text.font = font != null ? font : ResolveFont();
         text.fontSize = 72;
         text.characterSize = characterSize;
         text.anchor = TextAnchor.MiddleCenter;
