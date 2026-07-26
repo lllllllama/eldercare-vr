@@ -36,6 +36,12 @@ public class ArcheryScorePanel : MonoBehaviour
     public Button handednessButton;
     public Button recenterButton;
 
+    [Header("难度选中态配色")]
+    public Color difficultyNormalFill = new Color(0.12f, 0.27f, 0.48f, 1f);
+    public Color difficultyNormalOutline = new Color(0.18f, 0.46f, 0.91f, 0.66f);
+    public Color difficultySelectedFill = new Color(0.53f, 0.47f, 0.26f, 1f);
+    public Color difficultySelectedOutline = new Color(1f, 0.82f, 0.35f, 0.9f);
+
     private Font _runtimeFont;
     private BaseRaycaster[] _raycasters;
     private bool _raycastBlocked;
@@ -153,6 +159,36 @@ public class ArcheryScorePanel : MonoBehaviour
         if (handednessButtonLabel != null)
         {
             handednessButtonLabel.text = message;
+        }
+    }
+
+    public void SetDifficultySelection(ArcheryDifficulty difficulty)
+    {
+        ApplyDifficultyButtonState(difficultyNearButton, difficulty == ArcheryDifficulty.Near);
+        ApplyDifficultyButtonState(difficultyMediumButton, difficulty == ArcheryDifficulty.Medium);
+        ApplyDifficultyButtonState(difficultyFarButton, difficulty == ArcheryDifficulty.Far);
+    }
+
+    private void ApplyDifficultyButtonState(Button button, bool selected)
+    {
+        if (button == null || button.targetGraphic == null) return;
+
+        var fill = selected ? difficultySelectedFill : difficultyNormalFill;
+        button.targetGraphic.color = fill;
+
+        // 悬停动效以 normalColor 为基准回落，必须同步，否则移开指针后高亮被冲掉。
+        var motion = button.GetComponent<TechModuleCardMotion>();
+        if (motion != null)
+        {
+            motion.normalColor = fill;
+            motion.hoverColor = Color.Lerp(fill, Color.white, 0.12f);
+            motion.pressedColor = Color.Lerp(fill, Color.black, 0.18f);
+        }
+
+        var outline = button.targetGraphic.GetComponent<Outline>();
+        if (outline != null)
+        {
+            outline.effectColor = selected ? difficultySelectedOutline : difficultyNormalOutline;
         }
     }
 

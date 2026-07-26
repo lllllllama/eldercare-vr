@@ -1,3 +1,4 @@
+using PicoElderCare.UI;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
@@ -12,10 +13,11 @@ public static class ArcheryGameSceneBuilder
     private const string ElderCareUiFontPath = "Assets/_Project/Fonts/NotoSansCJKsc-Regular.otf";
     private const float BowStringLocalZ = -0.055f;
 
-    private static readonly Color PanelBackgroundColor = new Color(0.05f, 0.08f, 0.14f, 0.96f);
-    private static readonly Color ButtonColor = new Color(0.12f, 0.32f, 0.55f, 0.95f);
-    private static readonly Color ButtonAccentColor = new Color(0.06f, 0.52f, 0.5f, 0.95f);
-    private static readonly Color ButtonSecondaryColor = new Color(0.2f, 0.26f, 0.4f, 0.95f);
+    // 与主入口 / 乒乓统一面板同一套视觉语言（ElderCareUiTheme）。
+    private static readonly Color PanelBackgroundColor = WithAlpha(Color.Lerp(ElderCareUiTheme.PanelStrong, ElderCareUiTheme.Cyan, 0.08f), 1f);
+    private static readonly Color RowChipColor = new Color(0.045f, 0.085f, 0.115f, 0.85f);
+    private static readonly Color DifficultySelectedFill = Color.Lerp(ElderCareUiTheme.PanelStrong, ElderCareUiTheme.Gold, 0.5f);
+    private static readonly Color DifficultySelectedOutline = new Color(1f, 0.82f, 0.35f, 0.9f);
 
     [MenuItem("Tools/PICO ElderCare/Build Archery Training Scene")]
     public static void BuildArcheryTrainingScene()
@@ -689,37 +691,71 @@ public static class ArcheryGameSceneBuilder
         AddComponentIfTypeExists(canvasGo, "UnityEngine.XR.Interaction.Toolkit.UI.TrackedDeviceGraphicRaycaster, Unity.XR.Interaction.Toolkit");
         EnsureUiEventSystem();
 
-        CreateRoundedPanel(canvasRect, "Background", new Vector2(900f, 980f), Vector2.zero, PanelBackgroundColor, 36f);
-        CreateText(canvasRect, "Title", "射箭训练", new Vector2(0f, 430f), new Vector2(700f, 84f), 58, FontStyle.Bold, Color.white, TextAnchor.MiddleCenter);
-        CreateRoundedPanel(canvasRect, "TitleDivider", new Vector2(220f, 4f), new Vector2(0f, 378f), new Color(1f, 1f, 1f, 0.5f), 2f);
+        // 画布内容全部由本方法生成：重建前清空旧子对象，
+        // 避免旧版布局残留导致重叠错排，同时保证渲染顺序 = 创建顺序。
+        for (var i = canvasRect.childCount - 1; i >= 0; i--)
+        {
+            Object.DestroyImmediate(canvasRect.GetChild(i).gameObject);
+        }
 
-        CreateText(canvasRect, "ScoreLabel", "总分", new Vector2(-230f, 305f), new Vector2(280f, 70f), 38, FontStyle.Normal, new Color(1f, 1f, 1f, 0.78f), TextAnchor.MiddleCenter);
-        var scoreValue = CreateText(canvasRect, "ScoreValue", "0 分", new Vector2(140f, 305f), new Vector2(420f, 80f), 54, FontStyle.Bold, new Color(1f, 0.85f, 0.35f), TextAnchor.MiddleCenter);
+        // ---- 背板：与主入口面板同款（PanelStrong 底 + 青色描边 + 内辉光 + 氛围线 + 星点）----
+        var background = CreateRoundedPanel(canvasRect, "Background", new Vector2(900f, 980f), Vector2.zero, PanelBackgroundColor, 44f);
+        if (background != null)
+        {
+            var backgroundOutline = EnsureComponent<Outline>(background.gameObject);
+            backgroundOutline.effectColor = WithAlpha(ElderCareUiTheme.PanelStroke, 0.72f);
+            backgroundOutline.effectDistance = new Vector2(3f, -3f);
+        }
 
-        CreateText(canvasRect, "ArrowsLabel", "剩余箭数", new Vector2(-230f, 225f), new Vector2(280f, 60f), 34, FontStyle.Normal, new Color(1f, 1f, 1f, 0.78f), TextAnchor.MiddleCenter);
-        var arrowsValue = CreateText(canvasRect, "ArrowsValue", "10 / 10", new Vector2(140f, 225f), new Vector2(420f, 64f), 42, FontStyle.Bold, Color.white, TextAnchor.MiddleCenter);
+        CreateRoundedPanel(canvasRect, "PanelInnerGlow", new Vector2(856f, 936f), Vector2.zero, WithAlpha(ElderCareUiTheme.Cyan, 0.055f), 40f);
+        CreateRoundedPanel(canvasRect, "AmbientLineTop", new Vector2(800f, 3f), new Vector2(0f, 476f), WithAlpha(ElderCareUiTheme.Cyan, 0.2f), 2f);
+        CreateRoundedPanel(canvasRect, "AmbientLineBottom", new Vector2(800f, 3f), new Vector2(0f, -466f), WithAlpha(ElderCareUiTheme.Cyan, 0.13f), 2f);
+        CreateRoundedPanel(canvasRect, "AmbientLineLeft", new Vector2(3f, 800f), new Vector2(-432f, -40f), WithAlpha(ElderCareUiTheme.Cyan, 0.14f), 2f);
+        CreateRoundedPanel(canvasRect, "AmbientLineRight", new Vector2(3f, 800f), new Vector2(432f, -40f), WithAlpha(ElderCareUiTheme.Green, 0.13f), 2f);
 
-        CreateText(canvasRect, "LastHitLabel", "上一箭", new Vector2(-230f, 150f), new Vector2(280f, 60f), 34, FontStyle.Normal, new Color(1f, 1f, 1f, 0.78f), TextAnchor.MiddleCenter);
-        var lastHitValue = CreateText(canvasRect, "LastHitValue", "--", new Vector2(140f, 150f), new Vector2(420f, 64f), 42, FontStyle.Bold, Color.white, TextAnchor.MiddleCenter);
+        CreateRoundedPanel(canvasRect, "Star_A", new Vector2(8f, 8f), new Vector2(-378f, 448f), new Color(1f, 1f, 1f, 0.42f), 4f);
+        CreateRoundedPanel(canvasRect, "Star_B", new Vector2(7f, 7f), new Vector2(386f, 442f), new Color(1f, 1f, 1f, 0.34f), 4f);
+        CreateRoundedPanel(canvasRect, "Star_C", new Vector2(6f, 6f), new Vector2(-370f, -446f), new Color(1f, 1f, 1f, 0.28f), 3f);
+        CreateRoundedPanel(canvasRect, "Star_D", new Vector2(8f, 8f), new Vector2(376f, -440f), new Color(1f, 1f, 1f, 0.36f), 4f);
 
-        CreateText(canvasRect, "BestLabel", "历史最佳", new Vector2(-230f, 75f), new Vector2(280f, 60f), 34, FontStyle.Normal, new Color(1f, 1f, 1f, 0.78f), TextAnchor.MiddleCenter);
-        var bestValue = CreateText(canvasRect, "BestValue", "--", new Vector2(140f, 75f), new Vector2(420f, 64f), 40, FontStyle.Bold, new Color(0.65f, 0.92f, 1f), TextAnchor.MiddleCenter);
+        // ---- 标题区：箭靶线性图标 + 标题 + 副标题 + 青色分隔线 ----
+        var titleIconHalo = CreateRoundedPanel(canvasRect, "TitleIconHalo", new Vector2(76f, 76f), new Vector2(-238f, 428f), WithAlpha(ElderCareUiTheme.Gold, 0.12f), 38f);
+        titleIconHalo.raycastTarget = false;
+        var titleIconGo = GetOrCreateChild("TitleIcon", canvasRect);
+        var titleIcon = EnsureComponent<ElderCareLineIcon>(titleIconGo);
+        titleIcon.iconType = ElderCareIconType.Target;
+        titleIcon.strokeWidth = 6f;
+        titleIcon.color = WithAlpha(ElderCareUiTheme.Gold, 0.95f);
+        titleIcon.raycastTarget = false;
+        ConfigureRect(titleIconGo, new Vector2(52f, 52f), new Vector2(-238f, 428f));
 
-        CreateText(canvasRect, "DifficultyLabel", "目标距离", new Vector2(-230f, 0f), new Vector2(280f, 60f), 34, FontStyle.Normal, new Color(1f, 1f, 1f, 0.78f), TextAnchor.MiddleCenter);
-        var difficultyValue = CreateText(canvasRect, "DifficultyValue", "中距 6 米", new Vector2(140f, 0f), new Vector2(420f, 64f), 38, FontStyle.Bold, Color.white, TextAnchor.MiddleCenter);
+        CreateText(canvasRect, "Title", "射箭训练", new Vector2(30f, 434f), new Vector2(480f, 72f), 54, FontStyle.Bold, ElderCareUiTheme.TextPrimary, TextAnchor.MiddleCenter);
+        CreateText(canvasRect, "Subtitle", "双手拉弓 · 坐姿可玩", new Vector2(30f, 384f), new Vector2(480f, 38f), 24, FontStyle.Normal, ElderCareUiTheme.TextSecondary, TextAnchor.MiddleCenter);
+        CreateRoundedPanel(canvasRect, "TitleDivider", new Vector2(420f, 4f), new Vector2(0f, 352f), WithAlpha(ElderCareUiTheme.Cyan, 0.48f), 3f);
 
-        var nearButton = CreateActionButton(canvasRect, "DifficultyNearButton", "近距", new Vector2(250f, 84f), new Vector2(-290f, -95f), ButtonColor, out _);
-        var mediumButton = CreateActionButton(canvasRect, "DifficultyMediumButton", "中距", new Vector2(250f, 84f), new Vector2(0f, -95f), ButtonColor, out _);
-        var farButton = CreateActionButton(canvasRect, "DifficultyFarButton", "远距", new Vector2(250f, 84f), new Vector2(290f, -95f), ButtonColor, out _);
+        // ---- 数据行：行底片 + 彩色侧条 + 左标签 / 右数值 ----
+        var scoreValue = CreateStatRow(canvasRect, "ScoreRow", "总分", "0 分", new Vector2(0f, 298f), ElderCareUiTheme.Gold, 46, ElderCareUiTheme.Gold);
+        var arrowsValue = CreateStatRow(canvasRect, "ArrowsRow", "剩余箭数", "10 / 10", new Vector2(0f, 226f), ElderCareUiTheme.Cyan, 40, ElderCareUiTheme.TextPrimary);
+        var lastHitValue = CreateStatRow(canvasRect, "LastHitRow", "上一箭", "--", new Vector2(0f, 154f), ElderCareUiTheme.Green, 40, ElderCareUiTheme.TextPrimary);
+        var bestValue = CreateStatRow(canvasRect, "BestRow", "历史最佳", "--", new Vector2(0f, 82f), ElderCareUiTheme.Blue, 38, new Color(0.65f, 0.92f, 1f));
+        var difficultyValue = CreateStatRow(canvasRect, "DifficultyRow", "目标距离", "中距 6 米", new Vector2(0f, 10f), ElderCareUiTheme.Violet, 36, ElderCareUiTheme.TextPrimary);
 
-        var assistButton = CreateActionButton(canvasRect, "AssistToggleButton", "辅助瞄准：开", new Vector2(280f, 84f), new Vector2(-300f, -200f), ButtonSecondaryColor, out var assistLabel);
-        var handednessButton = CreateActionButton(canvasRect, "HandednessButton", "持弓手：左手", new Vector2(280f, 84f), new Vector2(0f, -200f), ButtonSecondaryColor, out var handednessLabel);
-        var recenterButton = CreateActionButton(canvasRect, "RecenterButton", "重新对准", new Vector2(280f, 84f), new Vector2(300f, -200f), ButtonSecondaryColor, out _);
+        // ---- 按钮区：难度（蓝，选中金色高亮）/ 辅助功能（青）/ 主操作（绿）+ 返回 ----
+        var nearButton = CreateActionButton(canvasRect, "DifficultyNearButton", "近距", new Vector2(250f, 84f), new Vector2(-290f, -100f), ElderCareUiTheme.Blue, 0.05f, out _);
+        var mediumButton = CreateActionButton(canvasRect, "DifficultyMediumButton", "中距", new Vector2(250f, 84f), new Vector2(0f, -100f), ElderCareUiTheme.Blue, 0.1f, out _);
+        var farButton = CreateActionButton(canvasRect, "DifficultyFarButton", "远距", new Vector2(250f, 84f), new Vector2(290f, -100f), ElderCareUiTheme.Blue, 0.15f, out _);
 
-        var restartButton = CreateActionButton(canvasRect, "RestartButton", "再来一轮", new Vector2(380f, 100f), new Vector2(-210f, -315f), ButtonAccentColor, out _);
-        var homeButton = CreateActionButton(canvasRect, "HomeButton", "返回健康游戏", new Vector2(380f, 100f), new Vector2(210f, -315f), new Color(0.34f, 0.22f, 0.5f, 0.95f), out _);
+        var assistButton = CreateActionButton(canvasRect, "AssistToggleButton", "辅助瞄准：开", new Vector2(280f, 84f), new Vector2(-300f, -205f), ElderCareUiTheme.Cyan, 0.2f, out var assistLabel);
+        var handednessButton = CreateActionButton(canvasRect, "HandednessButton", "持弓手：左手", new Vector2(280f, 84f), new Vector2(0f, -205f), ElderCareUiTheme.Cyan, 0.25f, out var handednessLabel);
+        var recenterButton = CreateActionButton(canvasRect, "RecenterButton", "重新对准", new Vector2(280f, 84f), new Vector2(300f, -205f), ElderCareUiTheme.Cyan, 0.3f, out _);
 
-        var statusText = CreateText(canvasRect, "StatusText", "握紧右手手柄搭弦，向后拉再松开放箭", new Vector2(0f, -425f), new Vector2(840f, 60f), 30, FontStyle.Normal, new Color(1f, 1f, 1f, 0.66f), TextAnchor.MiddleCenter);
+        var restartButton = CreateActionButton(canvasRect, "RestartButton", "再来一轮", new Vector2(380f, 100f), new Vector2(-210f, -322f), ElderCareUiTheme.Green, 0.35f, out _);
+        var homeButton = CreateActionButton(canvasRect, "HomeButton", "返回健康游戏", new Vector2(380f, 100f), new Vector2(210f, -322f), ElderCareUiTheme.Violet, 0.4f, out var homeLabel);
+        AddBackIconToButton(homeButton, homeLabel);
+
+        // ---- 状态条 ----
+        CreateRoundedPanel(canvasRect, "StatusChip", new Vector2(840f, 58f), new Vector2(0f, -430f), RowChipColor, 16f);
+        var statusText = CreateText(canvasRect, "StatusText", "握紧右手手柄搭弦，向后拉再松开放箭", new Vector2(0f, -430f), new Vector2(800f, 52f), 26, FontStyle.Normal, ElderCareUiTheme.TextSecondary, TextAnchor.MiddleCenter);
 
         var panel = EnsureComponent<ArcheryScorePanel>(canvasGo);
         if (panel != null)
@@ -741,38 +777,133 @@ public static class ArcheryGameSceneBuilder
             panel.assistToggleButton = assistButton;
             panel.handednessButton = handednessButton;
             panel.recenterButton = recenterButton;
+            panel.difficultyNormalFill = WithAlpha(Color.Lerp(ElderCareUiTheme.PanelStrong, ElderCareUiTheme.Blue, 0.42f), 1f);
+            panel.difficultyNormalOutline = WithAlpha(ElderCareUiTheme.Blue, 0.66f);
+            panel.difficultySelectedFill = WithAlpha(DifficultySelectedFill, 1f);
+            panel.difficultySelectedOutline = DifficultySelectedOutline;
         }
 
         EditorUtility.SetDirty(canvasGo);
         return panel;
     }
 
-    private static Button CreateActionButton(RectTransform parent, string name, string label, Vector2 size, Vector2 position, Color color, out Text labelText)
+    private static Text CreateStatRow(
+        RectTransform parent,
+        string rowName,
+        string label,
+        string initialValue,
+        Vector2 position,
+        Color accentColor,
+        int valueFontSize,
+        Color valueColor)
+    {
+        var row = GetOrCreateChild(rowName, parent);
+        var rowRect = ConfigureRect(row, new Vector2(830f, 64f), position);
+
+        var chip = CreateRoundedPanel(rowRect, "Chip", new Vector2(830f, 64f), Vector2.zero, RowChipColor, 16f);
+        chip.raycastTarget = false;
+
+        var accent = CreateRoundedPanel(rowRect, "SideAccent", new Vector2(5f, 38f), new Vector2(-398f, 0f), WithAlpha(accentColor, 0.75f), 3f);
+        accent.raycastTarget = false;
+
+        CreateText(rowRect, "Label", label, new Vector2(-232f, 0f), new Vector2(280f, 56f), 30, FontStyle.Normal, ElderCareUiTheme.TextSecondary, TextAnchor.MiddleLeft);
+        return CreateText(rowRect, "Value", initialValue, new Vector2(150f, 0f), new Vector2(460f, 60f), valueFontSize, FontStyle.Bold, valueColor, TextAnchor.MiddleRight);
+    }
+
+    private static Button CreateActionButton(
+        RectTransform parent,
+        string name,
+        string label,
+        Vector2 size,
+        Vector2 position,
+        Color baseColor,
+        float entranceDelay,
+        out Text labelText)
     {
         var root = GetOrCreateChild(name, parent);
         var rootRect = ConfigureRect(root, size, position);
 
-        var panel = CreateRoundedPanel(rootRect, "Panel", size, Vector2.zero, color, 24f);
+        // 与主入口模块卡同款按钮：外辉光 + 主题渐变底 + 彩色描边 + 顶部青色高光线。
+        var glow = CreateRoundedPanel(rootRect, "Glow", size + new Vector2(24f, 24f), Vector2.zero, WithAlpha(baseColor, 0.1f), 30f);
+        glow.raycastTarget = false;
+
+        var fillColor = WithAlpha(Color.Lerp(ElderCareUiTheme.PanelStrong, baseColor, 0.42f), 1f);
+        var panel = CreateRoundedPanel(rootRect, "Panel", size, Vector2.zero, fillColor, 22f);
         if (panel != null)
         {
             panel.raycastTarget = true;
         }
 
-        labelText = CreateText(rootRect, "Label", label, Vector2.zero, new Vector2(size.x - 30f, size.y - 16f), Mathf.RoundToInt(size.y * 0.4f), FontStyle.Bold, Color.white, TextAnchor.MiddleCenter);
+        var outline = EnsureComponent<Outline>(panel.gameObject);
+        outline.effectColor = WithAlpha(baseColor, 0.66f);
+        outline.effectDistance = new Vector2(2.5f, -2.5f);
+
+        var topHighlight = CreateRoundedPanel(rootRect, "TopHighlight", new Vector2(size.x - 42f, 3f), new Vector2(0f, size.y * 0.5f - 8f), WithAlpha(ElderCareUiTheme.Cyan, 0.28f), 2f);
+        topHighlight.raycastTarget = false;
+
+        labelText = CreateText(rootRect, "Label", label, Vector2.zero, new Vector2(size.x - 30f, size.y - 16f), Mathf.RoundToInt(size.y * 0.38f), FontStyle.Bold, ElderCareUiTheme.TextPrimary, TextAnchor.MiddleCenter);
 
         var button = EnsureComponent<Button>(root);
         if (button != null)
         {
-            button.transition = Selectable.Transition.ColorTint;
+            // 悬停/按压反馈交给 TechModuleCardMotion（与主入口卡片一致），Button 自身不做 tint。
+            button.transition = Selectable.Transition.None;
             button.targetGraphic = panel;
-            var colors = button.colors;
-            colors.highlightedColor = new Color(1.12f, 1.12f, 1.12f, 1f);
-            colors.pressedColor = new Color(0.85f, 0.85f, 0.85f, 1f);
-            button.colors = colors;
+        }
+
+        var motion = EnsureComponent<TechModuleCardMotion>(root);
+        if (motion != null)
+        {
+            motion.cardTransform = rootRect;
+            motion.canvasGroup = EnsureComponent<CanvasGroup>(root);
+            motion.cardGraphic = panel;
+            motion.glowGraphic = glow;
+            motion.edgeGraphic = topHighlight;
+            motion.interactable = true;
+            motion.playEntrance = true;
+            motion.entranceDelay = entranceDelay;
+            motion.ambientMotion = false;
+            motion.normalColor = fillColor;
+            motion.hoverColor = WithAlpha(Color.Lerp(fillColor, baseColor, 0.32f), 0.98f);
+            motion.pressedColor = Color.Lerp(fillColor, Color.black, 0.18f);
+            motion.glowColor = WithAlpha(baseColor, 0.22f);
+            motion.edgeColor = WithAlpha(ElderCareUiTheme.Cyan, 0.36f);
+            motion.hoverScale = ElderCareUiTheme.HoverScale;
+            motion.pressedScale = ElderCareUiTheme.PressedScale;
         }
 
         EditorUtility.SetDirty(root);
         return button;
+    }
+
+    private static void AddBackIconToButton(Button button, Text label)
+    {
+        if (button == null) return;
+
+        var rootRect = button.transform as RectTransform;
+        if (rootRect == null) return;
+
+        var iconGo = GetOrCreateChild("BackIcon", rootRect);
+        var icon = EnsureComponent<ElderCareLineIcon>(iconGo);
+        icon.iconType = ElderCareIconType.ArrowLeft;
+        icon.strokeWidth = 6f;
+        icon.color = ElderCareUiTheme.TextPrimary;
+        icon.raycastTarget = false;
+        ConfigureRect(iconGo, new Vector2(34f, 34f), new Vector2(-150f, 0f));
+
+        if (label != null)
+        {
+            // 给左侧图标让位，文字整体右移。
+            var labelRect = label.rectTransform;
+            labelRect.anchoredPosition = new Vector2(22f, 0f);
+            labelRect.sizeDelta = new Vector2(rootRect.sizeDelta.x - 110f, labelRect.sizeDelta.y);
+        }
+    }
+
+    private static Color WithAlpha(Color color, float alpha)
+    {
+        color.a = alpha;
+        return color;
     }
 
     private static LayerMask BuildArrowHitLayerMask()

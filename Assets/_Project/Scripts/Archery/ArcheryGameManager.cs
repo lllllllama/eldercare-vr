@@ -417,6 +417,7 @@ public class ArcheryGameManager : MonoBehaviour
         scorePanel.SetScore(_totalScore);
         scorePanel.SetArrows(_arrowsReleased, arrowsPerRound);
         scorePanel.SetDifficultyLabel(DifficultyLabel(difficulty));
+        scorePanel.SetDifficultySelection(difficulty);
         scorePanel.SetBestScore(Mathf.Max(_totalScore, LoadBestScore(difficulty)));
         scorePanel.SetAssistLabel(enableAimAssist ? "辅助瞄准：开" : "辅助瞄准：关");
         scorePanel.SetHandednessLabel(bow != null && !bow.bowInLeftHand ? "持弓手：右手" : "持弓手：左手");
