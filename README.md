@@ -1,11 +1,11 @@
 # PICO ElderCare VR/MR
 
-面向 PICO 设备的老年人 VR/MR 综合康养项目。当前首页包含五个模块入口：健康游戏（乒乓球）、射箭游戏、康复运动、VR旅游、场景视频；现阶段已内置乒乓球训练和双手拉弓射箭训练，其余模块保留入口，后续可以继续接入独立内容。
+面向 PICO 设备的老年人 VR/MR 综合康养项目。现有主导航保留健康游戏、康复运动、VR旅游、场景视频入口；健康游戏进入二级选择场景，再分别进入独立的乒乓球训练和双手拉弓射箭训练场景。
 
 ![mode-vr](https://img.shields.io/badge/mode-VR-blue) ![mode-mr](https://img.shields.io/badge/mode-MR-orange) ![unity](https://img.shields.io/badge/Unity-2022.3.62f3-black) ![sdk](https://img.shields.io/badge/PICO%20SDK-3.4.0-green)
 
-- **VR 模式**：虚拟首页 + 虚拟康养功能入口 + 乒乓球训练场景 + 射箭训练场景。
-- **MR 模式**：真实房间透视背景 + 虚拟首页/球桌/球/球拍/UI，支持把球桌摆到真实空间中；射箭场景同样可用（射箭对象带 `MrKeepVisible` 保护）。
+- **VR 模式**：主导航 + 健康游戏选择页 + 独立乒乓球训练场景 + 独立射箭训练场景。
+- **MR 模式**：乒乓球和射箭场景分别复用项目的 XR/MR 基础配置；两套玩法互不注入、互不依赖。
 
 ---
 
@@ -33,7 +33,7 @@
 | Unity | `2022.3.62f3` |
 | 目标设备 | PICO 4 Ultra / 支持视频透视的 PICO XR 设备 |
 | PICO SDK | `com.unity.xr.picoxr`，来自 `PICO-Unity-Integration-SDK` 的 `release_3.4.0` |
-| 主场景 | `Assets/_Project/Scenes/01_PingPongDemo.unity` |
+| 主场景 | `Assets/_Project/Scenes/00_MainEntry.unity` |
 | 自检场景 | `Assets/_Project/Scenes/00_DeviceTest.unity` |
 | 第三方说明 | `THIRD_PARTY_NOTICES.md` |
 
@@ -43,8 +43,9 @@
 
 **综合首页**
 - 运行后先进入 `VR康养服务` 世界空间首页，而不是直接开始乒乓球。
-- 首页包含 `健康游戏`、`射箭游戏`、`康复运动`、`VR旅游`、`场景视频` 五个模块入口。
-- `健康游戏` 启动内置乒乓球训练，`射箭游戏` 启动双手拉弓射箭训练；其它模块显示待接入状态，后续可按模块 ID 扩展。
+- 首页原有布局和入口保持不变，`健康游戏` 不再直接启动乒乓球。
+- `健康游戏` 打开 `02_HealthGameMenu`，该二级场景提供 `乒乓球训练` 和 `射箭训练` 两个入口。
+- 乒乓球与射箭分别运行在 `01_PingPongDemo` 和 `03_ArcheryTraining`，不共享玩法根对象或场景内菜单控制器。
 - 首页卡片使用 VR 大字号、发光 hover、线性图标和手柄/手势选择提示。
 
 **射箭训练（双手柄协作，坐姿可玩）**
@@ -90,13 +91,11 @@
 3. 打开主场景：
 
    ```text
-   Assets/_Project/Scenes/01_PingPongDemo.unity
+   Assets/_Project/Scenes/00_MainEntry.unity
    ```
 
-4. 根据目标模式点击 Unity 顶部菜单生成综合场景对象：
-   - VR：`Tools/PICO ElderCare/Build PingPong Demo Scene`
-   - MR：`Tools/PICO ElderCare/Build PingPong Mixed Reality Scene`
-5. 把场景加入 Build Settings，Build And Run 到 PICO 设备。运行后先看到 `VR康养服务` 首页，选择 `健康游戏` 后进入乒乓球训练。
+4. 点击 `Tools/PICO ElderCare/Build Unified MVP Scenes` 生成导航和训练场景并配置 Build Settings。
+5. Build And Run 到 PICO 设备。运行后先看到 `VR康养服务` 首页；选择 `健康游戏` 后，可继续选择乒乓球或射箭训练。
 
 ---
 
@@ -106,13 +105,16 @@
 
 | 菜单项 | 作用 |
 | --- | --- |
-| `Build PingPong Demo Scene` | 生成 VR 综合首页 + 内置乒乓球训练：关闭 PICO MR 开关、移除 MR 对象、恢复不透明主相机、启用虚拟地面和背景墙。 |
-| `Build PingPong Mixed Reality Scene` | 生成 MR 综合首页 + 内置乒乓球训练：启用 PICO MR、视频透视、Plane Detection、Spatial Mesh，隐藏虚拟房间，挂 MR 管理器。 |
+| `Build Unified MVP Scenes` | 按主导航、健康游戏选择、乒乓球、射箭、康复训练的顺序生成场景并配置 Build Settings。 |
+| `Build Main Entry Scene` | 生成现有主导航；`健康游戏` 只绑定到二级健康游戏选择场景。 |
+| `Build Health Game Menu Scene` | 生成纯导航的 `02_HealthGameMenu`，包含乒乓球、射箭和返回入口。 |
+| `Build PingPong Demo Scene` | 只生成乒乓球训练内容，不生成射箭对象。 |
+| `Build PingPong Mixed Reality Scene` | 生成乒乓球 MR 训练内容，不生成射箭对象。 |
 | `Build VRTableTennis Adapted Assets` | 从 `External/VRTableTennis/Original` 的模型、音频、材质生成 `Adapted` 下的可用 prefab。 |
-| `Build Archery Game Objects` | 单独生成/修复射箭训练对象（弓、箭、靶、计分板）并接回首页菜单；`Build PingPong Demo Scene` 与 MR 构建会自动包含这一步。 |
+| `Build Archery Training Scene` | 生成独立的 `03_ArcheryTraining`，包含 XR/MR 基础、弓、箭、靶和计分板。 |
 | `Repair PingPong Demo Scene Objects` | 脚本升级后修复已有场景对象，避免整场景重建。 |
 | `Run PingPong Physics Self Tests` | 在编辑器里跑 Solver/发球/空气动力学的物理自测。 |
-| `Run Archery Self Tests` | 跑射箭拉弓/弹道/环数计分/坐姿校准/模块切换自测。 |
+| `Run Archery Self Tests` | 跑射箭拉弓/弹道/环数计分/坐姿校准及独立场景路由自测。 |
 
 ---
 
@@ -180,9 +182,10 @@ Assets/
     Materials/PingPong/ # 项目自有 URP 材质（含 MR 可视化材质）
     Materials/Archery/  # 射箭弓/箭/靶材质（构建器自动生成）
     Prefabs/PingPong/   # fallback 球 prefab
-    Scenes/             # 01_PingPongDemo / 00_DeviceTest
+    Scenes/             # 00_MainEntry / 02_HealthGameMenu / 01_PingPongDemo / 03_ArcheryTraining / MR_Rehab_Main
     Scripts/
       Archery/          # 弓/箭/靶/计分/会话管理（双手柄射箭）
+      HealthGame/       # 健康游戏二级菜单的跨场景导航
       Common/Events/    # PingPongEvents 事件总线
       Common/Feedback/  # HitFeedbackManager 音效/特效
       Editor/           # 场景构建器 + 物理自测
@@ -225,13 +228,13 @@ Assets/
 | `Archery/ArrowProjectile.cs` | 箭矢弹道积分（重力 + 阻力）、SphereCast 扫掠命中、插靶与脱靶上报。 |
 | `Archery/ArcheryTarget.cs` | 靶面命中点换算环数并广播事件。 |
 | `Archery/ArcheryGameManager.cs` | 训练会话：每轮箭数、总分、星级评价、历史最佳持久化、难度靶距、坐姿校准、辅助瞄准/利手设置。 |
-| `Archery/ArcheryScorePanel.cs` | 世界空间计分板：总分/剩余箭数/上一箭/历史最佳/难度/辅助瞄准/持弓手/重新对准/返回首页。 |
+| `Archery/ArcheryScorePanel.cs` | 世界空间计分板：总分/剩余箭数/上一箭/历史最佳/难度/辅助瞄准/持弓手/重新对准/返回健康游戏菜单。 |
 | `Archery/ArcheryAudioManager.cs` | 程序合成音效（零资源依赖）：搭弦、拉弓渐紧、弦响、命中、环数钟声、金环与破纪录提示音。 |
 | `Archery/ArcheryTrajectoryHint.cs` | 拉弓时的弹道预览弧线（辅助瞄准开启时显示）。 |
 | `Archery/ArcheryScorePopup.cs` | 命中点 3D 飘分文字（面向玩家、上浮渐隐）。 |
 | `Common/Input/PicoGripOrTriggerInputSource.cs` | Grip 或扳机任一按下即可拉弓的输入源（老年用户友好）。 |
-| `Editor/ArcheryGameSceneBuilder.cs` | 射箭场景对象一键生成/修复 + 首页菜单接线。 |
-| `Editor/ArcherySelfTests.cs` | 拉弓/弹道/计分/校准/模块切换批处理自测。 |
+| `Editor/ArcheryGameSceneBuilder.cs` | 独立射箭训练场景的一键生成与保存。 |
+| `Editor/ArcherySelfTests.cs` | 拉弓/弹道/计分/校准/独立路由批处理自测。 |
 
 **交互与 MR**
 
@@ -283,7 +286,7 @@ Assets/
 - 左右手和球拍是否不会明显穿进桌体。
 
 **射箭训练**
-- 首页选择 `射箭游戏` 后，箭道是否朝向当前视线方向、靶心高度是否与视线齐平（坐姿也应如此）。
+- 主导航选择 `健康游戏`，再选择 `射箭训练` 后，箭道是否朝向当前视线方向、靶心高度是否与视线齐平（坐姿也应如此）。
 - 拉弦手靠近弓身握 Grip 或扳机是否能搭弦（有咔哒声与轻震），向后拉时弓弦、搭箭、弓臂弯曲是否跟手。
 - 辅助瞄准开启时拉弓是否显示弹道预览弧线，关闭后弧线是否消失。
 - 松手后箭是否沿瞄准方向飞出并带拖尾，命中靶面是否插靶、飘分、播放环数音；金环是否有金色粒子和三连音。

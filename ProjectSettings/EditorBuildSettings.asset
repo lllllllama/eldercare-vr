@@ -8,12 +8,15 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/_Project/Scenes/00_MainEntry.unity
     guid: 503ecf94db0d0274799505515e2d17a4
-  - enabled: 0
-    path: Assets/_Project/Scenes/00_DeviceTest.unity
-    guid: 3a1c75517ff16914b9d1b873723fa5ca
+  - enabled: 1
+    path: Assets/_Project/Scenes/02_HealthGameMenu.unity
+    guid: 31d14afe06066dd41a09b935b0090660
   - enabled: 1
     path: Assets/_Project/Scenes/01_PingPongDemo.unity
     guid: f2ef01ca1882b1f42bc5718c1b97901e
+  - enabled: 1
+    path: Assets/_Project/Scenes/03_ArcheryTraining.unity
+    guid: fd15465a8ff5ef643ae454f45f3a6c48
   - enabled: 1
     path: Assets/_Project/Scenes/MR_Rehab_Main.unity
     guid: 49f2935711925234d9ce52d35dd0697d

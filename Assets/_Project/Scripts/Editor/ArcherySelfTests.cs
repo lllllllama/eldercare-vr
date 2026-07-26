@@ -1,5 +1,6 @@
 using System.Reflection;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 
 public static class ArcherySelfTests
@@ -19,7 +20,8 @@ public static class ArcherySelfTests
         TargetHeightCalibrationClampsToComfortRange();
         LaneRotationFollowsHeadYawOnly();
         TargetRegisterHitRaisesScoredEvent();
-        HomeMenuArcheryModuleTogglesGameplayRoots();
+        StandaloneManagerAutoStartIsConfigurable();
+        ScorePanelUsesHealthGameSceneRouting();
         DifficultyDistancesAreOrdered();
         AimAssistPullsShotTowardTargetCenter();
         AimAssistIgnoresWildAim();
@@ -30,6 +32,7 @@ public static class ArcherySelfTests
         SwapHandsSwapsRolesAndNodes();
         AudioSynthCreatesPlayableClips();
         ArrowHitMaskExcludesInvisibleAndBodyLayers();
+        StandaloneSceneExcludesRoomSensingCollisions();
         Debug.Log("Archery self tests passed.");
     }
 
@@ -230,40 +233,69 @@ public static class ArcherySelfTests
         }
     }
 
-    private static void HomeMenuArcheryModuleTogglesGameplayRoots()
+    private static void StandaloneManagerAutoStartIsConfigurable()
     {
-        var menuObject = new GameObject("ArcheryTestHomeMenu");
-        var homeRoot = new GameObject("ArcheryTestHomeRoot");
-        var pingPongRoot = new GameObject("ArcheryTestPingPongRoot");
-        var archeryRoot = new GameObject("ArcheryTestArcheryRoot");
+        const string sessionCountKey = "ElderCare.Archery.SessionCount";
+        var hadSessionCount = PlayerPrefs.HasKey(sessionCountKey);
+        var previousSessionCount = PlayerPrefs.GetInt(sessionCountKey, 0);
+        var legacyObject = new GameObject("ArcheryTestLegacyManager");
+        var standaloneObject = new GameObject("ArcheryTestStandaloneManager");
         try
         {
-            var menu = menuObject.AddComponent<ElderCareHomeMenu>();
-            menu.homeRoot = homeRoot;
-            menu.pingPongGameplayRoots = new[] { pingPongRoot };
-            menu.archeryGameplayRoots = new[] { archeryRoot };
-            menu.placeHomeUiOnShow = false;
+            var startMethod = typeof(ArcheryGameManager).GetMethod("Start", BindingFlags.NonPublic | BindingFlags.Instance);
+            AssertTrue(startMethod != null, "ArcheryGameManager should have its Unity Start lifecycle method.");
 
-            menu.SelectModule("archery", "射箭游戏");
-            AssertTrue(!homeRoot.activeSelf, "Selecting archery should hide the home page.");
-            AssertTrue(archeryRoot.activeSelf, "Selecting archery should activate the archery gameplay root.");
-            AssertTrue(!pingPongRoot.activeSelf, "Selecting archery should deactivate ping pong gameplay.");
+            var legacyManager = legacyObject.AddComponent<ArcheryGameManager>();
+            AssertTrue(!legacyManager.autoStartSessionOnStart, "Auto-start should default to off for compatibility with existing embedded setups.");
+            startMethod.Invoke(legacyManager, null);
+            AssertTrue(!legacyManager.SessionActive, "An existing setup should remain inactive until StartSession is called explicitly.");
 
-            menu.SelectModule("pingpong", "健康游戏");
-            AssertTrue(pingPongRoot.activeSelf, "Selecting ping pong should activate ping pong gameplay.");
-            AssertTrue(!archeryRoot.activeSelf, "Selecting ping pong should deactivate archery gameplay.");
-
-            menu.ShowHome();
-            AssertTrue(homeRoot.activeSelf, "Returning home should show the home page.");
-            AssertTrue(!archeryRoot.activeSelf, "Returning home should deactivate archery gameplay.");
-            AssertTrue(!pingPongRoot.activeSelf, "Returning home should deactivate ping pong gameplay.");
+            var standaloneManager = standaloneObject.AddComponent<ArcheryGameManager>();
+            standaloneManager.autoStartSessionOnStart = true;
+            startMethod.Invoke(standaloneManager, null);
+            AssertTrue(standaloneManager.SessionActive, "A standalone archery scene should be able to start its session automatically.");
+            standaloneManager.StopSession();
         }
         finally
         {
-            Object.DestroyImmediate(menuObject);
-            Object.DestroyImmediate(homeRoot);
-            Object.DestroyImmediate(pingPongRoot);
-            Object.DestroyImmediate(archeryRoot);
+            if (hadSessionCount)
+            {
+                PlayerPrefs.SetInt(sessionCountKey, previousSessionCount);
+            }
+            else
+            {
+                PlayerPrefs.DeleteKey(sessionCountKey);
+            }
+
+            PlayerPrefs.Save();
+            Object.DestroyImmediate(legacyObject);
+            Object.DestroyImmediate(standaloneObject);
+        }
+    }
+
+    private static void ScorePanelUsesHealthGameSceneRouting()
+    {
+        AssertTrue(
+            ArcheryScorePanel.DefaultHealthGameMenuSceneName == "02_HealthGameMenu",
+            "The archery return route should target the health game menu scene.");
+
+        var homeMenuField = typeof(ArcheryScorePanel).GetField("homeMenu", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
+        AssertTrue(homeMenuField == null, "ArcheryScorePanel should not depend on ElderCareHomeMenu.");
+
+        var returnMethod = typeof(ArcheryScorePanel).GetMethod("ReturnToHealthGameMenu", BindingFlags.Public | BindingFlags.Instance);
+        AssertTrue(returnMethod != null, "ArcheryScorePanel should expose a health game menu return action for its button.");
+
+        var panelObject = new GameObject("ArcheryTestScorePanel");
+        try
+        {
+            var panel = panelObject.AddComponent<ArcheryScorePanel>();
+            AssertTrue(
+                panel.HealthGameMenuSceneName == ArcheryScorePanel.DefaultHealthGameMenuSceneName,
+                "ArcheryScorePanel should default to the standalone health game menu scene.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(panelObject);
         }
     }
 
@@ -439,6 +471,43 @@ public static class ArcherySelfTests
         }
 
         AssertTrue((mask.value & 1) != 0, "Arrow hit mask should keep the Default layer so targets remain hittable.");
+    }
+
+    private static void StandaloneSceneExcludesRoomSensingCollisions()
+    {
+        const string scenePath = "Assets/_Project/Scenes/03_ArcheryTraining.unity";
+        var scene = EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Additive);
+        try
+        {
+            ArrowProjectile projectile = null;
+            Transform sensingRoot = null;
+            Transform planeTemplate = null;
+            Transform meshTemplate = null;
+
+            foreach (var root in scene.GetRootGameObjects())
+            {
+                if (projectile == null) projectile = root.GetComponentInChildren<ArrowProjectile>(true);
+
+                foreach (var child in root.GetComponentsInChildren<Transform>(true))
+                {
+                    if (child.name == "MRSpaceSensing") sensingRoot = child;
+                    if (child.name == "MRDetectedPlaneTemplate") planeTemplate = child;
+                    if (child.name == "MRSpatialMeshTemplate") meshTemplate = child;
+                }
+            }
+
+            var roomSensingLayer = LayerMask.NameToLayer("RoomSensing");
+            AssertTrue(roomSensingLayer >= 0, "The RoomSensing layer should be configured.");
+            AssertTrue(projectile != null, "The standalone archery scene should contain an ArrowProjectile template.");
+            AssertTrue((projectile.hitLayers.value & (1 << roomSensingLayer)) == 0, "The saved arrow hit mask should exclude RoomSensing.");
+            AssertTrue(sensingRoot != null && sensingRoot.gameObject.layer == roomSensingLayer, "The MR sensing root should use the RoomSensing layer.");
+            AssertTrue(planeTemplate != null && planeTemplate.gameObject.layer == roomSensingLayer, "The MR plane template should use the RoomSensing layer.");
+            AssertTrue(meshTemplate != null && meshTemplate.gameObject.layer == roomSensingLayer, "The MR mesh template should use the RoomSensing layer.");
+        }
+        finally
+        {
+            EditorSceneManager.CloseScene(scene, true);
+        }
     }
 
     private static void AssertTrue(bool condition, string message)

@@ -1,4 +1,5 @@
 using PicoElderCare.Rehab;
+using PicoElderCare.HealthGame;
 using PicoElderCare.UI;
 using TMPro;
 using Unity.XR.CoreUtils;
@@ -20,8 +21,9 @@ using UnityEngine.XR.Interaction.Toolkit.UI;
 public static class RehabSceneBuilder
 {
     private const string MainEntryScenePath = "Assets/_Project/Scenes/00_MainEntry.unity";
-    private const string DeviceTestScenePath = "Assets/_Project/Scenes/00_DeviceTest.unity";
+    private const string HealthGameMenuScenePath = "Assets/_Project/Scenes/02_HealthGameMenu.unity";
     private const string PingPongScenePath = "Assets/_Project/Scenes/01_PingPongDemo.unity";
+    private const string ArcheryTrainingScenePath = "Assets/_Project/Scenes/03_ArcheryTraining.unity";
     private const string RehabScenePath = "Assets/_Project/Scenes/MR_Rehab_Main.unity";
     private const string MaterialRoot = "Assets/_Project/Materials/Rehab";
     private const string FontRoot = "Assets/_Project/Fonts/Rehab";
@@ -67,6 +69,17 @@ public static class RehabSceneBuilder
         AssetDatabase.Refresh();
     }
 
+    [MenuItem("Tools/PICO ElderCare/Build Health Game Menu Scene")]
+    public static void BuildHealthGameMenuScene()
+    {
+        if (!EnsureEditMode()) return;
+        EnsureFolders();
+        BuildHealthGameMenuSceneInternal();
+        ConfigureBuildSettings();
+        AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
+    }
+
     [MenuItem("Tools/PICO ElderCare/Build MR Rehab Main Scene")]
     public static void BuildMrRehabMainScene()
     {
@@ -85,10 +98,12 @@ public static class RehabSceneBuilder
         if (!EnsureEditMode()) return;
         EnsureFolders();
         ConfigureMixedRealityProjectSettings();
-        PingPongDemoSceneBuilder.BuildMixedRealityDemoScene();
         BuildMainEntrySceneInternal();
+        BuildHealthGameMenuSceneInternal();
+        BuildPingPongSceneInternal();
+        ConfigurePingPongReturnNavigationInternal();
+        ArcheryGameSceneBuilder.BuildArcheryTrainingSceneInternal();
         BuildRehabSceneInternal();
-        AddReturnHomePanelToPingPongSceneInternal();
         ConfigureBuildSettings();
         AssetDatabase.SaveAssets();
         AssetDatabase.Refresh();
@@ -105,6 +120,7 @@ public static class RehabSceneBuilder
 
         var managers = new GameObject("EntryManagers");
         var menu = managers.AddComponent<UnifiedEntryMenu>();
+        menu.healthGameMenuSceneName = "02_HealthGameMenu";
         menu.pingPongSceneName = "01_PingPongDemo";
         menu.rehabSceneName = "MR_Rehab_Main";
 
@@ -147,6 +163,155 @@ public static class RehabSceneBuilder
         if (xrOrigin != null) EditorUtility.SetDirty(xrOrigin);
 
         EditorSceneManager.SaveScene(scene, MainEntryScenePath);
+    }
+
+    private static void BuildHealthGameMenuSceneInternal()
+    {
+        var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+        var managers = CreateMixedRealitySceneFoundation(
+            "HealthGameMenuManagers",
+            out var xrOrigin,
+            out var mainCamera);
+
+        var controllerObject = new GameObject("HealthGameMenuController");
+        controllerObject.transform.SetParent(managers.transform, false);
+        var controller = controllerObject.AddComponent<HealthGameMenuController>();
+
+        var uiRoot = CreateUiRoot("HealthGameMenuRoot", null);
+        EnsureComponent<MrKeepVisible>(uiRoot);
+        var menuCanvas = BuildHealthGameMenuCanvas(controller, mainCamera != null ? mainCamera.transform : null);
+        AttachUiToRoot(menuCanvas.transform, uiRoot.transform);
+        ConfigureComfortUiPlacer(
+            uiRoot,
+            mainCamera != null ? mainCamera.transform : null,
+            uiRoot.transform,
+            ElderCareUiTheme.MainEntryDistanceMeters);
+
+        EditorUtility.SetDirty(controllerObject);
+        EditorUtility.SetDirty(managers);
+        EditorUtility.SetDirty(uiRoot);
+        EditorUtility.SetDirty(menuCanvas);
+        if (xrOrigin != null) EditorUtility.SetDirty(xrOrigin);
+
+        EditorSceneManager.SaveScene(scene, HealthGameMenuScenePath);
+    }
+
+    private static void BuildPingPongSceneInternal()
+    {
+        if (!System.IO.File.Exists(PingPongScenePath))
+        {
+            Debug.LogError("PingPong scene was not found at " + PingPongScenePath);
+            return;
+        }
+
+        var pingPongScene = EditorSceneManager.OpenScene(PingPongScenePath, OpenSceneMode.Single);
+        PingPongDemoSceneBuilder.BuildMixedRealityDemoScene();
+        EditorSceneManager.SaveScene(pingPongScene, PingPongScenePath);
+    }
+
+    internal static GameObject CreateMixedRealitySceneFoundation(
+        string managersName,
+        out GameObject xrOrigin,
+        out Camera mainCamera)
+    {
+        ConfigureMixedRealityProjectSettings();
+        xrOrigin = CreateXrOrigin();
+        mainCamera = FindMainCamera();
+
+        EnsureLight();
+        EnsureXrInteractionSupport();
+
+        var managers = new GameObject(string.IsNullOrWhiteSpace(managersName) ? "SceneManagers" : managersName);
+        var mrManager = managers.AddComponent<RehabMixedRealityManager>();
+        mrManager.targetCamera = mainCamera;
+        mrManager.enableOnStart = true;
+        mrManager.enableVideoSeeThrough = true;
+        mrManager.configureTransparentCamera = true;
+        mrManager.suppressBackgroundVisuals = true;
+
+        var backgroundSuppressor = managers.AddComponent<MrBackgroundVisualSuppressor>();
+        backgroundSuppressor.hideAllEnvironmentRenderers = true;
+        backgroundSuppressor.hideAllRoomSensingRenderers = true;
+        backgroundSuppressor.scanIntervalSeconds = 0.15f;
+
+        SetupPicoRoomSensingManagers(managers.transform);
+        EditorUtility.SetDirty(managers);
+        return managers;
+    }
+
+    private static GameObject BuildHealthGameMenuCanvas(
+        HealthGameMenuController controller,
+        Transform cameraTransform)
+    {
+        var canvasGo = CreateWorldCanvas(
+            "HealthGameMenuCanvas",
+            cameraTransform,
+            new Vector3(0f, 1.45f, ElderCareUiTheme.MainEntryDistanceMeters),
+            new Vector2(760f, 520f));
+        EnsureComponent<MrKeepVisible>(canvasGo);
+
+        var panel = CreateUiObject("Panel", canvasGo.transform);
+        var panelRect = panel.GetComponent<RectTransform>();
+        panelRect.anchorMin = Vector2.zero;
+        panelRect.anchorMax = Vector2.one;
+        panelRect.offsetMin = Vector2.zero;
+        panelRect.offsetMax = Vector2.zero;
+
+        var panelImage = panel.AddComponent<ElderCareRoundedPanel>();
+        panelImage.cornerRadius = 44f;
+        panelImage.cornerSegments = 12;
+        panelImage.color = WithAlpha(Color.Lerp(ElderCareUiTheme.PanelStrong, ElderCareUiTheme.Cyan, 0.08f), 1f);
+        panelImage.raycastTarget = false;
+
+        var panelOutline = panel.AddComponent<Outline>();
+        panelOutline.effectColor = WithAlpha(ElderCareUiTheme.PanelStroke, 0.72f);
+        panelOutline.effectDistance = new Vector2(3f, -3f);
+
+        var title = CreateText(
+            panel.transform,
+            "Title",
+            "健康游戏",
+            ElderCareUiTheme.Title,
+            FontStyles.Bold,
+            TextAlignmentOptions.Center,
+            new Vector2(0f, 174f),
+            new Vector2(660f, 76f));
+        title.color = ElderCareUiTheme.TextPrimary;
+
+        var subtitle = CreateText(
+            panel.transform,
+            "Subtitle",
+            "请选择训练项目",
+            ElderCareUiTheme.Body,
+            FontStyles.Normal,
+            TextAlignmentOptions.Center,
+            new Vector2(0f, 112f),
+            new Vector2(620f, 44f));
+        subtitle.color = ElderCareUiTheme.TextSecondary;
+
+        var pingPongButton = CreateButton(
+            panel.transform,
+            "PingPongTrainingButton",
+            "乒乓球训练",
+            new Vector2(-166f, 18f),
+            new Vector2(304f, 100f));
+        var archeryButton = CreateButton(
+            panel.transform,
+            "ArcheryTrainingButton",
+            "射箭训练",
+            new Vector2(166f, 18f),
+            new Vector2(304f, 100f));
+        var backButton = CreateButton(
+            panel.transform,
+            "BackButton",
+            "返回",
+            new Vector2(0f, -132f),
+            new Vector2(636f, 72f));
+
+        UnityEventTools.AddPersistentListener(pingPongButton.onClick, controller.LoadPingPong);
+        UnityEventTools.AddPersistentListener(archeryButton.onClick, controller.LoadArchery);
+        UnityEventTools.AddPersistentListener(backButton.onClick, controller.ReturnToMainEntry);
+        return canvasGo;
     }
 
     private static void BuildRehabSceneInternal()
@@ -411,7 +576,7 @@ public static class RehabSceneBuilder
             new Vector2(292f, 142f),
             ElderCareUiTheme.Blue,
             true,
-            menu.LoadPingPong,
+            menu.LoadHealthGames,
             0.05f);
 
         CreateEntryModuleCard(
@@ -884,7 +1049,7 @@ public static class RehabSceneBuilder
         return placer;
     }
 
-    private static void AddReturnHomePanelToPingPongSceneInternal()
+    private static void ConfigurePingPongReturnNavigationInternal()
     {
         if (!System.IO.File.Exists(PingPongScenePath))
         {
@@ -892,27 +1057,61 @@ public static class RehabSceneBuilder
             return;
         }
 
-        var previousActiveScene = SceneManager.GetActiveScene();
-        var pingPongScene = EditorSceneManager.OpenScene(PingPongScenePath, OpenSceneMode.Additive);
-        SceneManager.SetActiveScene(pingPongScene);
-
-        try
+        var pingPongScene = SceneManager.GetActiveScene();
+        if (!pingPongScene.IsValid() || pingPongScene.path != PingPongScenePath)
         {
-            DestroySceneObjectIfFound(pingPongScene, "PingPongHomeCanvas");
-            DestroySceneObjectIfFound(pingPongScene, "PingPongHomeMenu");
-            DestroySceneObjectIfFound(pingPongScene, "PingPongHomeUIRoot");
-
-            EditorSceneManager.SaveScene(pingPongScene);
+            pingPongScene = EditorSceneManager.OpenScene(PingPongScenePath, OpenSceneMode.Single);
         }
-        finally
+
+        ModuleHomeMenu sceneHomeMenu = null;
+        var homeMenus = Object.FindObjectsOfType<ModuleHomeMenu>(true);
+        for (var i = 0; i < homeMenus.Length; i++)
         {
-            if (previousActiveScene.IsValid())
+            var homeMenu = homeMenus[i];
+            if (homeMenu == null || homeMenu.gameObject.scene != pingPongScene) continue;
+
+            homeMenu.mainEntrySceneName = "02_HealthGameMenu";
+            if (sceneHomeMenu == null)
             {
-                SceneManager.SetActiveScene(previousActiveScene);
+                sceneHomeMenu = homeMenu;
             }
 
-            EditorSceneManager.CloseScene(pingPongScene, true);
+            EditorUtility.SetDirty(homeMenu);
         }
+
+        if (sceneHomeMenu == null)
+        {
+            var navigationObject = FindSceneObjectByName(pingPongScene, "PingPongHealthGameNavigation");
+            if (navigationObject == null)
+            {
+                navigationObject = new GameObject("PingPongHealthGameNavigation");
+                var managers = FindSceneObjectByName(pingPongScene, "Managers");
+                if (managers != null)
+                {
+                    navigationObject.transform.SetParent(managers.transform, false);
+                }
+            }
+
+            sceneHomeMenu = EnsureComponent<ModuleHomeMenu>(navigationObject);
+            sceneHomeMenu.mainEntrySceneName = "02_HealthGameMenu";
+            EditorUtility.SetDirty(navigationObject);
+            EditorUtility.SetDirty(sceneHomeMenu);
+        }
+
+        var controlPanels = Object.FindObjectsOfType<PingPongUnifiedControlPanel>(true);
+        for (var i = 0; i < controlPanels.Length; i++)
+        {
+            var controlPanel = controlPanels[i];
+            if (controlPanel == null || controlPanel.gameObject.scene != pingPongScene) continue;
+
+            controlPanel.mainEntrySceneName = "02_HealthGameMenu";
+            controlPanel.moduleHomeMenu = sceneHomeMenu;
+            controlPanel.loadMainEntryWhenHomeMenuMissing = true;
+            EditorUtility.SetDirty(controlPanel);
+        }
+
+        EditorSceneManager.MarkSceneDirty(pingPongScene);
+        EditorSceneManager.SaveScene(pingPongScene, PingPongScenePath);
     }
 
     private static GameObject BuildModuleHomeCanvas(string canvasName, ModuleHomeMenu homeMenu, Transform cameraTransform, Vector3 fallbackPosition)
@@ -950,6 +1149,7 @@ public static class RehabSceneBuilder
         var meshManager = sensingRoot.AddComponent<PXR_SpatialMeshManager>();
         meshManager.meshPrefab = meshTemplate;
 
+        SetLayerRecursively(sensingRoot, "RoomSensing");
         EditorUtility.SetDirty(sensingRoot);
     }
 
@@ -968,9 +1168,28 @@ public static class RehabSceneBuilder
         renderer.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
         renderer.receiveShadows = false;
         template.AddComponent<MeshCollider>();
+        SetLayerRecursively(template, "RoomSensing");
         template.SetActive(false);
         EditorUtility.SetDirty(template);
         return template;
+    }
+
+    private static void SetLayerRecursively(GameObject root, string layerName)
+    {
+        if (root == null) return;
+
+        var layer = LayerMask.NameToLayer(layerName);
+        if (layer < 0)
+        {
+            Debug.LogError($"Required layer is not configured: {layerName}");
+            return;
+        }
+
+        foreach (var child in root.GetComponentsInChildren<Transform>(true))
+        {
+            child.gameObject.layer = layer;
+            EditorUtility.SetDirty(child.gameObject);
+        }
     }
 
     private static TMP_Text CreateText(
@@ -1171,13 +1390,14 @@ public static class RehabSceneBuilder
         go.transform.rotation = Quaternion.Euler(50f, -30f, 0f);
     }
 
-    private static void ConfigureBuildSettings()
+    internal static void ConfigureBuildSettings()
     {
         EditorBuildSettings.scenes = new[]
         {
             new EditorBuildSettingsScene(MainEntryScenePath, true),
-            new EditorBuildSettingsScene(DeviceTestScenePath, false),
+            new EditorBuildSettingsScene(HealthGameMenuScenePath, true),
             new EditorBuildSettingsScene(PingPongScenePath, true),
+            new EditorBuildSettingsScene(ArcheryTrainingScenePath, true),
             new EditorBuildSettingsScene(RehabScenePath, true)
         };
     }
@@ -1381,20 +1601,6 @@ public static class RehabSceneBuilder
                 {
                     Object.DestroyImmediate(components[j]);
                 }
-            }
-        }
-    }
-
-    private static void DestroySceneObjectIfFound(Scene scene, string objectName)
-    {
-        var roots = scene.GetRootGameObjects();
-        for (var i = 0; i < roots.Length; i++)
-        {
-            var found = FindChildByName(roots[i].transform, objectName);
-            if (found != null)
-            {
-                Object.DestroyImmediate(found.gameObject);
-                return;
             }
         }
     }

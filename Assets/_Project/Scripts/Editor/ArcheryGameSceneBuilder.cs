@@ -1,4 +1,5 @@
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -6,6 +7,7 @@ using UnityEngine.XR;
 
 public static class ArcheryGameSceneBuilder
 {
+    private const string ArcheryTrainingScenePath = "Assets/_Project/Scenes/03_ArcheryTraining.unity";
     private const string MaterialRoot = "Assets/_Project/Materials/Archery";
     private const string ElderCareUiFontPath = "Assets/_Project/Fonts/NotoSansCJKsc-Regular.otf";
 
@@ -14,23 +16,43 @@ public static class ArcheryGameSceneBuilder
     private static readonly Color ButtonAccentColor = new Color(0.06f, 0.52f, 0.5f, 0.95f);
     private static readonly Color ButtonSecondaryColor = new Color(0.2f, 0.26f, 0.4f, 0.95f);
 
-    [MenuItem("Tools/PICO ElderCare/Build Archery Game Objects")]
-    public static void BuildArcheryGameObjectsMenu()
+    [MenuItem("Tools/PICO ElderCare/Build Archery Training Scene")]
+    public static void BuildArcheryTrainingScene()
     {
         if (!EnsureEditMode()) return;
 
-        var menu = Object.FindObjectOfType<ElderCareHomeMenu>(true);
-        BuildArcheryModule(menu);
-        MarkActiveSceneDirtyAndSaveForBatch();
+        BuildArcheryTrainingSceneInternal();
+        RehabSceneBuilder.ConfigureBuildSettings();
         AssetDatabase.SaveAssets();
+        AssetDatabase.Refresh();
 
         if (!Application.isBatchMode)
         {
-            EditorUtility.DisplayDialog("Archery", "射箭训练场景对象已生成/修复。", "OK");
+            EditorUtility.DisplayDialog("Archery", "独立射箭训练场景已生成。", "OK");
         }
     }
 
-    public static ArcheryGameManager BuildArcheryModule(ElderCareHomeMenu menu)
+    internal static void BuildArcheryTrainingSceneInternal()
+    {
+        var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+        RehabSceneBuilder.CreateMixedRealitySceneFoundation(
+            "Managers",
+            out var xrOrigin,
+            out _);
+
+        var manager = BuildArcheryModule();
+        if (manager == null)
+        {
+            Debug.LogError("Archery training scene generation failed because ArcheryGameManager could not be created.");
+            return;
+        }
+
+        EditorUtility.SetDirty(manager.gameObject);
+        if (xrOrigin != null) EditorUtility.SetDirty(xrOrigin);
+        EditorSceneManager.SaveScene(scene, ArcheryTrainingScenePath);
+    }
+
+    public static ArcheryGameManager BuildArcheryModule()
     {
         EnsureFolderPath(MaterialRoot);
 
@@ -47,7 +69,7 @@ public static class ArcheryGameSceneBuilder
         var bow = BuildBow(archeryRoot.transform, arrowTemplate, arrowContainer, trajectoryHint);
         var goldParticles = BuildHitParticles(archeryRoot.transform, "GoldHitParticles", new Color(1f, 0.84f, 0.25f), 1.9f, 0.05f);
         var dustParticles = BuildHitParticles(archeryRoot.transform, "HitDustParticles", new Color(0.92f, 0.86f, 0.7f), 0.9f, 0.035f);
-        var panel = BuildScoreCanvas(archeryRoot.transform, menu);
+        var panel = BuildScoreCanvas(archeryRoot.transform);
 
         var managers = GetOrCreate("Managers");
         var managerObject = GetOrCreateChild("ArcheryGameManager", managers.transform);
@@ -66,6 +88,7 @@ public static class ArcheryGameSceneBuilder
         manager.hitDustParticles = dustParticles;
         manager.arrowsPerRound = 10;
         manager.difficulty = ArcheryDifficulty.Medium;
+        manager.autoStartSessionOnStart = true;
         manager.alignLaneToUserOnStart = true;
         manager.calibrateTargetHeightOnStart = true;
         manager.spawnScorePopups = true;
@@ -78,16 +101,8 @@ public static class ArcheryGameSceneBuilder
         if (panel != null)
         {
             panel.manager = manager;
-            panel.homeMenu = menu;
             panel.bow = bow;
             EditorUtility.SetDirty(panel.gameObject);
-        }
-
-        if (menu != null)
-        {
-            menu.archeryGameplayRoots = new[] { archeryRoot };
-            menu.archeryGameManager = manager;
-            EditorUtility.SetDirty(menu);
         }
 
         EditorUtility.SetDirty(archeryRoot);
@@ -212,6 +227,7 @@ public static class ArcheryGameSceneBuilder
             projectile.maxFlightSeconds = ArcheryGeometry.ArrowMaxFlightSeconds;
             projectile.missFloorY = -0.5f;
             projectile.hitLayers = BuildArrowHitLayerMask();
+            EditorUtility.SetDirty(projectile);
         }
 
         template.SetActive(false);
@@ -578,7 +594,7 @@ public static class ArcheryGameSceneBuilder
         return AssetDatabase.LoadAssetAtPath<Texture2D>(texturePath);
     }
 
-    private static ArcheryScorePanel BuildScoreCanvas(Transform archeryRoot, ElderCareHomeMenu menu)
+    private static ArcheryScorePanel BuildScoreCanvas(Transform archeryRoot)
     {
         var canvasGo = GetOrCreateChild("ArcheryScoreCanvas", archeryRoot);
         var canvas = EnsureComponent<Canvas>(canvasGo);
@@ -625,14 +641,13 @@ public static class ArcheryGameSceneBuilder
         var recenterButton = CreateActionButton(canvasRect, "RecenterButton", "重新对准", new Vector2(280f, 84f), new Vector2(300f, -200f), ButtonSecondaryColor, out _);
 
         var restartButton = CreateActionButton(canvasRect, "RestartButton", "再来一轮", new Vector2(380f, 100f), new Vector2(-210f, -315f), ButtonAccentColor, out _);
-        var homeButton = CreateActionButton(canvasRect, "HomeButton", "返回首页", new Vector2(380f, 100f), new Vector2(210f, -315f), new Color(0.34f, 0.22f, 0.5f, 0.95f), out _);
+        var homeButton = CreateActionButton(canvasRect, "HomeButton", "返回健康游戏", new Vector2(380f, 100f), new Vector2(210f, -315f), new Color(0.34f, 0.22f, 0.5f, 0.95f), out _);
 
         var statusText = CreateText(canvasRect, "StatusText", "握紧右手手柄搭弦，向后拉再松开放箭", new Vector2(0f, -425f), new Vector2(840f, 60f), 30, FontStyle.Normal, new Color(1f, 1f, 1f, 0.66f), TextAnchor.MiddleCenter);
 
         var panel = EnsureComponent<ArcheryScorePanel>(canvasGo);
         if (panel != null)
         {
-            panel.homeMenu = menu;
             panel.uiFont = CreateReadableUiFont(64);
             panel.scoreValueText = scoreValue;
             panel.arrowsValueText = arrowsValue;
@@ -943,17 +958,6 @@ public static class ArcheryGameSceneBuilder
         }
 
         return false;
-    }
-
-    private static void MarkActiveSceneDirtyAndSaveForBatch()
-    {
-        var activeScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
-        UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(activeScene);
-
-        if (Application.isBatchMode)
-        {
-            UnityEditor.SceneManagement.EditorSceneManager.SaveScene(activeScene);
-        }
     }
 
     private static GameObject GetOrCreate(string name, Transform parent = null)

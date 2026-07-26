@@ -1,14 +1,20 @@
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
 public class ArcheryScorePanel : MonoBehaviour
 {
+    public const string DefaultHealthGameMenuSceneName = "02_HealthGameMenu";
+
     [Header("绑定")]
     public ArcheryGameManager manager;
-    public ElderCareHomeMenu homeMenu;
     public BowController bow;
     public Font uiFont;
+
+    [Header("场景导航")]
+    [SerializeField]
+    private string healthGameMenuSceneName = DefaultHealthGameMenuSceneName;
 
     [Header("文本")]
     public Text scoreValueText;
@@ -33,6 +39,12 @@ public class ArcheryScorePanel : MonoBehaviour
     private Font _runtimeFont;
     private BaseRaycaster[] _raycasters;
     private bool _raycastBlocked;
+
+    public string HealthGameMenuSceneName
+    {
+        get => healthGameMenuSceneName;
+        set => healthGameMenuSceneName = value;
+    }
 
     private void Awake()
     {
@@ -162,11 +174,13 @@ public class ArcheryScorePanel : MonoBehaviour
 
     private void HandleHomeClick()
     {
+        ReturnToHealthGameMenu();
+    }
+
+    public void ReturnToHealthGameMenu()
+    {
         CancelDrawBeforeUiAction();
-        if (homeMenu != null)
-        {
-            homeMenu.ShowHome();
-        }
+        LoadScene(healthGameMenuSceneName);
     }
 
     private void HandleNearClick()
@@ -232,6 +246,23 @@ public class ArcheryScorePanel : MonoBehaviour
         {
             bow.CancelDraw();
         }
+    }
+
+    private static void LoadScene(string sceneName)
+    {
+        if (string.IsNullOrWhiteSpace(sceneName))
+        {
+            Debug.LogError("ArcheryScorePanel cannot load the health game menu because the scene name is empty.");
+            return;
+        }
+
+        if (!Application.CanStreamedLevelBeLoaded(sceneName))
+        {
+            Debug.LogError($"ArcheryScorePanel cannot load a scene that is not available in Build Settings: {sceneName}");
+            return;
+        }
+
+        SceneManager.LoadScene(sceneName);
     }
 
     private static void BindButton(Button button, UnityEngine.Events.UnityAction action)

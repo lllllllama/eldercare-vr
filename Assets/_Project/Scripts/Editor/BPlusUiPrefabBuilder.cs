@@ -358,6 +358,7 @@ public static class BPlusUiPrefabBuilder
         for (var i = 0; i < menus.Length; i++)
         {
             if (menus[i] == null) continue;
+            menus[i].healthGameMenuSceneName = "02_HealthGameMenu";
             menus[i].pingPongSceneName = "01_PingPongDemo_BPlusUI";
             menus[i].rehabSceneName = "MR_Rehab_Main_BPlusUI";
             EditorUtility.SetDirty(menus[i]);

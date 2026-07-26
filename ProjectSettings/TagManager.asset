@@ -11,11 +11,11 @@ TagManager:
   - Default
   - TransparentFX
   - Ignore Raycast
-  -
+  - ""
   - Water
   - UI
-  -
-  -
+  - ""
+  - ""
   - PlayerBody
   - Racket
   - Controller
@@ -23,23 +23,23 @@ TagManager:
   - Table
   - TableSafetyZone
   - RoomSensing
-  -
-  -
-  -
-  -
-  -
-  -
-  -
-  -
-  -
-  -
-  -
-  -
-  -
-  -
-  -
-  -
-  -
+  - ""
+  - ""
+  - ""
+  - ""
+  - ""
+  - ""
+  - ""
+  - ""
+  - ""
+  - ""
+  - ""
+  - ""
+  - ""
+  - ""
+  - ""
+  - ""
+  - ""
   m_SortingLayers:
   - name: Default
     uniqueID: 0

@@ -7712,7 +7712,10 @@ MonoBehaviour:
   ballSpawner: {fileID: 147400565}
   difficultyController: {fileID: 1599002375}
   homeMenu: {fileID: 0}
+  moduleHomeMenu: {fileID: 1841494859}
   uiFont: {fileID: 11400000, guid: 1b82f4de448bbd040a62014ec37e09dc, type: 2}
+  mainEntrySceneName: 02_HealthGameMenu
+  loadMainEntryWhenHomeMenuMissing: 1
   titleText: {fileID: 968296981}
   statusText: {fileID: 846529695}
   accuracyText: {fileID: 1863200120}
@@ -8658,7 +8661,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ca08466d293d27844b445aa1eb8bcfb7, type: 3}
   m_Name:
   m_EditorClassIdentifier:
-  mainEntrySceneName: 00_MainEntry
+  mainEntrySceneName: 02_HealthGameMenu
 --- !u!4 &1841494860
 Transform:
   m_ObjectHideFlags: 0

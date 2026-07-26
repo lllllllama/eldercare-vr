@@ -5698,6 +5698,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 936fc7ad79a90754cbc8162b193fab94, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  healthGameMenuSceneName: 02_HealthGameMenu
   pingPongSceneName: 01_PingPongDemo_BPlusUI
   rehabSceneName: MR_Rehab_Main_BPlusUI
 --- !u!114 &1900216791
@@ -5898,7 +5899,7 @@ MonoBehaviour:
       m_Calls:
       - m_Target: {fileID: 1900216790}
         m_TargetAssemblyTypeName: PicoElderCare.Rehab.UnifiedEntryMenu, Assembly-CSharp
-        m_MethodName: LoadPingPong
+        m_MethodName: LoadHealthGames
         m_Mode: 0
         m_Arguments:
           m_ObjectArgument: {fileID: 0}

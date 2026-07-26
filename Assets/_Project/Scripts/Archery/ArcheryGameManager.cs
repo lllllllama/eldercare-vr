@@ -23,6 +23,7 @@ public class ArcheryGameManager : MonoBehaviour
     [Header("训练配置")]
     public int arrowsPerRound = 10;
     public ArcheryDifficulty difficulty = ArcheryDifficulty.Medium;
+    public bool autoStartSessionOnStart;
     public bool alignLaneToUserOnStart = true;
     public bool calibrateTargetHeightOnStart = true;
     public bool spawnScorePopups = true;
@@ -47,6 +48,13 @@ public class ArcheryGameManager : MonoBehaviour
     private void Start()
     {
         LoadSettings();
+
+        if (autoStartSessionOnStart)
+        {
+            StartSession();
+            return;
+        }
+
         ApplySettingsToBow();
         UpdatePanel();
     }

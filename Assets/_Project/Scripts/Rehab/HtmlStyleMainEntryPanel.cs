@@ -102,7 +102,7 @@ namespace PicoElderCare.Rehab
 
             CreateTopBar(panel.transform);
 
-            CreateModuleCard(panel.transform, "Module_HealthGame", IconTableTennis, ElderCareIconType.TableTennis, "\u5065\u5eb7\u6e38\u620f", "\u52a8\u8111\u53c8\u5f00\u5fc3", new Vector2(-363f, 14f), true, LoadPingPong, 0f);
+            CreateModuleCard(panel.transform, "Module_HealthGame", IconTableTennis, ElderCareIconType.TableTennis, "\u5065\u5eb7\u6e38\u620f", "\u52a8\u8111\u53c8\u5f00\u5fc3", new Vector2(-363f, 14f), true, LoadHealthGames, 0f);
             CreateModuleCard(panel.transform, "Module_Rehab", IconLotus, ElderCareIconType.Heart, "\u5eb7\u590d\u8fd0\u52a8", "\u4eca\u65e5 3 \u4e2a\u52a8\u4f5c", new Vector2(-121f, 14f), true, LoadRehab, 0.05f);
             CreateModuleCard(panel.transform, "Module_Travel", IconLuggage, ElderCareIconType.MapPin, "VR \u65c5\u6e38", "\u8db3\u4e0d\u51fa\u6237\u770b\u4e16\u754c", new Vector2(121f, 14f), false, null, 0.1f);
             CreateModuleCard(panel.transform, "Module_Memory", IconCamera, ElderCareIconType.Video, "\u5f80\u65e5\u65f6\u5149", "\u56de\u5230\u4ece\u524d", new Vector2(363f, 14f), false, null, 0.15f);
@@ -231,10 +231,10 @@ namespace PicoElderCare.Rehab
             CreateText(parent, "Hint", "\u5361\u7247\u60ac\u505c\u4f1a\u653e\u5927\uff1b\u65c5\u6e38\u3001\u5f80\u65e5\u65f6\u5149\u548c\u5e95\u90e8\u529f\u80fd\u4e3a\u5f85\u63a5\u5165", new Vector2(596f, 24f), new Vector2(0f, -306f), 15f, FontStyles.Normal, TextAlignmentOptions.Center, WithAlpha(ElderCareUiTheme.TextPrimary, 0.72f));
         }
 
-        private void LoadPingPong()
+        private void LoadHealthGames()
         {
             ResolveReferences();
-            if (menu != null) menu.LoadPingPong();
+            if (menu != null) menu.LoadHealthGames();
         }
 
         private void LoadRehab()

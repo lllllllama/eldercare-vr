@@ -6,6 +6,7 @@ namespace PicoElderCare.Rehab
 {
     public class UnifiedEntryMenu : MonoBehaviour
     {
+        public string healthGameMenuSceneName = "02_HealthGameMenu";
         public string pingPongSceneName = "01_PingPongDemo";
         public string rehabSceneName = "MR_Rehab_Main";
         public bool applyHtmlStyleMainPanel = true;
@@ -39,6 +40,11 @@ namespace PicoElderCare.Rehab
         public void LoadPingPong()
         {
             SceneManager.LoadScene(pingPongSceneName);
+        }
+
+        public void LoadHealthGames()
+        {
+            SceneManager.LoadScene(healthGameMenuSceneName);
         }
 
         public void LoadRehab()
