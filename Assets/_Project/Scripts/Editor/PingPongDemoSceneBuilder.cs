@@ -944,6 +944,8 @@ public static class PingPongDemoSceneBuilder
             EditorUtility.SetDirty(unifiedControlPanel);
         }
 
+        ArcheryGameSceneBuilder.BuildArcheryModule(homeMenu);
+
         if (mixedRealityMode)
         {
             SetupMixedRealityMode(managers.transform, environment.transform, table.transform, dragHandle, leftBallGrabber, gripState);
@@ -3326,8 +3328,9 @@ public static class PingPongDemoSceneBuilder
 
         var cards = new List<ElderCareModuleCard>
         {
-            CreateHomeModuleCard(canvasRect, menu, "Module_HealthGame", "pingpong", "健康游戏", "乒乓球、投篮等趣味运动", ElderCareIconType.Gamepad, new Vector2(-330f, 95f), new Color(0.18f, 0.46f, 0.91f), new Color(0.28f, 0.57f, 1f), new Color(0.23f, 0.51f, 0.96f, 0.55f)),
-            CreateHomeModuleCard(canvasRect, menu, "Module_Rehab", "rehab", "康复运动", "太极拳、八段锦养生功法", ElderCareIconType.Heart, new Vector2(330f, 95f), new Color(0.15f, 0.66f, 0.34f), new Color(0.25f, 0.79f, 0.43f), new Color(0.13f, 0.78f, 0.36f, 0.55f)),
+            CreateHomeModuleCard(canvasRect, menu, "Module_HealthGame", "pingpong", "健康游戏", "乒乓球挥拍训练", ElderCareIconType.Gamepad, new Vector2(-640f, 95f), new Color(0.18f, 0.46f, 0.91f), new Color(0.28f, 0.57f, 1f), new Color(0.23f, 0.51f, 0.96f, 0.55f)),
+            CreateHomeModuleCard(canvasRect, menu, "Module_Archery", "archery", "射箭游戏", "双手拉弓训练，坐姿可玩", ElderCareIconType.Target, new Vector2(0f, 95f), new Color(0.05f, 0.55f, 0.55f), new Color(0.1f, 0.68f, 0.68f), new Color(0.07f, 0.63f, 0.6f, 0.55f)),
+            CreateHomeModuleCard(canvasRect, menu, "Module_Rehab", "rehab", "康复运动", "太极拳、八段锦养生功法", ElderCareIconType.Heart, new Vector2(640f, 95f), new Color(0.15f, 0.66f, 0.34f), new Color(0.25f, 0.79f, 0.43f), new Color(0.13f, 0.78f, 0.36f, 0.55f)),
             CreateHomeModuleCard(canvasRect, menu, "Module_Travel", "travel", "VR旅游", "长城、故宫名胜古迹", ElderCareIconType.MapPin, new Vector2(-330f, -215f), new Color(0.55f, 0.29f, 0.89f), new Color(0.66f, 0.39f, 1f), new Color(0.62f, 0.33f, 0.97f, 0.55f)),
             CreateHomeModuleCard(canvasRect, menu, "Module_Video", "video", "场景视频", "VR看房、生活场景体验", ElderCareIconType.Video, new Vector2(330f, -215f), new Color(0.91f, 0.42f, 0.12f), new Color(1f, 0.55f, 0.22f), new Color(0.98f, 0.45f, 0.12f, 0.55f))
         };

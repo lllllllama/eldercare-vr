@@ -1,11 +1,11 @@
 # PICO ElderCare VR/MR
 
-面向 PICO 设备的老年人 VR/MR 综合康养项目。当前首页采用 Figma 原型里的四模块结构：健康游戏、康复运动、VR旅游、场景视频；现阶段已内置健康游戏里的乒乓球训练功能，其余模块保留入口，后续可以继续接入独立内容。
+面向 PICO 设备的老年人 VR/MR 综合康养项目。当前首页包含五个模块入口：健康游戏（乒乓球）、射箭游戏、康复运动、VR旅游、场景视频；现阶段已内置乒乓球训练和双手拉弓射箭训练，其余模块保留入口，后续可以继续接入独立内容。
 
 ![mode-vr](https://img.shields.io/badge/mode-VR-blue) ![mode-mr](https://img.shields.io/badge/mode-MR-orange) ![unity](https://img.shields.io/badge/Unity-2022.3.62f3-black) ![sdk](https://img.shields.io/badge/PICO%20SDK-3.4.0-green)
 
-- **VR 模式**：虚拟首页 + 虚拟康养功能入口 + 乒乓球训练场景。
-- **MR 模式**：真实房间透视背景 + 虚拟首页/球桌/球/球拍/UI，支持把球桌摆到真实空间中。
+- **VR 模式**：虚拟首页 + 虚拟康养功能入口 + 乒乓球训练场景 + 射箭训练场景。
+- **MR 模式**：真实房间透视背景 + 虚拟首页/球桌/球/球拍/UI，支持把球桌摆到真实空间中；射箭场景同样可用（射箭对象带 `MrKeepVisible` 保护）。
 
 ---
 
@@ -43,9 +43,17 @@
 
 **综合首页**
 - 运行后先进入 `VR康养服务` 世界空间首页，而不是直接开始乒乓球。
-- 首页包含 `健康游戏`、`康复运动`、`VR旅游`、`场景视频` 四个模块入口。
-- `健康游戏` 当前启动内置乒乓球训练；其它模块显示待接入状态，后续可按模块 ID 扩展。
+- 首页包含 `健康游戏`、`射箭游戏`、`康复运动`、`VR旅游`、`场景视频` 五个模块入口。
+- `健康游戏` 启动内置乒乓球训练，`射箭游戏` 启动双手拉弓射箭训练；其它模块显示待接入状态，后续可按模块 ID 扩展。
 - 首页卡片使用 VR 大字号、发光 hover、线性图标和手柄/手势选择提示。
+
+**射箭训练（双手柄协作，坐姿可玩）**
+- 左手手柄持弓，右手手柄在弓侧握紧 Grip 或扳机搭弦，向后拉开再松手放箭。
+- 拉距、出箭速度、命中环数全部由 `ArcherySolver` 纯函数解算，可离线回归。
+- 开始训练时按当前头部高度自动校准靶心高度（0.9–1.75 米限位），坐轮椅或沙发上也能平视瞄准；箭道朝向按当前头部朝向对齐，无需起身移动。
+- 5 色环靶（白/黑/蓝/红/金对应 2/4/6/8/10 环），近/中/远三档靶距（4/6/8.5 米）可随时切换。
+- 每轮 10 支箭，计分板实时显示总分、剩余箭数、上一箭环数；拉弓时右手柄有渐进震动反馈。
+- 箭矢采用自写弹道（重力 + 线性阻力）+ SphereCast 扫掠命中检测，不依赖刚体碰撞，低速高速都不穿靶。
 
 **交互**
 - 右手球拍自动跟随控制器击球，支持持球发球与自由球击打两套策略。
@@ -100,8 +108,10 @@
 | `Build PingPong Demo Scene` | 生成 VR 综合首页 + 内置乒乓球训练：关闭 PICO MR 开关、移除 MR 对象、恢复不透明主相机、启用虚拟地面和背景墙。 |
 | `Build PingPong Mixed Reality Scene` | 生成 MR 综合首页 + 内置乒乓球训练：启用 PICO MR、视频透视、Plane Detection、Spatial Mesh，隐藏虚拟房间，挂 MR 管理器。 |
 | `Build VRTableTennis Adapted Assets` | 从 `External/VRTableTennis/Original` 的模型、音频、材质生成 `Adapted` 下的可用 prefab。 |
+| `Build Archery Game Objects` | 单独生成/修复射箭训练对象（弓、箭、靶、计分板）并接回首页菜单；`Build PingPong Demo Scene` 与 MR 构建会自动包含这一步。 |
 | `Repair PingPong Demo Scene Objects` | 脚本升级后修复已有场景对象，避免整场景重建。 |
 | `Run PingPong Physics Self Tests` | 在编辑器里跑 Solver/发球/空气动力学的物理自测。 |
+| `Run Archery Self Tests` | 跑射箭拉弓/弹道/环数计分/坐姿校准/模块切换自测。 |
 
 ---
 
@@ -127,10 +137,17 @@
 & 'C:\Program Files\Unity\Hub\Editor\2022.3.62f3\Editor\Unity.exe' -batchmode -quit -projectPath . -executeMethod PingPongPhysicsSelfTests.RunAll -logFile 'Logs\unity_physics_tests.log'
 ```
 
+**跑射箭自测**
+
+```powershell
+& 'C:\Program Files\Unity\Hub\Editor\2022.3.62f3\Editor\Unity.exe' -batchmode -quit -projectPath . -executeMethod ArcherySelfTests.RunAll -logFile 'Logs\unity_archery_tests.log'
+```
+
 自测通过时日志里会出现：
 
 ```text
 PingPong physics self tests passed.
+Archery self tests passed.
 ```
 
 如果 batchmode 直接退出并在日志里看到 `No valid Unity Editor license found`，说明 Unity 授权未激活，先在 Unity Hub 登录并激活许可证。
@@ -160,9 +177,11 @@ Assets/
         Original/       # 精选复制的 FBX、音频、材质、LICENSE
         Adapted/        # 清理后的 table/net/paddle/ball prefab
     Materials/PingPong/ # 项目自有 URP 材质（含 MR 可视化材质）
+    Materials/Archery/  # 射箭弓/箭/靶材质（构建器自动生成）
     Prefabs/PingPong/   # fallback 球 prefab
     Scenes/             # 01_PingPongDemo / 00_DeviceTest
     Scripts/
+      Archery/          # 弓/箭/靶/计分/会话管理（双手柄射箭）
       Common/Events/    # PingPongEvents 事件总线
       Common/Feedback/  # HitFeedbackManager 音效/特效
       Editor/           # 场景构建器 + 物理自测
@@ -193,6 +212,22 @@ Assets/
 | `PingPong/Ball/BallLifetime.cs` | 球体生命周期与 miss 上报。 |
 | `PingPong/Paddle/PaddleFollower.cs` | 球拍跟随控制器 Transform。 |
 | `PingPong/Paddle/PaddleVelocityTracker.cs` | 差分速度、角速度、接触点速度、击球点局部坐标。 |
+
+**射箭玩法**
+
+| 脚本 | 职责 |
+| --- | --- |
+| `Archery/ArcheryGeometry.cs` | 弓、箭、靶、拉距、速度、靶距、坐姿高度限位的统一常量。 |
+| `Archery/ArcherySolver.cs` | 纯函数解算：拉弓状态、出箭速度、环数计分、弹道预测、坐姿高度校准、箭道朝向。 |
+| `Archery/ArcheryEvents.cs` | 拉弓/放箭/命中/脱靶/训练开始结束事件与结构体。 |
+| `Archery/BowController.cs` | 左手持弓跟随、右手 Grip/扳机搭弦拉弓、松手放箭、弓弦视觉与震动反馈。 |
+| `Archery/ArrowProjectile.cs` | 箭矢弹道积分（重力 + 阻力）、SphereCast 扫掠命中、插靶与脱靶上报。 |
+| `Archery/ArcheryTarget.cs` | 靶面命中点换算环数并广播事件。 |
+| `Archery/ArcheryGameManager.cs` | 训练会话：每轮箭数、总分、难度靶距、坐姿高度校准、箭道对齐、清箭。 |
+| `Archery/ArcheryScorePanel.cs` | 世界空间计分板：总分/剩余箭数/上一箭/难度按钮/返回首页。 |
+| `Common/Input/PicoGripOrTriggerInputSource.cs` | Grip 或扳机任一按下即可拉弓的输入源（老年用户友好）。 |
+| `Editor/ArcheryGameSceneBuilder.cs` | 射箭场景对象一键生成/修复 + 首页菜单接线。 |
+| `Editor/ArcherySelfTests.cs` | 拉弓/弹道/计分/校准/模块切换批处理自测。 |
 
 **交互与 MR**
 
@@ -242,6 +277,13 @@ Assets/
 - 球是否不再穿透桌面或球拍。
 - 球网是否没有明显空气墙。
 - 左右手和球拍是否不会明显穿进桌体。
+
+**射箭训练**
+- 首页选择 `射箭游戏` 后，箭道是否朝向当前视线方向、靶心高度是否与视线齐平（坐姿也应如此）。
+- 右手靠近弓身握 Grip 或扳机是否能搭弦，向后拉时弓弦和搭箭是否跟手。
+- 松手后箭是否沿瞄准方向飞出，命中靶面是否插靶并按环数计分。
+- 近/中/远切换后靶距是否变化，`再来一轮` 是否清空旧箭并重置计分。
+- 拉弓过程中右手柄是否有渐进震动，放箭瞬间是否有明显震动。
 
 **MR 与摆放**
 - 拖拽球桌后，发球点、目标点、UI、碰撞限位是否同步。

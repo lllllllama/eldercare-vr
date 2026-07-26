@@ -13,7 +13,8 @@ public enum ElderCareIconType
     TableTennis = 6,
     Gear = 7,
     User = 8,
-    Trophy = 9
+    Trophy = 9,
+    Target = 10
 }
 
 public class ElderCareLineIcon : MaskableGraphic
@@ -64,7 +65,22 @@ public class ElderCareLineIcon : MaskableGraphic
             case ElderCareIconType.ArrowLeft:
                 DrawArrowLeft(vh, center, size, stroke, c);
                 break;
+            case ElderCareIconType.Target:
+                DrawTarget(vh, center, size, stroke, c);
+                break;
         }
+    }
+
+    private void DrawTarget(VertexHelper vh, Vector2 center, float size, float stroke, Color32 c)
+    {
+        DrawCircle(vh, center, size * 0.4f, stroke, c);
+        DrawCircle(vh, center, size * 0.25f, stroke, c);
+        DrawCircle(vh, center, size * 0.09f, stroke, c);
+
+        var arrowTail = center + new Vector2(0.46f, 0.46f) * size;
+        DrawLine(vh, arrowTail, center, stroke, c);
+        DrawLine(vh, arrowTail, arrowTail + new Vector2(-0.14f, 0f) * size, stroke, c);
+        DrawLine(vh, arrowTail, arrowTail + new Vector2(0f, -0.14f) * size, stroke, c);
     }
 
     private void DrawTableTennis(VertexHelper vh, Vector2 center, float size, float stroke, Color32 c)

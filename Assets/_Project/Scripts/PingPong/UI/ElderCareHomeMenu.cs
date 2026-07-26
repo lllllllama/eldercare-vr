@@ -5,6 +5,8 @@ public class ElderCareHomeMenu : MonoBehaviour
 {
     public GameObject homeRoot;
     public GameObject[] pingPongGameplayRoots;
+    public GameObject[] archeryGameplayRoots;
+    public ArcheryGameManager archeryGameManager;
     public BallSpawner ballSpawner;
     public ScoreManager scoreManager;
     public VrInitialViewAligner initialViewAligner;
@@ -62,6 +64,12 @@ public class ElderCareHomeMenu : MonoBehaviour
             return;
         }
 
+        if (moduleId == "archery")
+        {
+            StartArcheryModule();
+            return;
+        }
+
         ShowFutureModule(moduleTitle);
     }
 
@@ -69,6 +77,7 @@ public class ElderCareHomeMenu : MonoBehaviour
     {
         SetHomeActive(true);
         SetPingPongGameplayActive(false);
+        StopArcheryGameplay();
         PlaceHomeUiIfNeeded();
 
         if (ballSpawner != null)
@@ -99,6 +108,7 @@ public class ElderCareHomeMenu : MonoBehaviour
     public void StartPingPongModule()
     {
         SetHomeActive(false);
+        StopArcheryGameplay();
         SetPingPongGameplayActive(true);
 
         if (scoreManager != null)
@@ -121,10 +131,56 @@ public class ElderCareHomeMenu : MonoBehaviour
         }
     }
 
+    public void StartArcheryModule()
+    {
+        SetHomeActive(false);
+        SetPingPongGameplayActive(false);
+
+        if (ballSpawner != null)
+        {
+            ballSpawner.StopServing();
+            if (clearBallsWhenLeavingPingPong)
+            {
+                ballSpawner.ClearBalls();
+            }
+        }
+
+        SetArcheryGameplayActive(true);
+
+        if (archeryGameManager != null)
+        {
+            archeryGameManager.StartSession();
+        }
+    }
+
+    private void StopArcheryGameplay()
+    {
+        if (archeryGameManager != null)
+        {
+            archeryGameManager.StopSession();
+        }
+
+        SetArcheryGameplayActive(false);
+    }
+
+    private void SetArcheryGameplayActive(bool active)
+    {
+        if (archeryGameplayRoots == null) return;
+
+        foreach (var gameplayRoot in archeryGameplayRoots)
+        {
+            if (gameplayRoot != null)
+            {
+                gameplayRoot.SetActive(active);
+            }
+        }
+    }
+
     private void ShowFutureModule(string moduleTitle)
     {
         SetHomeActive(true);
         SetPingPongGameplayActive(false);
+        StopArcheryGameplay();
 
         if (ballSpawner != null)
         {
