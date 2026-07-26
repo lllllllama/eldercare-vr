@@ -1,10 +1,10 @@
 # PICO ElderCare VR/MR
 
-面向 PICO 设备的老年人 VR/MR 综合康养项目。现有主导航保留健康游戏、康复运动、VR旅游、场景视频入口；健康游戏进入二级选择场景，再分别进入独立的乒乓球训练和双手拉弓射箭训练场景。
+面向 PICO 设备的老年人 VR/MR 综合康养项目。现有主导航保留健康游戏、康复运动、VR旅游、场景视频入口；健康游戏进入二级选择场景，再分别进入独立的乒乓球训练、双手拉弓射箭训练和单手投掷飞镖训练场景。
 
 ![mode-vr](https://img.shields.io/badge/mode-VR-blue) ![mode-mr](https://img.shields.io/badge/mode-MR-orange) ![unity](https://img.shields.io/badge/Unity-2022.3.62f3-black) ![sdk](https://img.shields.io/badge/PICO%20SDK-3.4.0-green)
 
-- **VR 模式**：主导航 + 健康游戏选择页 + 独立乒乓球训练场景 + 独立射箭训练场景。
+- **VR 模式**：主导航 + 健康游戏选择页 + 独立乒乓球 / 射箭 / 飞镖训练场景。
 - **MR 模式**：乒乓球和射箭场景分别复用项目的 XR/MR 基础配置；两套玩法互不注入、互不依赖。
 
 ---
@@ -44,8 +44,8 @@
 **综合首页**
 - 运行后先进入 `VR康养服务` 世界空间首页，而不是直接开始乒乓球。
 - 首页原有布局和入口保持不变，`健康游戏` 不再直接启动乒乓球。
-- `健康游戏` 打开 `02_HealthGameMenu`，该二级场景提供 `乒乓球训练` 和 `射箭训练` 两个入口。
-- 乒乓球与射箭分别运行在 `01_PingPongDemo` 和 `03_ArcheryTraining`，不共享玩法根对象或场景内菜单控制器。
+- `健康游戏` 打开 `02_HealthGameMenu`，该二级场景提供 `乒乓球训练`、`射箭训练`、`飞镖训练` 三个入口。
+- 三个玩法分别运行在 `01_PingPongDemo`、`03_ArcheryTraining`、`04_DartsTraining`，互不注入、互不依赖。
 - 首页卡片使用 VR 大字号、发光 hover、线性图标和手柄/手势选择提示。
 
 **射箭训练（双手柄协作，坐姿可玩）**
@@ -56,6 +56,14 @@
 - **拟真反馈**：弓臂随拉弓实时弯曲、弓弦三段式跟手；搭弦/拉弓/放箭三段双手差异化震动；程序合成音效（搭弦咔哒、拉弓渐紧、放箭弦响、命中闷响、环数越高音越亮的钟声、金环三连音）零音频资源依赖。
 - **游戏化**：5 色环靶（白/黑/蓝/红/金对应 2/4/6/8/10 环），近/中/远三档靶距；每轮 10 支箭，命中点弹出飘分文字，金环触发金色粒子庆祝；每轮结束按命中率给 1–5 星评价和鼓励语；各难度历史最佳成绩用 `PlayerPrefs` 持久化，破纪录有专属提示音。
 - 箭矢采用自写弹道（重力 + 线性阻力）+ SphereCast 扫掠命中检测，附拖尾光带，插靶带随机滚转姿态，不依赖刚体碰撞，低速高速都不穿靶。
+
+
+**飞镖训练（单手投掷，坐姿可玩）**
+- 任一手握紧 Grip 或扳机拿镖，朝镖盘挥臂时松手投出；`投掷手` 按钮一键切换左/右利手并记忆偏好。
+- 出手速度由挥臂手速映射（时间窗平均测速抗手抖），慢速松手视为"把镖放回"不投出——点面板按钮永不误投。
+- 镖盘高度按头部高度自动校准（0.9–1.75 米限位），近/标准/远三档盘距（1.8/2.4/3 米）；辅助瞄准限角 8° 向盘心纠偏（投掷比拉弓更难控向，纠偏比射箭更宽）。
+- 经典镖盘配色（米白/黑/绿/红 + 金色盘心对应 2/4/6/8/10 环），每轮 10 镖，星级评价、鼓励语、飘分、金心粒子、历史最佳与射箭同一套游戏化体系。
+- 弹道/计分/辅助瞄准/星级全部复用 `ArcherySolver` 纯函数，可离线回归；音效复用程序合成器（新增出手破空声）。
 
 **交互**
 - 右手球拍自动跟随控制器击球，支持持球发球与自由球击打两套策略。
@@ -95,7 +103,7 @@
    ```
 
 4. 点击 `Tools/PICO ElderCare/Build Unified MVP Scenes` 生成导航和训练场景并配置 Build Settings。
-5. Build And Run 到 PICO 设备。运行后先看到 `VR康养服务` 首页；选择 `健康游戏` 后，可继续选择乒乓球或射箭训练。
+5. Build And Run 到 PICO 设备。运行后先看到 `VR康养服务` 首页；选择 `健康游戏` 后，可继续选择乒乓球、射箭或飞镖训练。
 
 ---
 
@@ -112,9 +120,11 @@
 | `Build PingPong Mixed Reality Scene` | 生成乒乓球 MR 训练内容，不生成射箭对象。 |
 | `Build VRTableTennis Adapted Assets` | 从 `External/VRTableTennis/Original` 的模型、音频、材质生成 `Adapted` 下的可用 prefab。 |
 | `Build Archery Training Scene` | 生成独立的 `03_ArcheryTraining`，包含 XR/MR 基础、弓、箭、靶和计分板。 |
+| `Build Darts Training Scene` | 生成独立的 `04_DartsTraining`，包含 XR/MR 基础、镖、镖盘和计分板。 |
 | `Repair PingPong Demo Scene Objects` | 脚本升级后修复已有场景对象，避免整场景重建。 |
 | `Run PingPong Physics Self Tests` | 在编辑器里跑 Solver/发球/空气动力学的物理自测。 |
 | `Run Archery Self Tests` | 跑射箭拉弓/弹道/环数计分/坐姿校准及独立场景路由自测。 |
+| `Run Darts Self Tests` | 跑飞镖出手速度映射/弹道/计分/换手/场景路由自测。 |
 
 ---
 
@@ -152,11 +162,18 @@
 & 'C:\Program Files\Unity\Hub\Editor\2022.3.62f3\Editor\Unity.exe' -batchmode -quit -projectPath . -executeMethod ArcherySelfTests.RunAll -logFile 'Logs\unity_archery_tests.log'
 ```
 
+**跑飞镖自测**
+
+```powershell
+& 'C:\Program Files\Unity\Hub\Editor\2022.3.62f3\Editor\Unity.exe' -batchmode -quit -projectPath . -executeMethod DartsSelfTests.RunAll -logFile 'Logs\unity_darts_tests.log'
+```
+
 自测通过时日志里会出现：
 
 ```text
 PingPong physics self tests passed.
 Archery self tests passed.
+Darts self tests passed.
 ```
 
 如果 batchmode 直接退出并在日志里看到 `No valid Unity Editor license found`，说明 Unity 授权未激活，先在 Unity Hub 登录并激活许可证。
@@ -188,9 +205,10 @@ Assets/
     Materials/PingPong/ # 项目自有 URP 材质（含 MR 可视化材质）
     Materials/Archery/  # 射箭弓/箭/靶材质（构建器自动生成）
     Prefabs/PingPong/   # fallback 球 prefab
-    Scenes/             # 00_MainEntry / 02_HealthGameMenu / 01_PingPongDemo / 03_ArcheryTraining / MR_Rehab_Main
+    Scenes/             # 00_MainEntry / 02_HealthGameMenu / 01_PingPongDemo / 03_ArcheryTraining / 04_DartsTraining / MR_Rehab_Main
     Scripts/
       Archery/          # 弓/箭/靶/计分/会话管理（双手柄射箭）
+      Darts/            # 镖/镖盘/投掷/计分/会话管理（单手飞镖）
       HealthGame/       # 健康游戏二级菜单的跨场景导航
       Common/Events/    # PingPongEvents 事件总线
       Common/Feedback/  # HitFeedbackManager 音效/特效

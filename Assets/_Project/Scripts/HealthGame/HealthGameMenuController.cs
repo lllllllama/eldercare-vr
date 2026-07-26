@@ -14,6 +14,9 @@ namespace PicoElderCare.HealthGame
         [SerializeField]
         private string archerySceneName = "03_ArcheryTraining";
 
+        [SerializeField]
+        private string dartsSceneName = "04_DartsTraining";
+
         public void LoadPingPong()
         {
             LoadScene(pingPongSceneName);
@@ -22,6 +25,11 @@ namespace PicoElderCare.HealthGame
         public void LoadArchery()
         {
             LoadScene(archerySceneName);
+        }
+
+        public void LoadDarts()
+        {
+            LoadScene(dartsSceneName);
         }
 
         public void ReturnToMainEntry()

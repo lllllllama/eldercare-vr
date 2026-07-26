@@ -195,6 +195,18 @@ public static class ArcheryAudioSynth
              Mathf.Sin(2f * Mathf.PI * baseFrequency * 3f * t) * 0.1f) * Mathf.Exp(-t * 5.5f));
     }
 
+    public static AudioClip CreateThrowWhoosh()
+    {
+        var random = new System.Random(53);
+        const float duration = 0.22f;
+        return Create("DartsThrowWhoosh", duration, t =>
+        {
+            // 白噪声包络先升后降，近似挥臂破空声。
+            var envelope = Mathf.Sin(Mathf.Clamp01(t / duration) * Mathf.PI);
+            return (float)(random.NextDouble() * 2.0 - 1.0) * envelope * envelope * 0.45f;
+        });
+    }
+
     public static AudioClip CreateGoldFanfare()
     {
         return Create("ArcheryGoldFanfare", 0.7f, t =>

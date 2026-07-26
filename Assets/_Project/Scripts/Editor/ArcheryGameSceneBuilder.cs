@@ -144,6 +144,13 @@ public static class ArcheryGameSceneBuilder
         {
             panel.manager = manager;
             panel.bow = bow;
+            if (bow != null)
+            {
+                // 指针悬停面板时不搭弦：封死“按住按钮→射线滑出→快速松手误放箭”的路径。
+                bow.uiHoverGuardBehaviour = panel;
+                EditorUtility.SetDirty(bow);
+            }
+
             EditorUtility.SetDirty(panel.gameObject);
         }
 

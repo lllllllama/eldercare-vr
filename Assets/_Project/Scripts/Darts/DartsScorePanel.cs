@@ -3,13 +3,13 @@ using UnityEngine.EventSystems;
 using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 
-public class ArcheryScorePanel : MonoBehaviour, IUiHoverGuard, IPointerEnterHandler, IPointerExitHandler
+public class DartsScorePanel : MonoBehaviour, IUiHoverGuard, IPointerEnterHandler, IPointerExitHandler
 {
     public const string DefaultHealthGameMenuSceneName = "02_HealthGameMenu";
 
     [Header("绑定")]
-    public ArcheryGameManager manager;
-    public BowController bow;
+    public DartsGameManager manager;
+    public HandDartThrower thrower;
     public Font uiFont;
 
     [Header("场景导航")]
@@ -18,22 +18,22 @@ public class ArcheryScorePanel : MonoBehaviour, IUiHoverGuard, IPointerEnterHand
 
     [Header("文本")]
     public Text scoreValueText;
-    public Text arrowsValueText;
+    public Text dartsValueText;
     public Text lastHitValueText;
     public Text bestScoreValueText;
     public Text difficultyValueText;
     public Text statusText;
     public Text assistButtonLabel;
-    public Text handednessButtonLabel;
+    public Text throwHandButtonLabel;
 
     [Header("按钮")]
     public Button restartButton;
     public Button homeButton;
     public Button difficultyNearButton;
-    public Button difficultyMediumButton;
+    public Button difficultyStandardButton;
     public Button difficultyFarButton;
     public Button assistToggleButton;
-    public Button handednessButton;
+    public Button throwHandButton;
     public Button recenterButton;
 
     [Header("难度选中态配色")]
@@ -77,11 +77,10 @@ public class ArcheryScorePanel : MonoBehaviour, IUiHoverGuard, IPointerEnterHand
 
     private void Update()
     {
-        // 深拉弓时屏蔽面板射线点击：满弓松手时扳机释放若恰好扫过面板，会误触
-        // “返回首页”等按钮。阈值取 35% 拉距——坐姿双手搁腿点按钮时两手自然间距
-        // 折算约 22% 拉距，取 35% 保证正常点按钮不受影响；浅拉距下的误放箭
-        // 由按钮点击回调里的 CancelDrawBeforeUiAction 兜底。
-        var shouldBlock = bow != null && bow.IsDrawing && bow.CurrentDraw01 > 0.35f;
+        // 挥臂投掷过程中屏蔽面板射线点击：出手瞬间扳机释放若恰好扫过面板，
+        // 会误触按钮。阈值取 1.2 m/s 手速——静止点按钮不受影响。
+        var shouldBlock = thrower != null && thrower.IsHolding &&
+                          thrower.CurrentHandSpeed > DartsGeometry.MinThrowHandSpeedMetersPerSecond;
         if (shouldBlock == _raycastBlocked) return;
 
         _raycastBlocked = shouldBlock;
@@ -101,10 +100,10 @@ public class ArcheryScorePanel : MonoBehaviour, IUiHoverGuard, IPointerEnterHand
         BindButton(restartButton, HandleRestartClick);
         BindButton(homeButton, HandleHomeClick);
         BindButton(difficultyNearButton, HandleNearClick);
-        BindButton(difficultyMediumButton, HandleMediumClick);
+        BindButton(difficultyStandardButton, HandleStandardClick);
         BindButton(difficultyFarButton, HandleFarClick);
         BindButton(assistToggleButton, HandleAssistClick);
-        BindButton(handednessButton, HandleHandednessClick);
+        BindButton(throwHandButton, HandleThrowHandClick);
         BindButton(recenterButton, HandleRecenterClick);
     }
 
@@ -115,10 +114,10 @@ public class ArcheryScorePanel : MonoBehaviour, IUiHoverGuard, IPointerEnterHand
         UnbindButton(restartButton, HandleRestartClick);
         UnbindButton(homeButton, HandleHomeClick);
         UnbindButton(difficultyNearButton, HandleNearClick);
-        UnbindButton(difficultyMediumButton, HandleMediumClick);
+        UnbindButton(difficultyStandardButton, HandleStandardClick);
         UnbindButton(difficultyFarButton, HandleFarClick);
         UnbindButton(assistToggleButton, HandleAssistClick);
-        UnbindButton(handednessButton, HandleHandednessClick);
+        UnbindButton(throwHandButton, HandleThrowHandClick);
         UnbindButton(recenterButton, HandleRecenterClick);
     }
 
@@ -130,11 +129,11 @@ public class ArcheryScorePanel : MonoBehaviour, IUiHoverGuard, IPointerEnterHand
         }
     }
 
-    public void SetArrows(int releasedCount, int totalCount)
+    public void SetDarts(int thrownCount, int totalCount)
     {
-        if (arrowsValueText != null)
+        if (dartsValueText != null)
         {
-            arrowsValueText.text = $"{Mathf.Max(0, totalCount - releasedCount)} / {totalCount}";
+            dartsValueText.text = $"{Mathf.Max(0, totalCount - thrownCount)} / {totalCount}";
         }
     }
 
@@ -170,19 +169,33 @@ public class ArcheryScorePanel : MonoBehaviour, IUiHoverGuard, IPointerEnterHand
         }
     }
 
-    public void SetHandednessLabel(string message)
+    public void SetThrowHandLabel(string message)
     {
-        if (handednessButtonLabel != null)
+        if (throwHandButtonLabel != null)
         {
-            handednessButtonLabel.text = message;
+            throwHandButtonLabel.text = message;
         }
     }
 
-    public void SetDifficultySelection(ArcheryDifficulty difficulty)
+    public void SetDifficultySelection(DartsDifficulty difficulty)
     {
-        ApplyDifficultyButtonState(difficultyNearButton, difficulty == ArcheryDifficulty.Near);
-        ApplyDifficultyButtonState(difficultyMediumButton, difficulty == ArcheryDifficulty.Medium);
-        ApplyDifficultyButtonState(difficultyFarButton, difficulty == ArcheryDifficulty.Far);
+        ApplyDifficultyButtonState(difficultyNearButton, difficulty == DartsDifficulty.Near);
+        ApplyDifficultyButtonState(difficultyStandardButton, difficulty == DartsDifficulty.Standard);
+        ApplyDifficultyButtonState(difficultyFarButton, difficulty == DartsDifficulty.Far);
+    }
+
+    public void SetStatus(string message)
+    {
+        if (statusText != null)
+        {
+            statusText.text = message;
+        }
+    }
+
+    public void ReturnToHealthGameMenu()
+    {
+        CancelHoldBeforeUiAction();
+        LoadScene(healthGameMenuSceneName);
     }
 
     private void ApplyDifficultyButtonState(Button button, bool selected)
@@ -208,17 +221,9 @@ public class ArcheryScorePanel : MonoBehaviour, IUiHoverGuard, IPointerEnterHand
         }
     }
 
-    public void SetStatus(string message)
-    {
-        if (statusText != null)
-        {
-            statusText.text = message;
-        }
-    }
-
     private void HandleRestartClick()
     {
-        CancelDrawBeforeUiAction();
+        CancelHoldBeforeUiAction();
         if (manager != null)
         {
             manager.RestartRound();
@@ -230,33 +235,27 @@ public class ArcheryScorePanel : MonoBehaviour, IUiHoverGuard, IPointerEnterHand
         ReturnToHealthGameMenu();
     }
 
-    public void ReturnToHealthGameMenu()
-    {
-        CancelDrawBeforeUiAction();
-        LoadScene(healthGameMenuSceneName);
-    }
-
     private void HandleNearClick()
     {
-        CancelDrawBeforeUiAction();
+        CancelHoldBeforeUiAction();
         if (manager != null)
         {
             manager.SetDifficultyNear();
         }
     }
 
-    private void HandleMediumClick()
+    private void HandleStandardClick()
     {
-        CancelDrawBeforeUiAction();
+        CancelHoldBeforeUiAction();
         if (manager != null)
         {
-            manager.SetDifficultyMedium();
+            manager.SetDifficultyStandard();
         }
     }
 
     private void HandleFarClick()
     {
-        CancelDrawBeforeUiAction();
+        CancelHoldBeforeUiAction();
         if (manager != null)
         {
             manager.SetDifficultyFar();
@@ -265,39 +264,39 @@ public class ArcheryScorePanel : MonoBehaviour, IUiHoverGuard, IPointerEnterHand
 
     private void HandleAssistClick()
     {
-        CancelDrawBeforeUiAction();
+        CancelHoldBeforeUiAction();
         if (manager != null)
         {
             manager.ToggleAimAssist();
         }
     }
 
-    private void HandleHandednessClick()
+    private void HandleThrowHandClick()
     {
-        CancelDrawBeforeUiAction();
+        CancelHoldBeforeUiAction();
         if (manager != null)
         {
-            manager.ToggleBowHand();
+            manager.ToggleThrowHand();
         }
     }
 
     private void HandleRecenterClick()
     {
-        CancelDrawBeforeUiAction();
+        CancelHoldBeforeUiAction();
         if (manager != null)
         {
             manager.RecenterLane();
         }
     }
 
-    private void CancelDrawBeforeUiAction()
+    private void CancelHoldBeforeUiAction()
     {
-        // 扳机既是 UI 点击键又是拉弓键：按钮点击发生在 Update 阶段，早于
-        // BowController.LateUpdate 的放箭判定。这里先取消搭弦，保证“点按钮”
-        // 永远不会在松开扳机的同一帧误射一支箭。
-        if (bow != null && bow.IsDrawing)
+        // 扳机既是 UI 点击键又是拿镖键：按钮点击发生在 Update 阶段，早于
+        // HandDartThrower.LateUpdate 的出手判定。这里先取消握持，保证
+        // “点按钮”永远不会在松开扳机的同一帧误投一支镖。
+        if (thrower != null && thrower.IsHolding)
         {
-            bow.CancelDraw();
+            thrower.CancelHold();
         }
     }
 
@@ -305,13 +304,13 @@ public class ArcheryScorePanel : MonoBehaviour, IUiHoverGuard, IPointerEnterHand
     {
         if (string.IsNullOrWhiteSpace(sceneName))
         {
-            Debug.LogError("ArcheryScorePanel cannot load the health game menu because the scene name is empty.");
+            Debug.LogError("DartsScorePanel cannot load the health game menu because the scene name is empty.");
             return;
         }
 
         if (!Application.CanStreamedLevelBeLoaded(sceneName))
         {
-            Debug.LogError($"ArcheryScorePanel cannot load a scene that is not available in Build Settings: {sceneName}");
+            Debug.LogError($"DartsScorePanel cannot load a scene that is not available in Build Settings: {sceneName}");
             return;
         }
 

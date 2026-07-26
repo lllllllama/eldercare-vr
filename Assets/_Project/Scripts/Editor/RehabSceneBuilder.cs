@@ -24,6 +24,7 @@ public static class RehabSceneBuilder
     private const string HealthGameMenuScenePath = "Assets/_Project/Scenes/02_HealthGameMenu.unity";
     private const string PingPongScenePath = "Assets/_Project/Scenes/01_PingPongDemo.unity";
     private const string ArcheryTrainingScenePath = "Assets/_Project/Scenes/03_ArcheryTraining.unity";
+    private const string DartsTrainingScenePath = "Assets/_Project/Scenes/04_DartsTraining.unity";
     private const string RehabScenePath = "Assets/_Project/Scenes/MR_Rehab_Main.unity";
     private const string MaterialRoot = "Assets/_Project/Materials/Rehab";
     private const string FontRoot = "Assets/_Project/Fonts/Rehab";
@@ -103,6 +104,7 @@ public static class RehabSceneBuilder
         BuildPingPongSceneInternal();
         ConfigurePingPongReturnNavigationInternal();
         ArcheryGameSceneBuilder.BuildArcheryTrainingSceneInternal();
+        DartsGameSceneBuilder.BuildDartsTrainingSceneInternal();
         BuildRehabSceneInternal();
         ConfigureBuildSettings();
         AssetDatabase.SaveAssets();
@@ -293,23 +295,30 @@ public static class RehabSceneBuilder
             panel.transform,
             "PingPongTrainingButton",
             "乒乓球训练",
-            new Vector2(-166f, 18f),
-            new Vector2(304f, 100f));
+            new Vector2(-166f, 26f),
+            new Vector2(304f, 88f));
         var archeryButton = CreateButton(
             panel.transform,
             "ArcheryTrainingButton",
             "射箭训练",
-            new Vector2(166f, 18f),
-            new Vector2(304f, 100f));
+            new Vector2(166f, 26f),
+            new Vector2(304f, 88f));
+        var dartsButton = CreateButton(
+            panel.transform,
+            "DartsTrainingButton",
+            "飞镖训练",
+            new Vector2(0f, -78f),
+            new Vector2(304f, 88f));
         var backButton = CreateButton(
             panel.transform,
             "BackButton",
             "返回",
-            new Vector2(0f, -132f),
+            new Vector2(0f, -186f),
             new Vector2(636f, 72f));
 
         UnityEventTools.AddPersistentListener(pingPongButton.onClick, controller.LoadPingPong);
         UnityEventTools.AddPersistentListener(archeryButton.onClick, controller.LoadArchery);
+        UnityEventTools.AddPersistentListener(dartsButton.onClick, controller.LoadDarts);
         UnityEventTools.AddPersistentListener(backButton.onClick, controller.ReturnToMainEntry);
         return canvasGo;
     }
@@ -1398,6 +1407,7 @@ public static class RehabSceneBuilder
             new EditorBuildSettingsScene(HealthGameMenuScenePath, true),
             new EditorBuildSettingsScene(PingPongScenePath, true),
             new EditorBuildSettingsScene(ArcheryTrainingScenePath, true),
+            new EditorBuildSettingsScene(DartsTrainingScenePath, true),
             new EditorBuildSettingsScene(RehabScenePath, true)
         };
     }

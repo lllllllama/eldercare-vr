@@ -40,6 +40,8 @@ public class BowController : MonoBehaviour
     public float nockCatchRadiusMeters = ArcheryGeometry.NockCatchRadiusMeters;
     public bool requireNockProximity = true;
     public float aimSmoothingSeconds = ArcheryGeometry.AimSmoothingSeconds;
+    [Tooltip("指针悬停在此 UI 上时不搭弦，避免点按钮误搭弦/误放箭。")]
+    public MonoBehaviour uiHoverGuardBehaviour;
 
     [Header("放箭参数")]
     public GameObject arrowTemplate;
@@ -106,7 +108,7 @@ public class BowController : MonoBehaviour
 
         if (!_isDrawing)
         {
-            if (gripPressed && !_gripWasPressed && firingEnabled && IsStringHandNearNock())
+            if (gripPressed && !_gripWasPressed && firingEnabled && IsStringHandNearNock() && !IsPointerOverUi())
             {
                 BeginDraw();
             }
@@ -389,6 +391,11 @@ public class BowController : MonoBehaviour
         var blend = Time.deltaTime / (aimSmoothingSeconds + Time.deltaTime);
         _smoothedAimDirection = Vector3.Slerp(_smoothedAimDirection, rawAimDirection, blend).normalized;
         return _smoothedAimDirection;
+    }
+
+    private bool IsPointerOverUi()
+    {
+        return uiHoverGuardBehaviour is IUiHoverGuard guard && guard.IsPointerOver;
     }
 
     private bool IsStringHandNearNock()
