@@ -18,6 +18,9 @@ EditorBuildSettings:
     path: Assets/_Project/Scenes/03_ArcheryTraining.unity
     guid: fd15465a8ff5ef643ae454f45f3a6c48
   - enabled: 1
+    path: Assets/_Project/Scenes/04_DartsTraining.unity
+    guid: 1b9a54033a18bd042bf7a2b3d9dc1dc6
+  - enabled: 1
     path: Assets/_Project/Scenes/MR_Rehab_Main.unity
     guid: 49f2935711925234d9ce52d35dd0697d
   m_configObjects:
