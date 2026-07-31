@@ -977,8 +977,10 @@ public static class RehabSelfTests
         var headObject = new GameObject("Head");
         var uiObject = new GameObject("RehabModeSelectCanvas", typeof(RectTransform));
         var selectPanel = new GameObject("TrainingSelectPanel");
+        var unrelatedPlacementObject = new GameObject("UnrelatedPanelPlacementController");
         try
         {
+            unrelatedPlacementObject.AddComponent<RehabPanelPlacementController>();
             headObject.transform.position = new Vector3(0f, 1.6f, 0f);
             headObject.transform.rotation = Quaternion.identity;
             selectPanel.transform.SetParent(uiObject.transform, false);
@@ -1012,6 +1014,7 @@ public static class RehabSelfTests
             Object.DestroyImmediate(selectPanel);
             Object.DestroyImmediate(uiObject);
             Object.DestroyImmediate(headObject);
+            Object.DestroyImmediate(unrelatedPlacementObject);
         }
     }
 

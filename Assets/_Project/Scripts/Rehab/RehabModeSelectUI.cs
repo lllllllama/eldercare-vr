@@ -284,6 +284,11 @@ namespace PicoElderCare.Rehab
 
         private void ResolveNonPanelReferences()
         {
+            if (uiPlacer == null)
+            {
+                uiPlacer = GetComponentInParent<ComfortWorldSpaceUIPlacer>();
+            }
+
             if (sessionManager == null)
             {
                 sessionManager = FindObjectOfType<RehabSessionManager>(true);
@@ -304,12 +309,12 @@ namespace PicoElderCare.Rehab
                 homeMenu = FindObjectOfType<ModuleHomeMenu>(true);
             }
 
-            if (panelPlacementController == null && sessionManager != null)
+            if (panelPlacementController == null && uiPlacer == null && sessionManager != null)
             {
                 panelPlacementController = sessionManager.panelPlacementController;
             }
 
-            if (panelPlacementController == null)
+            if (panelPlacementController == null && uiPlacer == null)
             {
                 panelPlacementController = FindObjectOfType<RehabPanelPlacementController>(true);
             }
@@ -329,10 +334,6 @@ namespace PicoElderCare.Rehab
                 panelPlacementController.promptPanelRoot = selectionPanelRoot.transform;
             }
 
-            if (uiPlacer == null)
-            {
-                uiPlacer = GetComponentInParent<ComfortWorldSpaceUIPlacer>();
-            }
         }
 
         private void ResolvePanelReferences()
