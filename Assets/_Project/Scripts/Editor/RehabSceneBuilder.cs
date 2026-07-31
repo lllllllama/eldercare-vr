@@ -38,28 +38,6 @@ public static class RehabSceneBuilder
 
     private static TMP_FontAsset rehabFontAsset;
 
-    private struct RehabTrainingUi
-    {
-        public GameObject canvas;
-        public GameObject mainMenuPanel;
-        public GameObject rehabTrainingSelectPanel;
-        public GameObject rehabTrainingPanel;
-        public GameObject trainingResultPanel;
-        public TMP_Text title;
-        public TMP_Text status;
-        public TMP_Text timer;
-        public TMP_Text completion;
-        public TMP_Text safety;
-        public TMP_Text debug;
-        public Button rehabButton;
-        public Button baduanjinButton;
-        public Button taiChiButton;
-        public Button backButton;
-        public Button startButton;
-        public Button trainingBackButton;
-        public Button resultBackButton;
-    }
-
     [MenuItem("Tools/PICO ElderCare/Build Main Entry Scene")]
     public static void BuildMainEntryScene()
     {
@@ -327,232 +305,135 @@ public static class RehabSceneBuilder
 
     private static void BuildRehabSceneInternal()
     {
-        var scene = EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
-        var xrOrigin = CreateXrOrigin();
-        var mainCamera = FindMainCamera();
-        var hmd = mainCamera != null ? mainCamera.transform : null;
-        var leftController = FindChildByName(xrOrigin != null ? xrOrigin.transform : null, "Left Controller");
-        var rightController = FindChildByName(xrOrigin != null ? xrOrigin.transform : null, "Right Controller");
+        if (!System.IO.File.Exists(RehabScenePath))
+        {
+            Debug.LogError(
+                "The current rehab scene is required as the synchronization baseline: " + RehabScenePath);
+            return;
+        }
 
-        EnsureLight();
-        EnsureXrInteractionSupport();
+        var scene = EditorSceneManager.OpenScene(RehabScenePath, OpenSceneMode.Single);
+        if (!SynchronizeRehabScene(scene))
+        {
+            Debug.LogError("MR rehab scene synchronization failed. The existing scene was not saved.");
+            return;
+        }
 
-        var rehabRoot = new GameObject("Rehab");
-        var visualRoot = new GameObject("RehabVisuals");
-        visualRoot.transform.SetParent(rehabRoot.transform, false);
-        var uiRoot = CreateUiRoot("UIRoot", rehabRoot.transform);
-        var managers = new GameObject("RehabManagers");
-        managers.transform.SetParent(rehabRoot.transform, false);
-        var homeMenu = managers.AddComponent<ModuleHomeMenu>();
+        EditorSceneManager.MarkSceneDirty(scene);
+        EditorSceneManager.SaveScene(scene, RehabScenePath);
+        Debug.Log("MR rehab scene synchronized from the current scene baseline: " + RehabScenePath);
+    }
 
-        var trainingArea = BuildTrainingArea(visualRoot.transform);
-        var rehabUi = BuildRehabPromptCanvas(uiRoot.transform, mainCamera, homeMenu);
-        var promptCanvas = rehabUi.canvas;
-        var rehabUiPlacer = ConfigureComfortUiPlacer(uiRoot, hmd, uiRoot.transform, 2f);
-        rehabUiPlacer.placeOnStart = false;
-        rehabUiPlacer.recenterDuringStartup = false;
+    internal static bool SynchronizeRehabScene(Scene scene)
+    {
+        if (!scene.IsValid() || !scene.isLoaded)
+        {
+            Debug.LogError("Cannot synchronize an invalid or unloaded rehab scene.");
+            return false;
+        }
 
-        var poseTracker = managers.AddComponent<HandPoseTracker>();
+        var session = FindSceneComponent<RehabSessionManager>(scene);
+        var xrOrigin = FindSceneComponent<XROrigin>(scene);
+        var mainCamera = FindMainCameraInScene(scene);
+        if (session == null || xrOrigin == null || mainCamera == null)
+        {
+            Debug.LogError(
+                "The rehab scene baseline must contain RehabSessionManager, XROrigin, and a Main Camera.");
+            return false;
+        }
+
+        var managers = session.gameObject;
+        var hmd = mainCamera.transform;
+        var leftController = FindChildByName(xrOrigin.transform, "Left Controller");
+        var rightController = FindChildByName(xrOrigin.transform, "Right Controller");
+
+        var pxrManager = FindSceneComponent<PXR_Manager>(scene);
+        if (pxrManager == null)
+        {
+            pxrManager = xrOrigin.gameObject.AddComponent<PXR_Manager>();
+        }
+
+        pxrManager.bodyTracking = true;
+        pxrManager.openMRC = true;
+
+        var poseTracker = FindSceneComponent<HandPoseTracker>(scene);
+        if (poseTracker == null)
+        {
+            poseTracker = managers.AddComponent<HandPoseTracker>();
+        }
+
         poseTracker.hmdTransform = hmd;
         poseTracker.leftControllerTransform = leftController;
         poseTracker.rightControllerTransform = rightController;
 
-        var controllerPoseProvider = managers.AddComponent<ControllerPoseProvider>();
+        var controllerPoseProvider = FindSceneComponent<ControllerPoseProvider>(scene);
+        if (controllerPoseProvider == null)
+        {
+            controllerPoseProvider = managers.AddComponent<ControllerPoseProvider>();
+        }
+
         controllerPoseProvider.HandPoseTracker = poseTracker;
-        var picoBodyTrackingProvider = managers.AddComponent<PicoBodyTrackingProvider>();
-        picoBodyTrackingProvider.XrOrigin = xrOrigin != null ? xrOrigin.transform : null;
+
+        var picoBodyTrackingProvider = FindSceneComponent<PicoBodyTrackingProvider>(scene);
+        if (picoBodyTrackingProvider == null)
+        {
+            var providerObject = new GameObject("BodyTrackingSystem");
+            providerObject.SetActive(false);
+            SceneManager.MoveGameObjectToScene(providerObject, scene);
+            providerObject.transform.SetParent(xrOrigin.transform, false);
+            picoBodyTrackingProvider = providerObject.AddComponent<PicoBodyTrackingProvider>();
+            picoBodyTrackingProvider.AutoStartOnEnable = false;
+            providerObject.SetActive(true);
+            picoBodyTrackingProvider.AutoStartOnEnable = true;
+        }
+
+        picoBodyTrackingProvider.XrOrigin = xrOrigin.transform;
         picoBodyTrackingProvider.OutputSpace = PicoBodyTrackingOutputSpace.XrOriginLocal;
-        var bodyTrackingDebugRenderer = managers.AddComponent<PicoBodyTrackingDebugRenderer>();
+
+        var bodyTrackingDebugRenderer = FindSceneComponent<PicoBodyTrackingDebugRenderer>(scene);
+        if (bodyTrackingDebugRenderer == null)
+        {
+            var debugObject = new GameObject("BodyTrackingDebug");
+            SceneManager.MoveGameObjectToScene(debugObject, scene);
+            debugObject.transform.SetParent(picoBodyTrackingProvider.transform, false);
+            bodyTrackingDebugRenderer = debugObject.AddComponent<PicoBodyTrackingDebugRenderer>();
+            bodyTrackingDebugRenderer.DebugSkeletonEnabled = false;
+        }
+
         bodyTrackingDebugRenderer.Provider = picoBodyTrackingProvider;
-        bodyTrackingDebugRenderer.DebugSkeletonEnabled = false;
-        var bodyTrackingStatusPanel = managers.AddComponent<PicoBodyTrackingStatusPanel>();
+
+        var bodyTrackingStatusPanel = FindSceneComponent<PicoBodyTrackingStatusPanel>(scene);
+        if (bodyTrackingStatusPanel == null)
+        {
+            bodyTrackingStatusPanel = picoBodyTrackingProvider.gameObject.AddComponent<PicoBodyTrackingStatusPanel>();
+            bodyTrackingStatusPanel.StatusPanelEnabled = true;
+        }
+
         bodyTrackingStatusPanel.Provider = picoBodyTrackingProvider;
         bodyTrackingStatusPanel.TargetCamera = mainCamera;
-        bodyTrackingStatusPanel.StatusPanelEnabled = true;
-        var poseProviderSelector = managers.AddComponent<RehabPoseProviderSelector>();
+
+        var poseProviderSelector = FindSceneComponent<RehabPoseProviderSelector>(scene);
+        if (poseProviderSelector == null)
+        {
+            poseProviderSelector = managers.AddComponent<RehabPoseProviderSelector>();
+        }
+
         poseProviderSelector.PrimaryProvider = picoBodyTrackingProvider;
         poseProviderSelector.FallbackProvider = controllerPoseProvider;
         poseProviderSelector.AllowAutomaticFallback = true;
 
-        var safetyMonitor = managers.AddComponent<SafetyMonitor>();
-        safetyMonitor.hmdTransform = hmd;
-        safetyMonitor.pauseDistanceMeters = 1.2f;
-        safetyMonitor.resumeDistanceMeters = 1.1f;
-
-        var baduanjinEvaluator = managers.AddComponent<BaduanjinEvaluator>();
-        var taiChiEvaluator = managers.AddComponent<TaiChiEvaluator>();
-        var evaluator = managers.AddComponent<MovementEvaluator>();
-        evaluator.trainingMode = RehabTrainingMode.Baduanjin;
-        evaluator.baduanjinEvaluator = baduanjinEvaluator;
-        evaluator.taiChiEvaluator = taiChiEvaluator;
-        evaluator.movementDefinitions = BaduanjinEvaluator.CreateDefaultMovements();
-        evaluator.movementId = RehabMovementId.Baduanjin_TwoHandsLiftHeaven;
-        evaluator.movementName = "八段锦：双手托天理三焦";
-        evaluator.handsAboveHeadMeters = 0.15f;
-        evaluator.maximumHandHeightDifferenceMeters = 0.18f;
-        evaluator.minimumHoldSeconds = 2f;
-        evaluator.maximumHoldSeconds = 5f;
-
-        var recorder = managers.AddComponent<TrainingResultRecorder>();
-        var uiController = promptCanvas.AddComponent<RehabUIController>();
-        uiController.movementNameText = rehabUi.title;
-        uiController.stepText = rehabUi.status;
-        uiController.remainingTimeText = rehabUi.timer;
-        uiController.completionText = rehabUi.completion;
-        uiController.safetyPromptText = rehabUi.safety;
-        uiController.debugText = rehabUi.debug;
-        uiController.startButton = rehabUi.startButton;
-
-        var trainingCircleAnchor = managers.AddComponent<TrainingCircleAnchor>();
-        trainingCircleAnchor.headTransform = hmd;
-        trainingCircleAnchor.trainingAreaRoot = trainingArea.transform;
-        trainingCircleAnchor.fallbackFloorY = 0f;
-
-        var startFlow = managers.AddComponent<RehabStartFlowController>();
-        startFlow.uiController = uiController;
-        startFlow.startButton = rehabUi.startButton;
-        startFlow.startPreparationDelaySeconds = 5f;
-        startFlow.preMovementCountdownSeconds = 3f;
-        startFlow.movementRecoveryDelaySeconds = 8f;
-
-        var panelPlacement = managers.AddComponent<RehabPanelPlacementController>();
-        panelPlacement.headTransform = hmd;
-        panelPlacement.promptPanelRoot = promptCanvas.transform;
-        panelPlacement.promptPanelDistance = 1.8f;
-        panelPlacement.videoPanelDistance = 2.2f;
-        panelPlacement.videoPanelYawOffsetDegrees = 40f;
-        panelPlacement.panelHeight = 1.45f;
-
-        var virtualCoach = BuildVirtualCoach(visualRoot.transform, hmd);
-
-        var session = managers.AddComponent<RehabSessionManager>();
         session.handPoseTracker = poseTracker;
         session.poseProviderSelector = poseProviderSelector;
-        session.safetyMonitor = safetyMonitor;
-        session.movementEvaluator = evaluator;
-        session.uiController = uiController;
-        session.resultRecorder = recorder;
-        session.virtualCoachController = virtualCoach;
-        session.coachPlaybackStateOnMovementStart = CoachPlaybackState.Demonstration;
-        session.trainingCircleAnchor = trainingCircleAnchor;
-        session.startFlowController = startFlow;
-        session.panelPlacementController = panelPlacement;
-        session.trainingAreaRoot = trainingArea.transform;
-        session.promptCanvas = promptCanvas.transform;
-        session.placePromptCanvasWithTrainingArea = false;
-        session.titleText = rehabUi.title;
-        session.statusText = rehabUi.status;
-        session.timerText = rehabUi.timer;
-        session.debugText = rehabUi.debug;
-        session.sessionDurationSeconds = 300f;
-        session.autoStartSession = false;
-        session.trainingDistanceMeters = 1.5f;
-        session.trainingFloorY = 0f;
-        session.promptHeightMeters = 1.65f;
-        session.promptForwardOffsetMeters = 0.85f;
-        session.useOpenSpacePlacement = false;
-        session.refreshOpenSpaceAfterPlacement = false;
-        session.openSpaceClearanceRadiusMeters = 0.85f;
-        session.openSpaceClearanceHeightMeters = 1.7f;
-        session.openSpaceMinDistanceMeters = 1.2f;
-        session.openSpaceMaxDistanceMeters = 3.0f;
-        session.openSpaceSearchDurationSeconds = 10f;
-        session.openSpaceSearchIntervalSeconds = 0.5f;
 
-        var modeSelectUi = promptCanvas.AddComponent<RehabModeSelectUI>();
-        modeSelectUi.mainMenuPanel = rehabUi.mainMenuPanel;
-        modeSelectUi.rehabTrainingSelectPanel = rehabUi.rehabTrainingSelectPanel;
-        modeSelectUi.rehabTrainingPanel = rehabUi.rehabTrainingPanel;
-        modeSelectUi.trainingResultPanel = rehabUi.trainingResultPanel;
-        modeSelectUi.rehabButton = rehabUi.rehabButton;
-        modeSelectUi.baduanjinButton = rehabUi.baduanjinButton;
-        modeSelectUi.taiChiButton = rehabUi.taiChiButton;
-        modeSelectUi.backButton = rehabUi.backButton;
-        modeSelectUi.trainingBackButton = rehabUi.trainingBackButton;
-        modeSelectUi.resultBackButton = rehabUi.resultBackButton;
-        modeSelectUi.homeMenu = homeMenu;
-        modeSelectUi.uiPlacer = rehabUiPlacer;
-        modeSelectUi.panelPlacementController = panelPlacement;
-        modeSelectUi.sessionManager = session;
-        modeSelectUi.showTrainingSelectOnStart = true;
-        modeSelectUi.placeUiOnStart = true;
-        modeSelectUi.placeUiOnMainMenuOpen = true;
-        session.modeSelectUI = modeSelectUi;
-        AddPersistentButtonListener(rehabUi.baduanjinButton, modeSelectUi.StartBaduanjinTraining);
-        AddPersistentButtonListener(rehabUi.taiChiButton, modeSelectUi.StartTaiChiTraining);
-        AddPersistentButtonListener(rehabUi.backButton, modeSelectUi.ReturnToMainEntry);
-        AddPersistentButtonListener(rehabUi.trainingBackButton, modeSelectUi.ShowTrainingSelectPanel);
-        AddPersistentButtonListener(rehabUi.resultBackButton, modeSelectUi.ShowTrainingSelectPanel);
-
-        var mrManager = managers.AddComponent<RehabMixedRealityManager>();
-        mrManager.targetCamera = mainCamera;
-        mrManager.enableOnStart = true;
-        mrManager.enableVideoSeeThrough = true;
-        mrManager.configureTransparentCamera = true;
-        mrManager.suppressBackgroundVisuals = true;
-
-        var backgroundSuppressor = managers.AddComponent<MrBackgroundVisualSuppressor>();
-        backgroundSuppressor.hideAllEnvironmentRenderers = true;
-        backgroundSuppressor.hideAllRoomSensingRenderers = true;
-        backgroundSuppressor.scanIntervalSeconds = 0.15f;
-
-        SetupPicoRoomSensingManagers(managers.transform);
-
-        EditorUtility.SetDirty(rehabRoot);
-        if (xrOrigin != null) EditorUtility.SetDirty(xrOrigin);
-        EditorSceneManager.SaveScene(scene, RehabScenePath);
-    }
-
-    private static void AddPersistentButtonListener(Button button, UnityEngine.Events.UnityAction action)
-    {
-        if (button == null || action == null) return;
-
-        var target = action.Target as Object;
-        var methodName = action.Method != null ? action.Method.Name : string.Empty;
-        for (var i = 0; i < button.onClick.GetPersistentEventCount(); i++)
-        {
-            if (button.onClick.GetPersistentTarget(i) == target &&
-                button.onClick.GetPersistentMethodName(i) == methodName)
-            {
-                return;
-            }
-        }
-
-        UnityEventTools.AddPersistentListener(button.onClick, action);
-        EditorUtility.SetDirty(button);
-    }
-
-    private static VirtualCoachController BuildVirtualCoach(Transform parent, Transform hmd)
-    {
-        var coach = new GameObject("VirtualCoach");
-        coach.transform.SetParent(parent, false);
-        coach.transform.localPosition = new Vector3(0f, 0f, 2f);
-        coach.transform.localRotation = Quaternion.identity;
-
-        var binder = coach.AddComponent<CoachAnimationBinder>();
-        binder.SetDefaultMovementBindings();
-
-        var controller = coach.AddComponent<VirtualCoachController>();
-        controller.userHeadTransform = hmd;
-        controller.coachRoot = coach.transform;
-        controller.animationBinder = binder;
-        controller.defaultMovementPlaybackState = CoachPlaybackState.Demonstration;
-        controller.playbackState = CoachPlaybackState.Idle;
-        controller.preferredDistanceMeters = 2f;
-        controller.minDistanceMeters = 1.8f;
-        controller.maxDistanceMeters = 2.2f;
-        controller.floorY = 0f;
-        controller.placeInFrontOnStart = true;
-        controller.useComfortFollow = true;
-        controller.followYawThresholdDegrees = 35f;
-        controller.followPositionThresholdMeters = 0.8f;
-        controller.followSmoothTime = 0.35f;
-        controller.maxFollowSpeedMetersPerSecond = 1.25f;
-        controller.followRotationSlerpSpeed = 4f;
-        controller.autoCreatePlaceholderCue = false;
-
-        EditorUtility.SetDirty(coach);
-        return controller;
+        EditorUtility.SetDirty(pxrManager);
+        EditorUtility.SetDirty(poseTracker);
+        EditorUtility.SetDirty(controllerPoseProvider);
+        EditorUtility.SetDirty(picoBodyTrackingProvider);
+        EditorUtility.SetDirty(bodyTrackingDebugRenderer);
+        EditorUtility.SetDirty(bodyTrackingStatusPanel);
+        EditorUtility.SetDirty(poseProviderSelector);
+        EditorUtility.SetDirty(session);
+        return true;
     }
 
     private static GameObject BuildEntryCanvas(UnifiedEntryMenu menu, Transform cameraTransform)
@@ -804,140 +685,6 @@ public static class RehabSceneBuilder
         image.cornerSegments = 8;
         image.color = WithAlpha(ElderCareUiTheme.Cyan, alpha);
         image.raycastTarget = false;
-    }
-
-    private static GameObject BuildTrainingArea(Transform parent)
-    {
-        var root = new GameObject("TrainingArea");
-        root.transform.SetParent(parent, false);
-
-        var circle = new GameObject("TrainingCircle");
-        circle.transform.SetParent(root.transform, false);
-        circle.transform.localPosition = Vector3.zero;
-
-        var renderer = circle.AddComponent<LineRenderer>();
-        renderer.useWorldSpace = false;
-        renderer.loop = true;
-        renderer.widthMultiplier = 0.025f;
-        renderer.numCornerVertices = 4;
-        renderer.numCapVertices = 4;
-        renderer.sharedMaterial = CreateOrLoadMaterial("RehabTrainingCircle", new Color(0.1f, 0.95f, 0.72f, 0.85f));
-
-        const int segments = 96;
-        const float radius = 0.6f;
-        renderer.positionCount = segments;
-        for (var i = 0; i < segments; i++)
-        {
-            var angle = Mathf.PI * 2f * i / segments;
-            renderer.SetPosition(i, new Vector3(Mathf.Cos(angle) * radius, 0.015f, Mathf.Sin(angle) * radius));
-        }
-
-        return root;
-    }
-
-    private static RehabTrainingUi BuildRehabPromptCanvas(
-        Transform parent,
-        Camera mainCamera,
-        ModuleHomeMenu homeMenu)
-    {
-        var canvasGo = CreateWorldCanvas("RehabPromptCanvas", null, new Vector3(0f, 1.65f, 2.35f), ElderCareUiTheme.RehabCanvasSize);
-        canvasGo.transform.SetParent(parent, false);
-        canvasGo.transform.localPosition = Vector3.zero;
-        canvasGo.transform.localRotation = Quaternion.identity;
-        var canvas = canvasGo.GetComponent<Canvas>();
-        canvas.worldCamera = mainCamera;
-
-        var ui = new RehabTrainingUi
-        {
-            canvas = canvasGo,
-            mainMenuPanel = CreatePanel(canvasGo.transform, "MainMenuPanel"),
-            rehabTrainingSelectPanel = CreatePanel(canvasGo.transform, "RehabTrainingSelectPanel"),
-            rehabTrainingPanel = CreatePanel(canvasGo.transform, "RehabTrainingPanel"),
-            trainingResultPanel = CreatePanel(canvasGo.transform, "TrainingResultPanel")
-        };
-
-        CreateText(ui.mainMenuPanel.transform, "Title", "康复运动", ElderCareUiTheme.Title, FontStyles.Bold, TextAlignmentOptions.Center, new Vector2(0f, 104f), new Vector2(800f, 80f));
-        ui.rehabButton = CreateButton(ui.mainMenuPanel.transform, "RehabButton", "康复运动", new Vector2(0f, -36f), new Vector2(400f, 88f));
-
-        var selectTitle = CreateText(ui.rehabTrainingSelectPanel.transform, "Title", "请选择康复训练类型", ElderCareUiTheme.Title, FontStyles.Bold, TextAlignmentOptions.Center, new Vector2(0f, 154f), new Vector2(820f, 74f));
-        selectTitle.color = ElderCareUiTheme.TextPrimary;
-        CreateEntryDivider(ui.rehabTrainingSelectPanel.transform, "TitleTrace", new Vector2(0f, 112f), new Vector2(420f, 4f), WithAlpha(ElderCareUiTheme.Cyan, 0.38f), 3f);
-        ui.baduanjinButton = CreateButton(ui.rehabTrainingSelectPanel.transform, "BaduanjinButton", "八段锦训练", new Vector2(-152f, 30f), new Vector2(292f, 142f));
-        ui.taiChiButton = CreateButton(ui.rehabTrainingSelectPanel.transform, "TaiChiButton", "太极训练", new Vector2(152f, 30f), new Vector2(292f, 142f));
-        ui.backButton = CreateButton(ui.rehabTrainingSelectPanel.transform, "BackButton", "返回", new Vector2(0f, -146f), new Vector2(606f, 58f));
-
-        ui.title = CreateText(ui.rehabTrainingPanel.transform, "MovementTitle", "八段锦：双手托天理三焦", ElderCareUiTheme.Title, FontStyles.Bold, TextAlignmentOptions.Center, new Vector2(0f, 158f), new Vector2(620f, 58f));
-        ui.status = CreateText(ui.rehabTrainingPanel.transform, "StatusText", "请准备：双手托天理三焦", ElderCareUiTheme.Body, FontStyles.Normal, TextAlignmentOptions.Center, new Vector2(0f, 104f), new Vector2(620f, 42f));
-        ui.status.color = ElderCareUiTheme.TextSecondary;
-        ui.timer = CreateRehabDataBlock(ui.rehabTrainingPanel.transform, "TimerBlock", "倒计时", "剩余 05:00", new Vector2(-152f, -4f), new Vector2(292f, 142f), ElderCareUiTheme.Cyan);
-        ui.completion = CreateRehabDataBlock(ui.rehabTrainingPanel.transform, "CompletionBlock", "完成度", "完成度 0%", new Vector2(152f, -4f), new Vector2(292f, 142f), ElderCareUiTheme.Green);
-        SendToBack(CreateEntryDivider(ui.rehabTrainingPanel.transform, "SafetyPanel", new Vector2(0f, -116f), new Vector2(606f, 58f), WithAlpha(ElderCareUiTheme.Gold, 0.22f), 20f));
-        ui.safety = CreateText(ui.rehabTrainingPanel.transform, "SafetyPromptText", "保持舒适幅度，准备开始", ElderCareUiTheme.BodySmall, FontStyles.Bold, TextAlignmentOptions.Center, new Vector2(0f, -116f), new Vector2(586f, 52f));
-        ui.safety.color = WithAlpha(ElderCareUiTheme.Gold, 0.96f);
-        ui.debug = CreateText(ui.rehabTrainingPanel.transform, "DebugText", "距中心 0.00m", ElderCareUiTheme.Debug, FontStyles.Normal, TextAlignmentOptions.Center, new Vector2(0f, -174f), new Vector2(260f, 36f));
-        ui.debug.color = WithAlpha(ElderCareUiTheme.TextMuted, 0.42f);
-        ui.debug.enableWordWrapping = false;
-        ui.debug.overflowMode = TextOverflowModes.Ellipsis;
-        ui.startButton = CreateButton(ui.rehabTrainingPanel.transform, "StartButton", "开始", new Vector2(-232f, -174f), new Vector2(186f, 82f));
-        ui.trainingBackButton = CreateButton(ui.rehabTrainingPanel.transform, "HomeButton", "返回", new Vector2(232f, -174f), new Vector2(186f, 82f));
-
-        CreateText(ui.trainingResultPanel.transform, "Title", "训练结果", ElderCareUiTheme.Title, FontStyles.Bold, TextAlignmentOptions.Center, new Vector2(0f, 128f), new Vector2(800f, 76f));
-        var summary = CreateText(ui.trainingResultPanel.transform, "Summary", "训练结束后结果会自动保存到本机", ElderCareUiTheme.Body, FontStyles.Normal, TextAlignmentOptions.Center, new Vector2(0f, 30f), new Vector2(560f, 100f));
-        summary.color = ElderCareUiTheme.TextSecondary;
-        ui.resultBackButton = CreateButton(ui.trainingResultPanel.transform, "BackButton", "返回选择", new Vector2(0f, -112f), new Vector2(292f, 82f));
-
-        ui.mainMenuPanel.SetActive(false);
-        ui.rehabTrainingSelectPanel.SetActive(true);
-        ui.rehabTrainingPanel.SetActive(false);
-        ui.trainingResultPanel.SetActive(false);
-        return ui;
-    }
-
-    private static TMP_Text CreateRehabDataBlock(Transform parent, string name, string label, string value, Vector2 anchoredPosition, Vector2 size, Color accentColor)
-    {
-        var block = CreateUiObject(name, parent);
-        var rect = block.GetComponent<RectTransform>();
-        rect.anchoredPosition = anchoredPosition;
-        rect.sizeDelta = size;
-
-        var background = block.AddComponent<ElderCareRoundedPanel>();
-        background.cornerRadius = 22f;
-        background.cornerSegments = 10;
-        background.color = WithAlpha(Color.Lerp(ElderCareUiTheme.PanelStrong, accentColor, 0.28f), 1f);
-        background.raycastTarget = false;
-        background.transform.SetAsFirstSibling();
-
-        var outline = block.AddComponent<Outline>();
-        outline.effectColor = WithAlpha(accentColor, 0.36f);
-        outline.effectDistance = new Vector2(2f, -2f);
-
-        CreateEntryDivider(block.transform, "TopTrace", new Vector2(0f, size.y * 0.5f - 7f), new Vector2(size.x - 58f, 3f), WithAlpha(accentColor, 0.28f), 2f);
-        var labelText = CreateText(block.transform, "Label", label, ElderCareUiTheme.BodySmall, FontStyles.Normal, TextAlignmentOptions.Center, new Vector2(0f, 24f), new Vector2(size.x - 34f, 32f));
-        labelText.color = ElderCareUiTheme.TextSecondary;
-        var valueText = CreateText(block.transform, "Value", value, ElderCareUiTheme.HudSecondary + 8f, FontStyles.Bold, TextAlignmentOptions.Center, new Vector2(0f, -18f), new Vector2(size.x - 34f, 52f));
-        valueText.color = ElderCareUiTheme.TextPrimary;
-        return valueText;
-    }
-
-    private static GameObject CreatePanel(Transform parent, string name)
-    {
-        var panel = CreateUiObject(name, parent);
-        var panelRect = panel.GetComponent<RectTransform>();
-        panelRect.anchorMin = Vector2.zero;
-        panelRect.anchorMax = Vector2.one;
-        panelRect.offsetMin = Vector2.zero;
-        panelRect.offsetMax = Vector2.zero;
-        var panelImage = panel.AddComponent<ElderCareRoundedPanel>();
-        panelImage.cornerRadius = 32f;
-        panelImage.cornerSegments = 12;
-        panelImage.color = WithAlpha(Color.Lerp(ElderCareUiTheme.PanelStrong, ElderCareUiTheme.Green, 0.22f), 1f);
-        panelImage.raycastTarget = false;
-        var outline = panel.AddComponent<Outline>();
-        outline.effectColor = WithAlpha(ElderCareUiTheme.Cyan, 0.42f);
-        outline.effectDistance = new Vector2(2.5f, -2.5f);
-        SendToBack(CreateEntryDivider(panel.transform, "PanelTopTrace", new Vector2(0f, 204f), new Vector2(700f, 3f), WithAlpha(ElderCareUiTheme.Cyan, 0.14f), 2f));
-        SendToBack(CreateEntryDivider(panel.transform, "PanelBottomTrace", new Vector2(0f, -206f), new Vector2(560f, 2f), WithAlpha(ElderCareUiTheme.Green, 0.12f), 2f));
-        return panel;
     }
 
     private static Graphic SendToBack(Graphic graphic)
@@ -1444,6 +1191,7 @@ public static class RehabSceneBuilder
         config.spatialMesh = true;
         config.planeDetection = true;
         config.mrSafeguard = true;
+        config.bodyTracking = true;
         config.meshLod = PxrMeshLod.Low;
         PXR_ProjectSetting.SaveAssets();
     }

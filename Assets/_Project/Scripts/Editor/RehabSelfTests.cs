@@ -11,6 +11,7 @@ public static class RehabSelfTests
     {
         RehabTrackingSelfTests.RunAll();
         PicoBodyTrackingSelfTests.RunAll();
+        RehabSceneBuilderSelfTests.RunAll();
         TwoHandsAboveHeadPoseAccumulatesHold();
         LowHandFailsPose();
         UnevenHandsFailPose();
