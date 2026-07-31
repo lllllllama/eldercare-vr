@@ -28,6 +28,7 @@ public static class PicoBodyTrackingSelfTests
         PicoProvider_ReusesSampleStorage();
         PicoProvider_DoesNotLeakSdkTypesIntoBodySample();
         PicoProvider_ConvertsLocalPoseToWorldSpace();
+        PicoApi_ConvertsNativeCoordinatesWithoutWritingPastMotionVectors();
         ProviderSelector_DoesNotFallbackFromLimitedPicoSample();
         PicoStatusPanel_CreatesHeadLockedWorldCanvas();
         PicoStatusPanel_ReusesUiObjects();
@@ -388,6 +389,33 @@ public static class PicoBodyTrackingSelfTests
         }
     }
 
+    private static void PicoApi_ConvertsNativeCoordinatesWithoutWritingPastMotionVectors()
+    {
+        var nativePose = new BodyTrackerTransPose
+        {
+            PosX = 1d,
+            PosY = 2d,
+            PosZ = 3d,
+            RotQx = 0.1d,
+            RotQy = 0.2d,
+            RotQz = 0.3d,
+            RotQw = 0.4d
+        };
+
+        AssertVectorApproximately(
+            PicoBodyTrackingApi.ConvertPositionToUnity(nativePose),
+            new Vector3(1f, 2f, -3f),
+            "Native body position conversion should negate only Z.");
+        AssertQuaternionApproximately(
+            PicoBodyTrackingApi.ConvertRotationToUnity(nativePose),
+            new Quaternion(0.1f, 0.2f, -0.3f, -0.4f),
+            "Native body rotation conversion should match PICO's intended Unity handedness conversion.");
+        AssertVectorApproximately(
+            PicoBodyTrackingApi.ConvertMotionVectorToUnity(new Vector3(4f, 5f, 6f)),
+            new Vector3(4f, 5f, -6f),
+            "Motion-vector conversion should read and negate valid Z index 2 without writing index 3.");
+    }
+
     private static void ProviderSelector_DoesNotFallbackFromLimitedPicoSample()
     {
         var root = new GameObject("PicoLimitedSelectorTest");
@@ -583,6 +611,21 @@ public static class PicoBodyTrackingSelfTests
         RehabJointPose pose;
         AssertTrue(sample.TryGetJoint(joint, out pose), message + " Joint is missing.");
         AssertTrue(Vector3.Distance(pose.position, expected) < 0.0001f, message);
+    }
+
+    private static void AssertVectorApproximately(Vector3 actual, Vector3 expected, string message)
+    {
+        AssertTrue(Vector3.Distance(actual, expected) < 0.0001f, message);
+    }
+
+    private static void AssertQuaternionApproximately(Quaternion actual, Quaternion expected, string message)
+    {
+        AssertTrue(
+            Mathf.Abs(actual.x - expected.x) < 0.0001f &&
+            Mathf.Abs(actual.y - expected.y) < 0.0001f &&
+            Mathf.Abs(actual.z - expected.z) < 0.0001f &&
+            Mathf.Abs(actual.w - expected.w) < 0.0001f,
+            message);
     }
 
     private static void AssertTrue(bool condition, string message)

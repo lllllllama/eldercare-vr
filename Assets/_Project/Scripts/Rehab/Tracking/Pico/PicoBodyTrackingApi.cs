@@ -7,15 +7,33 @@ namespace PicoElderCare.Rehab.Tracking.Pico
 {
     public sealed class PicoBodyTrackingApi : IPicoBodyTrackingApi
     {
+        private const string PicoPlatformLibrary = "PxrPlatform";
+
         private readonly BodyTrackingRoleData[] _sdkRoleData;
         private BodyTrackingData _sdkData;
+#if UNITY_ANDROID && !UNITY_EDITOR
         private BodyTrackingGetDataInfo _getDataInfo;
+#endif
         private GCHandle _roleDataHandle;
         private readonly int _roleDataStride;
         private readonly int _velocityOffset;
         private readonly int _accelerationOffset;
         private readonly int _angularVelocityOffset;
         private bool _disposed;
+
+#if UNITY_ANDROID && !UNITY_EDITOR
+        // PICO Integration SDK 3.4.0's managed GetBodyTrackingData wrapper writes
+        // index 3 of fixed three-element motion vectors after the native call.
+        // Call the same native entry point directly so failed queries return
+        // immediately and coordinate conversion never writes outside the buffers.
+        [DllImport(
+            PicoPlatformLibrary,
+            EntryPoint = "Pxr_GetBodyTrackingData",
+            CallingConvention = CallingConvention.Cdecl)]
+        private static extern int GetBodyTrackingDataNative(
+            ref BodyTrackingGetDataInfo getInfo,
+            ref BodyTrackingData data);
+#endif
 
         public string LastError
         {
@@ -31,7 +49,9 @@ namespace PicoElderCare.Rehab.Tracking.Pico
             _accelerationOffset = Marshal.OffsetOf(typeof(BodyTrackingRoleData), "acce").ToInt32();
             _angularVelocityOffset = Marshal.OffsetOf(typeof(BodyTrackingRoleData), "wvelo").ToInt32();
             _roleDataHandle = GCHandle.Alloc(_sdkRoleData, GCHandleType.Pinned);
+#if UNITY_ANDROID && !UNITY_EDITOR
             _getDataInfo.displayTime = 0L;
+#endif
         }
 
         public int GetBodyTrackingSupported(out bool supported)
@@ -89,7 +109,7 @@ namespace PicoElderCare.Rehab.Tracking.Pico
 
             target.Clear();
 #if UNITY_ANDROID && !UNITY_EDITOR
-            var result = PXR_MotionTracking.GetBodyTrackingData(ref _getDataInfo, ref _sdkData);
+            var result = GetBodyTrackingDataNative(ref _getDataInfo, ref _sdkData);
             if (result != 0)
             {
                 return result;
@@ -104,25 +124,18 @@ namespace PicoElderCare.Rehab.Tracking.Pico
                     continue;
                 }
 
-                // The installed PICO SDK has already converted localPose to Unity handedness.
-                // localPose is relative to the tracking/XR origin; globalPose is intentionally ignored.
+                // Native localPose is relative to the tracking/XR origin. Convert
+                // all fields to Unity handedness here; globalPose is intentionally ignored.
                 target.SetJoint(new PicoBodyJointData
                 {
                     valid = true,
                     role = source.role,
                     timestamp = source.localPose.TimeStamp,
-                    position = new Vector3(
-                        (float)source.localPose.PosX,
-                        (float)source.localPose.PosY,
-                        (float)source.localPose.PosZ),
-                    rotation = new Quaternion(
-                        (float)source.localPose.RotQx,
-                        (float)source.localPose.RotQy,
-                        (float)source.localPose.RotQz,
-                        (float)source.localPose.RotQw),
-                    velocity = ReadVector(i, _velocityOffset),
-                    acceleration = ReadVector(i, _accelerationOffset),
-                    angularVelocity = ReadVector(i, _angularVelocityOffset)
+                    position = ConvertPositionToUnity(source.localPose),
+                    rotation = ConvertRotationToUnity(source.localPose),
+                    velocity = ConvertMotionVectorToUnity(ReadVector(i, _velocityOffset)),
+                    acceleration = ConvertMotionVectorToUnity(ReadVector(i, _accelerationOffset)),
+                    angularVelocity = ConvertMotionVectorToUnity(ReadVector(i, _angularVelocityOffset))
                 });
             }
 
@@ -175,6 +188,28 @@ namespace PicoElderCare.Rehab.Tracking.Pico
                 ReadDouble(roleAddress, 0),
                 ReadDouble(roleAddress, sizeof(long)),
                 ReadDouble(roleAddress, sizeof(long) * 2));
+        }
+
+        internal static Vector3 ConvertPositionToUnity(BodyTrackerTransPose pose)
+        {
+            return new Vector3(
+                (float)pose.PosX,
+                (float)pose.PosY,
+                -(float)pose.PosZ);
+        }
+
+        internal static Quaternion ConvertRotationToUnity(BodyTrackerTransPose pose)
+        {
+            return new Quaternion(
+                (float)pose.RotQx,
+                (float)pose.RotQy,
+                -(float)pose.RotQz,
+                -(float)pose.RotQw);
+        }
+
+        internal static Vector3 ConvertMotionVectorToUnity(Vector3 vector)
+        {
+            return new Vector3(vector.x, vector.y, -vector.z);
         }
 
         private static float ReadDouble(IntPtr address, int offset)
