@@ -1039,10 +1039,15 @@ namespace PicoElderCare.Rehab
                     poseProviderSelector.StartTracking();
                 }
 
-                if (poseProviderSelector.TryGetSample(_providerBodySample) &&
-                    BodySampleToLegacyAdapter.TryConvert(_providerBodySample, out legacySample))
+                if (poseProviderSelector.TryGetSample(_providerBodySample))
                 {
-                    return legacySample;
+                    if (_providerBodySample.IsTrackingUsable &&
+                        BodySampleToLegacyAdapter.TryConvert(_providerBodySample, out legacySample))
+                    {
+                        return legacySample;
+                    }
+
+                    return default(RehabPoseSample);
                 }
             }
 

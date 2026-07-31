@@ -139,13 +139,12 @@ namespace PicoElderCare.Rehab.Tracking
             return provider != null &&
                    provider.IsSupported &&
                    provider.IsRunning &&
-                   provider.TryGetSample(target) &&
-                   target.IsTrackingUsable;
+                   provider.TryGetSample(target);
         }
 
         private static void StartProvider(RehabPoseProviderBase provider)
         {
-            if (provider != null && provider.IsSupported && !provider.IsRunning)
+            if (provider != null && !provider.IsRunning)
             {
                 provider.StartTracking();
             }

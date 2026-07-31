@@ -1,5 +1,6 @@
 using PicoElderCare.Rehab;
 using PicoElderCare.Rehab.Tracking;
+using PicoElderCare.Rehab.Tracking.Pico;
 using PicoElderCare.HealthGame;
 using PicoElderCare.UI;
 using TMPro;
@@ -358,8 +359,15 @@ public static class RehabSceneBuilder
 
         var controllerPoseProvider = managers.AddComponent<ControllerPoseProvider>();
         controllerPoseProvider.HandPoseTracker = poseTracker;
+        var picoBodyTrackingProvider = managers.AddComponent<PicoBodyTrackingProvider>();
+        picoBodyTrackingProvider.XrOrigin = xrOrigin != null ? xrOrigin.transform : null;
+        picoBodyTrackingProvider.OutputSpace = PicoBodyTrackingOutputSpace.XrOriginLocal;
+        var bodyTrackingDebugRenderer = managers.AddComponent<PicoBodyTrackingDebugRenderer>();
+        bodyTrackingDebugRenderer.Provider = picoBodyTrackingProvider;
+        bodyTrackingDebugRenderer.DebugSkeletonEnabled = false;
         var poseProviderSelector = managers.AddComponent<RehabPoseProviderSelector>();
-        poseProviderSelector.PrimaryProvider = controllerPoseProvider;
+        poseProviderSelector.PrimaryProvider = picoBodyTrackingProvider;
+        poseProviderSelector.FallbackProvider = controllerPoseProvider;
         poseProviderSelector.AllowAutomaticFallback = true;
 
         var safetyMonitor = managers.AddComponent<SafetyMonitor>();

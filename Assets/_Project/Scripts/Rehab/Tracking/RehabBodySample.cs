@@ -14,9 +14,7 @@ namespace PicoElderCare.Rehab.Tracking
         {
             get
             {
-                return validJointCount > 0 &&
-                       (trackingState == RehabTrackingState.Valid ||
-                        trackingState == RehabTrackingState.Limited);
+                return validJointCount > 0 && trackingState == RehabTrackingState.Valid;
             }
         }
 
