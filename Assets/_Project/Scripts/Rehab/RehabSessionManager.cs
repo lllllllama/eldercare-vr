@@ -1,4 +1,5 @@
 using TMPro;
+using PicoElderCare.Rehab.Tracking;
 using UnityEngine;
 
 namespace PicoElderCare.Rehab
@@ -19,6 +20,7 @@ namespace PicoElderCare.Rehab
     public class RehabSessionManager : MonoBehaviour
     {
         public HandPoseTracker handPoseTracker;
+        public RehabPoseProviderSelector poseProviderSelector;
         public SafetyMonitor safetyMonitor;
         public MovementEvaluator movementEvaluator;
         public RehabUIController uiController;
@@ -81,6 +83,7 @@ namespace PicoElderCare.Rehab
         private bool _currentMovementVideoStarted;
         private bool _currentMovementUsesVideoTimer;
         private RehabTrainingFlowState _trainingFlowState = RehabTrainingFlowState.Idle;
+        private readonly RehabBodySample _providerBodySample = new RehabBodySample();
 
         public Vector3 TrainingCenter
         {
@@ -140,9 +143,11 @@ namespace PicoElderCare.Rehab
         private void Update()
         {
             if (!_sessionActive || _sessionEnded) return;
-            if (handPoseTracker == null || movementEvaluator == null || safetyMonitor == null) return;
+            if ((poseProviderSelector == null && handPoseTracker == null) ||
+                movementEvaluator == null ||
+                safetyMonitor == null) return;
 
-            var sample = handPoseTracker.GetCurrentSample();
+            var sample = GetCurrentPoseSample();
             if (!sample.hasHead)
             {
                 SetStatus("等待 XR 追踪");
@@ -784,9 +789,11 @@ namespace PicoElderCare.Rehab
                 timerText.text = timer;
             }
 
-            if (debugText != null && safetyMonitor != null && handPoseTracker != null)
+            if (debugText != null &&
+                safetyMonitor != null &&
+                (poseProviderSelector != null || handPoseTracker != null))
             {
-                var sample = handPoseTracker.GetCurrentSample();
+                var sample = GetCurrentPoseSample();
                 var distance = sample.hasHead
                     ? SafetyMonitor.CalculateHorizontalDistance(sample.headPosition, TrainingCenter)
                     : 0f;
@@ -835,9 +842,9 @@ namespace PicoElderCare.Rehab
                 return;
             }
 
-            if (handPoseTracker == null) return;
+            if (poseProviderSelector == null && handPoseTracker == null) return;
 
-            var sample = handPoseTracker.GetCurrentSample();
+            var sample = GetCurrentPoseSample();
             if (sample.hasHead)
             {
                 PlaceTrainingArea(sample);
@@ -942,6 +949,11 @@ namespace PicoElderCare.Rehab
         private void ResolveReferences()
         {
             if (handPoseTracker == null) handPoseTracker = FindObjectOfType<HandPoseTracker>(true);
+            if (poseProviderSelector == null) poseProviderSelector = FindObjectOfType<RehabPoseProviderSelector>(true);
+            if (poseProviderSelector != null && !poseProviderSelector.IsRunning)
+            {
+                poseProviderSelector.StartTracking();
+            }
             if (safetyMonitor == null) safetyMonitor = FindObjectOfType<SafetyMonitor>(true);
             if (movementEvaluator == null) movementEvaluator = FindObjectOfType<MovementEvaluator>(true);
             if (uiController == null) uiController = FindObjectOfType<RehabUIController>(true);
@@ -1015,6 +1027,31 @@ namespace PicoElderCare.Rehab
                 panelPlacementController.videoPanelRoot = videoGuideController.videoPanel.transform;
                 panelPlacementController.videoLayoutController = videoGuideController.layoutController;
             }
+        }
+
+        private RehabPoseSample GetCurrentPoseSample()
+        {
+            RehabPoseSample legacySample;
+            if (poseProviderSelector != null)
+            {
+                if (!poseProviderSelector.IsRunning)
+                {
+                    poseProviderSelector.StartTracking();
+                }
+
+                if (poseProviderSelector.TryGetSample(_providerBodySample) &&
+                    BodySampleToLegacyAdapter.TryConvert(_providerBodySample, out legacySample))
+                {
+                    return legacySample;
+                }
+            }
+
+            if (handPoseTracker != null)
+            {
+                return handPoseTracker.GetCurrentSample();
+            }
+
+            return default(RehabPoseSample);
         }
 
         private VirtualCoachController CreateVirtualCoachController()

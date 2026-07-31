@@ -9,6 +9,7 @@ public static class RehabSelfTests
     [MenuItem("Tools/PICO ElderCare/Run Rehab Self Tests")]
     public static void RunAll()
     {
+        RehabTrackingSelfTests.RunAll();
         TwoHandsAboveHeadPoseAccumulatesHold();
         LowHandFailsPose();
         UnevenHandsFailPose();
@@ -902,6 +903,7 @@ public static class RehabSelfTests
 
             var control = controlObject.AddComponent<RehabSpatialRayControl>();
             control.videoLayoutController = layout;
+            control.createVisibleVideoControls = true;
             control.EnsureControlCanvas();
 
             var guide = panelObject.AddComponent<RehabVideoGuideController>();
@@ -948,6 +950,7 @@ public static class RehabSelfTests
 
             var control = controlObject.AddComponent<RehabSpatialRayControl>();
             control.videoLayoutController = layout;
+            control.createVisibleVideoControls = true;
             control.EnsureControlCanvas();
             control.SetControlCanvasVisible(false);
 
