@@ -11,6 +11,7 @@ namespace PicoElderCare.Rehab.Tracking.Pico
         public int dataResult;
         public int stopResult;
         public int calibrationResult;
+        public int validJointCount;
         public int successfulSampleCount;
         public int failedSampleCount;
         public RehabTrackingState trackingState = RehabTrackingState.Unavailable;

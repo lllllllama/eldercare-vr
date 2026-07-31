@@ -1,4 +1,3 @@
-using TMPro;
 using UnityEngine;
 
 namespace PicoElderCare.Rehab.Tracking.Pico
@@ -68,12 +67,9 @@ namespace PicoElderCare.Rehab.Tracking.Pico
         private readonly RehabBodySample _sample = new RehabBodySample();
         private readonly Transform[] _jointMarkers = new Transform[(int)RehabJoint.Count];
         private readonly LineRenderer[] _lines = new LineRenderer[Connections.Length];
-        private TextMeshPro _statusText;
         private Material _runtimeMaterial;
         private bool _ownsDebugRoot;
         private bool _initialized;
-        private RehabTrackingState _lastDisplayedState = (RehabTrackingState)(-1);
-        private int _lastDisplayedJointCount = -1;
 
         public bool DebugSkeletonEnabled
         {
@@ -118,7 +114,6 @@ namespace PicoElderCare.Rehab.Tracking.Pico
 
             UpdateJointVisuals();
             UpdateConnectionVisuals();
-            UpdateStatusDisplay();
         }
 
         private void OnDestroy()
@@ -185,12 +180,6 @@ namespace PicoElderCare.Rehab.Tracking.Pico
                 _lines[i] = line;
             }
 
-            var textObject = new GameObject("TrackingStatus");
-            textObject.transform.SetParent(debugRoot, false);
-            _statusText = textObject.AddComponent<TextMeshPro>();
-            _statusText.fontSize = 0.16f;
-            _statusText.alignment = TextAlignmentOptions.Center;
-            _statusText.color = Color.white;
             _initialized = true;
         }
 
@@ -237,42 +226,6 @@ namespace PicoElderCare.Rehab.Tracking.Pico
                 {
                     _lines[i].SetPosition(0, from.position);
                     _lines[i].SetPosition(1, to.position);
-                }
-            }
-        }
-
-        private void UpdateStatusDisplay()
-        {
-            if (_statusText == null)
-            {
-                return;
-            }
-
-            if (_lastDisplayedState != _sample.trackingState ||
-                _lastDisplayedJointCount != _sample.validJointCount)
-            {
-                var limitedSuffix = _sample.trackingState == RehabTrackingState.Limited
-                    ? "\nLIMITED：训练计时应暂停"
-                    : string.Empty;
-                _statusText.text = "Tracking: " + _sample.trackingState +
-                                   "\nValid joints: " + _sample.validJointCount +
-                                   limitedSuffix;
-                _lastDisplayedState = _sample.trackingState;
-                _lastDisplayedJointCount = _sample.validJointCount;
-            }
-
-            RehabJointPose head;
-            if (provider != null && _sample.TryGetJoint(RehabJoint.Head, out head))
-            {
-                _statusText.transform.position = provider.ConvertSamplePositionToWorld(head.position) + Vector3.up * 0.3f;
-                var camera = Camera.main;
-                if (camera != null)
-                {
-                    var towardCamera = camera.transform.position - _statusText.transform.position;
-                    if (towardCamera.sqrMagnitude > 0.0001f)
-                    {
-                        _statusText.transform.rotation = Quaternion.LookRotation(-towardCamera.normalized, Vector3.up);
-                    }
                 }
             }
         }

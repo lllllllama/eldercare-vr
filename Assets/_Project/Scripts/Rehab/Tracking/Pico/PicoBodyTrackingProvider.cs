@@ -97,6 +97,7 @@ namespace PicoElderCare.Rehab.Tracking.Pico
                 return;
             }
 
+            diagnostics.validJointCount = 0;
             SetState(RehabTrackingState.Starting, string.Empty);
 
             try
@@ -156,6 +157,7 @@ namespace PicoElderCare.Rehab.Tracking.Pico
             }
 
             _isRunning = false;
+            diagnostics.validJointCount = 0;
             SetState(RehabTrackingState.Unavailable, string.Empty);
         }
 
@@ -167,6 +169,7 @@ namespace PicoElderCare.Rehab.Tracking.Pico
             }
 
             target.Clear();
+            diagnostics.validJointCount = 0;
             target.timestamp = Time.realtimeSinceStartupAsDouble;
             target.isSeatedMode = seatedMode;
             if (!_isRunning || _api == null)
@@ -248,6 +251,7 @@ namespace PicoElderCare.Rehab.Tracking.Pico
             }
 
             diagnostics.successfulSampleCount++;
+            diagnostics.validJointCount = target.validJointCount;
             return true;
         }
 

@@ -2,8 +2,10 @@
 using PicoElderCare.Rehab;
 using PicoElderCare.Rehab.Tracking;
 using PicoElderCare.Rehab.Tracking.Pico;
+using TMPro;
 using Unity.XR.PXR;
 using UnityEngine;
+using UnityEngine.UI;
 
 public static class PicoBodyTrackingSelfTests
 {
@@ -27,6 +29,9 @@ public static class PicoBodyTrackingSelfTests
         PicoProvider_DoesNotLeakSdkTypesIntoBodySample();
         PicoProvider_ConvertsLocalPoseToWorldSpace();
         ProviderSelector_DoesNotFallbackFromLimitedPicoSample();
+        PicoStatusPanel_CreatesHeadLockedWorldCanvas();
+        PicoStatusPanel_ReusesUiObjects();
+        PicoDebugRenderer_DoesNotOwnStatusUi();
         Debug.Log("PICO body tracking self tests passed.");
     }
 
@@ -417,6 +422,91 @@ public static class PicoBodyTrackingSelfTests
         finally
         {
             Object.DestroyImmediate(root);
+        }
+    }
+
+    private static void PicoStatusPanel_CreatesHeadLockedWorldCanvas()
+    {
+        var root = new GameObject("PicoStatusPanelTest");
+        var cameraObject = new GameObject("Status Camera");
+        try
+        {
+            var camera = cameraObject.AddComponent<Camera>();
+            var fake = CreateValidFake();
+            fake.bodyData.SetJoint(CreateJoint(BodyTrackerRole.HEAD, new Vector3(0f, 1.7f, 0f)));
+            var provider = CreateProvider(root, fake);
+            provider.StartTracking();
+            provider.TryGetSample(new RehabBodySample());
+
+            var panel = root.AddComponent<PicoBodyTrackingStatusPanel>();
+            panel.Provider = provider;
+            panel.TargetCamera = camera;
+            panel.StatusPanelEnabled = true;
+            panel.RefreshNow();
+
+            AssertTrue(panel.StatusCanvas != null, "Status panel should create a reusable Canvas.");
+            AssertTrue(panel.StatusCanvas.renderMode == RenderMode.WorldSpace, "Status Canvas must use World Space mode.");
+            AssertTrue(panel.StatusCanvas.transform.parent == camera.transform, "Status Canvas must be parented to the target camera.");
+            AssertTrue(Vector3.Distance(panel.StatusCanvas.transform.localPosition, new Vector3(0f, -0.18f, 1.2f)) < 0.0001f, "Status Canvas should use the default head-local position.");
+            AssertTrue(Quaternion.Angle(panel.StatusCanvas.transform.localRotation, Quaternion.identity) < 0.001f, "Status Canvas should face forward in camera-local space.");
+            AssertTrue(Vector3.Distance(panel.StatusCanvas.transform.localScale, Vector3.one * 0.0015f) < 0.0001f, "Status Canvas should use the default scale.");
+
+            var canvasRect = panel.StatusCanvas.transform as RectTransform;
+            AssertTrue(canvasRect != null && Vector2.Distance(canvasRect.sizeDelta, new Vector2(900f, 420f)) < 0.001f, "Status Canvas should use the default 900 x 420 size.");
+            AssertTrue(panel.StatusText != null && panel.StatusText is TextMeshProUGUI, "Status text must use TextMeshProUGUI.");
+            AssertTrue(Mathf.Abs(panel.StatusText.fontSize - 72f) < 0.001f, "Status text should use the default 72 font size.");
+            AssertTrue(!panel.StatusText.enableAutoSizing, "Status text auto sizing must remain disabled.");
+            AssertTrue(panel.StatusText.alignment == TextAlignmentOptions.MidlineLeft, "Status text should be left aligned and vertically centered.");
+            AssertTrue(panel.StatusText.outlineWidth > 0f, "Status text should have a black outline.");
+
+            var background = panel.StatusCanvas.GetComponent<Image>();
+            AssertTrue(background != null && Mathf.Abs(background.color.a - 0.8f) < 0.001f, "Status panel should have the default semi-transparent background.");
+            AssertTrue(panel.StatusText.text.Contains("Tracking State: Valid"), "Status panel should display the tracking state.");
+            AssertTrue(panel.StatusText.text.Contains("Valid Joint Count: 1"), "Status panel should display the latest valid joint count.");
+            AssertTrue(panel.StatusText.text.Contains("Successful Sample Count: 1"), "Status panel should display sample diagnostics.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(root);
+            Object.DestroyImmediate(cameraObject);
+        }
+    }
+
+    private static void PicoStatusPanel_ReusesUiObjects()
+    {
+        var root = new GameObject("PicoStatusPanelReuseTest");
+        var cameraObject = new GameObject("Status Camera");
+        try
+        {
+            var camera = cameraObject.AddComponent<Camera>();
+            var panel = root.AddComponent<PicoBodyTrackingStatusPanel>();
+            panel.TargetCamera = camera;
+            panel.StatusPanelEnabled = true;
+            panel.RefreshNow();
+            var canvas = panel.StatusCanvas;
+            var text = panel.StatusText;
+
+            panel.RefreshNow();
+            AssertTrue(ReferenceEquals(canvas, panel.StatusCanvas), "Status panel must reuse its Canvas.");
+            AssertTrue(ReferenceEquals(text, panel.StatusText), "Status panel must reuse its TextMeshProUGUI component.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(root);
+            Object.DestroyImmediate(cameraObject);
+        }
+    }
+
+    private static void PicoDebugRenderer_DoesNotOwnStatusUi()
+    {
+        var fields = typeof(PicoBodyTrackingDebugRenderer).GetFields(
+            System.Reflection.BindingFlags.Instance |
+            System.Reflection.BindingFlags.NonPublic |
+            System.Reflection.BindingFlags.Public);
+        for (var i = 0; i < fields.Length; i++)
+        {
+            AssertTrue(!typeof(TMP_Text).IsAssignableFrom(fields[i].FieldType), "Debug renderer must not retain status text fields.");
+            AssertTrue(!typeof(Canvas).IsAssignableFrom(fields[i].FieldType), "Debug renderer must not retain status Canvas fields.");
         }
     }
 

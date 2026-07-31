@@ -365,6 +365,10 @@ public static class RehabSceneBuilder
         var bodyTrackingDebugRenderer = managers.AddComponent<PicoBodyTrackingDebugRenderer>();
         bodyTrackingDebugRenderer.Provider = picoBodyTrackingProvider;
         bodyTrackingDebugRenderer.DebugSkeletonEnabled = false;
+        var bodyTrackingStatusPanel = managers.AddComponent<PicoBodyTrackingStatusPanel>();
+        bodyTrackingStatusPanel.Provider = picoBodyTrackingProvider;
+        bodyTrackingStatusPanel.TargetCamera = mainCamera;
+        bodyTrackingStatusPanel.StatusPanelEnabled = true;
         var poseProviderSelector = managers.AddComponent<RehabPoseProviderSelector>();
         poseProviderSelector.PrimaryProvider = picoBodyTrackingProvider;
         poseProviderSelector.FallbackProvider = controllerPoseProvider;
