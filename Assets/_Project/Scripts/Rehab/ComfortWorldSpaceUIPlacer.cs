@@ -127,7 +127,7 @@ public class ComfortWorldSpaceUIPlacer : MonoBehaviour
     {
         if (!_startupRecenterActive) return;
 
-        var stillWithinTime = Time.unscaledTime <= _startupRecenterUntilTime;
+        var stillWithinTime = Time.unscaledTime < _startupRecenterUntilTime;
         var stillWithinFrames = _startupRecenterFramesRemaining > 0;
         if (!stillWithinTime && !stillWithinFrames)
         {

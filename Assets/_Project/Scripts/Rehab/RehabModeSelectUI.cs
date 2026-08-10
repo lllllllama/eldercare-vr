@@ -35,16 +35,22 @@ namespace PicoElderCare.Rehab
         public bool placeUiOnStart = true;
         public bool placeUiOnMainMenuOpen = true;
         public bool placeUiOnTrainingSelectOpen = true;
+        // Retained for serialized-scene and public API compatibility. Startup recentering is owned by ComfortWorldSpaceUIPlacer.
+        [HideInInspector]
         public int startRecenterDelayFrames = 2;
+        [HideInInspector]
         public float startRecenterSeconds = 1.25f;
+        [HideInInspector]
         public int startRecenterFrames = 18;
+        [HideInInspector]
         public float trainingSelectDistanceMeters = 2.45f;
+        [HideInInspector]
         public float trainingSelectHeightOffsetMeters = 0.08f;
         public bool applyHtmlStylePanels = false;
 
-        private Coroutine _startRecenterCoroutine;
         private Coroutine _routeRebindCoroutine;
         private Coroutine _trainingLayoutRecenterCoroutine;
+        private bool _isApplyingInitialPanelState;
 
         public GameObject SelectionPanelRoot => selectionPanelRoot;
         public GameObject TrainingFunctionPanelRoot => trainingFunctionPanelRoot;
@@ -64,19 +70,27 @@ namespace PicoElderCare.Rehab
 
         private void Start()
         {
-            if (showTrainingSelectOnStart)
+            _isApplyingInitialPanelState = true;
+            try
             {
-                ShowTrainingSelectPanel();
+                if (showTrainingSelectOnStart)
+                {
+                    ShowTrainingSelectPanel();
+                }
+                else
+                {
+                    ShowMainMenuPanel();
+                }
             }
-            else
+            finally
             {
-                ShowMainMenuPanel();
+                _isApplyingInitialPanelState = false;
             }
 
-            if (placeUiOnStart)
+            ResolveReferences();
+            if (placeUiOnStart && uiPlacer == null)
             {
                 RecenterNavigationPanels();
-                ScheduleStartRecenterNavigationPanels();
             }
 
             RefreshHtmlUIAndButtonBindings("Start");
@@ -86,12 +100,6 @@ namespace PicoElderCare.Rehab
         private void OnDisable()
         {
             CancelTrainingLayoutRecenter();
-
-            if (_startRecenterCoroutine != null)
-            {
-                StopCoroutine(_startRecenterCoroutine);
-                _startRecenterCoroutine = null;
-            }
 
             if (_routeRebindCoroutine != null)
             {
@@ -113,7 +121,7 @@ namespace PicoElderCare.Rehab
 
             RefreshHtmlUIAndButtonBindings("ShowMainMenuPanel");
 
-            if (placeUiOnMainMenuOpen)
+            if (!_isApplyingInitialPanelState && placeUiOnMainMenuOpen)
             {
                 RecenterNavigationPanels();
             }
@@ -132,12 +140,7 @@ namespace PicoElderCare.Rehab
 
             RefreshHtmlUIAndButtonBindings("ShowTrainingSelectPanel");
 
-            ResolveReferences();
-            if (panelPlacementController != null)
-            {
-                panelPlacementController.RecenterSelectionPanel();
-            }
-            else if (placeUiOnTrainingSelectOpen)
+            if (!_isApplyingInitialPanelState && placeUiOnTrainingSelectOpen)
             {
                 RecenterNavigationPanels();
             }
@@ -400,6 +403,13 @@ namespace PicoElderCare.Rehab
         {
             ResolveReferences();
 
+            if (uiPlacer != null)
+            {
+                uiPlacer.EnsureWorldSpaceInteractionHelpers();
+                uiPlacer.PlaceOnOpen();
+                return;
+            }
+
             if (panelPlacementController != null)
             {
                 if (panelPlacementController.useSceneAuthoredTrainingLayout)
@@ -413,69 +423,6 @@ namespace PicoElderCare.Rehab
 
                 return;
             }
-
-            if (uiPlacer != null)
-            {
-                ApplyTrainingSelectPlacementDefaults();
-                uiPlacer.EnsureWorldSpaceInteractionHelpers();
-                uiPlacer.PlaceInFrontOfUser();
-            }
-        }
-
-        private void ScheduleStartRecenterNavigationPanels()
-        {
-            if (!isActiveAndEnabled) return;
-
-            if (_startRecenterCoroutine != null)
-            {
-                StopCoroutine(_startRecenterCoroutine);
-            }
-
-            _startRecenterCoroutine = StartCoroutine(RecenterNavigationPanelsAfterStartDelay());
-        }
-
-        private IEnumerator RecenterNavigationPanelsAfterStartDelay()
-        {
-            var delayFrames = Mathf.Max(0, startRecenterDelayFrames);
-            for (var i = 0; i < delayFrames; i++)
-            {
-                yield return null;
-            }
-
-            var recenterUntilTime = Time.unscaledTime + Mathf.Max(0f, startRecenterSeconds);
-            var recenterFramesRemaining = Mathf.Max(1, startRecenterFrames);
-            while (isActiveAndEnabled)
-            {
-                RecenterNavigationPanels();
-                recenterFramesRemaining--;
-
-                var stillWithinTime = Time.unscaledTime <= recenterUntilTime;
-                var stillWithinFrames = recenterFramesRemaining > 0;
-                if (!stillWithinTime && !stillWithinFrames)
-                {
-                    break;
-                }
-
-                yield return null;
-            }
-
-            _startRecenterCoroutine = null;
-        }
-
-        private void ApplyTrainingSelectPlacementDefaults()
-        {
-            if (uiPlacer == null) return;
-
-            uiPlacer.distanceMeters = Mathf.Max(uiPlacer.distanceMeters, trainingSelectDistanceMeters);
-            uiPlacer.hmdHeightOffsetMeters = Mathf.Max(uiPlacer.hmdHeightOffsetMeters, trainingSelectHeightOffsetMeters);
-            if (uiPlacer.usePreferredHeightInsteadOfHeadHeight && uiPlacer.headTransform != null)
-            {
-                var desiredHeight = uiPlacer.headTransform.position.y + trainingSelectHeightOffsetMeters;
-                uiPlacer.preferredWorldHeight = Mathf.Max(uiPlacer.preferredWorldHeight, desiredHeight);
-            }
-
-            uiPlacer.enableRayDrag = true;
-            uiPlacer.enableThumbstickNavigation = true;
         }
 
         private void BindButtonEvents()

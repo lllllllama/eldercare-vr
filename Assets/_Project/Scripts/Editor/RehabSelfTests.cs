@@ -29,8 +29,7 @@ public static class RehabSelfTests
         TrainingAreaDragHandleIsDisabledByDefault();
         ManualTrainingAreaPlacementUpdatesSessionCenter();
         PromptPanelStaysOutsideTrainingCircle();
-        ComfortUiPlacementUsesCurrentHeadYaw();
-        ComfortUiStartupRecenterFollowsSettledHeadPose();
+        RunComfortPlacementTests();
         ComfortUiCreatesRayDragAndThumbstickHelpers();
         ComfortUiRayDragKeepsStableHeightWhenDraggedFar();
         HtmlStyleMainEntryPanelUsesVrReadableScale();
@@ -41,8 +40,20 @@ public static class RehabSelfTests
         VideoSpatialControlsStayHiddenUntilVideoGuideShows();
         VideoGuidePauseKeepsDisplayVisible();
         SpatialRayControlDragsVideoOnlyWhileTriggerHeld();
-        TrainingSelectPanelUsesComfortRayPlacement();
         Debug.Log("Rehab self tests passed.");
+    }
+
+    public static void RunComfortPlacementTests()
+    {
+        ComfortUiUsesHmdRelativeHeight();
+        ComfortUiClampsMinimumHeight();
+        ComfortUiClampsMaximumHeight();
+        ComfortUiPlacementUsesCurrentHeadYaw();
+        ComfortUiStartupRecenterFollowsSettledHeadPose();
+        ComfortUiStopsFollowingAfterStartupWindow();
+        TrainingSelectPanelRecenterUsesConfiguredComfortPlacement();
+        TrainingLayoutRecenterRemainsIndependentOfSelectionPlacement();
+        Debug.Log("Rehab comfort placement tests passed.");
     }
 
     private static void TwoHandsAboveHeadPoseAccumulatesHold()
@@ -505,6 +516,21 @@ public static class RehabSelfTests
         }
     }
 
+    private static void ComfortUiUsesHmdRelativeHeight()
+    {
+        AssertComfortUiHeight(1.65f, 1.55f, "Comfort UI should use HMD height plus the configured offset.");
+    }
+
+    private static void ComfortUiClampsMinimumHeight()
+    {
+        AssertComfortUiHeight(1.2f, 1.25f, "Comfort UI should clamp low HMD-relative placement to the minimum world height.");
+    }
+
+    private static void ComfortUiClampsMaximumHeight()
+    {
+        AssertComfortUiHeight(1.95f, 1.75f, "Comfort UI should clamp high HMD-relative placement to the maximum world height.");
+    }
+
     private static void ComfortUiPlacementUsesCurrentHeadYaw()
     {
         var headObject = new GameObject("Head");
@@ -512,7 +538,7 @@ public static class RehabSelfTests
         try
         {
             headObject.transform.position = new Vector3(1f, 1.6f, 2f);
-            headObject.transform.rotation = Quaternion.Euler(0f, 90f, 0f);
+            headObject.transform.rotation = Quaternion.Euler(-30f, 45f, 0f);
 
             var placer = uiObject.AddComponent<ComfortWorldSpaceUIPlacer>();
             placer.headTransform = headObject.transform;
@@ -521,9 +547,13 @@ public static class RehabSelfTests
             placer.hmdHeightOffsetMeters = -0.1f;
             placer.PlaceInFrontOfUser();
 
-            AssertTrue(Mathf.Abs(uiObject.transform.position.x - 3f) < 0.001f, "Comfort UI should use the current head yaw for initial X placement.");
-            AssertTrue(Mathf.Abs(uiObject.transform.position.z - 2f) < 0.001f, "Comfort UI should stay on the head yaw plane instead of the old world-forward direction.");
-            AssertTrue(Quaternion.Angle(uiObject.transform.rotation, Quaternion.LookRotation(Vector3.right, Vector3.up)) < 0.1f, "Comfort UI should rotate to face the current head yaw.");
+            var expectedForward = Quaternion.Euler(0f, 45f, 0f) * Vector3.forward;
+            var expectedPosition = headObject.transform.position + expectedForward * 2f;
+            expectedPosition.y = placer.preferredWorldHeight;
+
+            AssertTrue(Vector3.Distance(uiObject.transform.position, expectedPosition) < 0.001f, "Comfort UI should place from yaw only even when the HMD has pitch.");
+            AssertTrue(Quaternion.Angle(uiObject.transform.rotation, Quaternion.LookRotation(expectedForward, Vector3.up)) < 0.1f, "Comfort UI rotation should preserve yaw without HMD pitch or roll.");
+            AssertTrue(Vector3.Dot(uiObject.transform.up, Vector3.up) > 0.999f, "Comfort UI should remain upright when the user looks up or down.");
         }
         finally
         {
@@ -546,16 +576,155 @@ public static class RehabSelfTests
             placer.uiRoot = uiObject.transform;
             placer.distanceMeters = 2f;
             placer.hmdHeightOffsetMeters = -0.1f;
+            placer.usePreferredHeightInsteadOfHeadHeight = false;
             placer.startupRecenterSeconds = 0f;
             placer.startupRecenterFrames = 1;
             placer.PlaceInFrontOfUser();
 
+            headObject.transform.position = new Vector3(0.25f, 1.7f, 0.1f);
             headObject.transform.rotation = Quaternion.Euler(0f, -90f, 0f);
             placer.BeginStartupRecenterWindow();
             placer.RefreshStartupPlacementIfNeeded();
 
-            AssertTrue(uiObject.transform.position.x < -1.99f, "Startup recenter should update the UI after the XR head pose settles.");
-            AssertTrue(Mathf.Abs(uiObject.transform.position.z) < 0.001f, "Startup recenter should no longer leave the UI at the stale world-forward position.");
+            var expectedPosition = new Vector3(-1.75f, 1.6f, 0.1f);
+            AssertTrue(Vector3.Distance(uiObject.transform.position, expectedPosition) < 0.001f, "Startup recenter should update position and yaw after the XR head pose settles.");
+            AssertTrue(Quaternion.Angle(uiObject.transform.rotation, Quaternion.LookRotation(Vector3.left, Vector3.up)) < 0.1f, "Startup recenter should refresh the horizontal menu rotation.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(uiObject);
+            Object.DestroyImmediate(headObject);
+        }
+    }
+
+    private static void ComfortUiStopsFollowingAfterStartupWindow()
+    {
+        var headObject = new GameObject("Head");
+        var uiObject = new GameObject("ComfortUiStartupFreeze");
+        try
+        {
+            headObject.transform.position = new Vector3(0f, 1.65f, 0f);
+            headObject.transform.rotation = Quaternion.identity;
+
+            var placer = uiObject.AddComponent<ComfortWorldSpaceUIPlacer>();
+            placer.headTransform = headObject.transform;
+            placer.uiRoot = uiObject.transform;
+            placer.distanceMeters = 2f;
+            placer.hmdHeightOffsetMeters = -0.1f;
+            placer.usePreferredHeightInsteadOfHeadHeight = false;
+            placer.comfortFollowEnabled = false;
+            placer.startupRecenterSeconds = 0f;
+            placer.startupRecenterFrames = 1;
+
+            placer.BeginStartupRecenterWindow();
+            placer.RefreshStartupPlacementIfNeeded();
+            var frozenPosition = uiObject.transform.position;
+            var frozenRotation = uiObject.transform.rotation;
+
+            headObject.transform.position = new Vector3(1f, 1.8f, -0.5f);
+            headObject.transform.rotation = Quaternion.Euler(0f, 90f, 0f);
+            placer.RefreshStartupPlacementIfNeeded();
+
+            AssertTrue(Vector3.Distance(uiObject.transform.position, frozenPosition) < 0.001f, "Comfort UI should stop following position after the startup window ends.");
+            AssertTrue(Quaternion.Angle(uiObject.transform.rotation, frozenRotation) < 0.1f, "Comfort UI should stop following yaw after the startup window ends.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(uiObject);
+            Object.DestroyImmediate(headObject);
+        }
+    }
+
+    private static void TrainingLayoutRecenterRemainsIndependentOfSelectionPlacement()
+    {
+        var existingMainCamera = Camera.main;
+        var cameraObject = existingMainCamera == null ? new GameObject("Main Camera", typeof(Camera)) : null;
+        var viewTransform = existingMainCamera != null ? existingMainCamera.transform : cameraObject.transform;
+        var originalPosition = viewTransform.position;
+        var originalRotation = viewTransform.rotation;
+        var anchorObject = new GameObject("TrainingLayoutAnchorTest");
+        var functionPanelObject = new GameObject("TrainingFunctionPanel");
+        var videoPanelObject = new GameObject("VideoPanel");
+        var selectionPanelObject = new GameObject("SelectionPanel");
+        var controllerObject = new GameObject("RehabPanelPlacementControllerTest");
+        try
+        {
+            if (cameraObject != null)
+            {
+                cameraObject.tag = "MainCamera";
+            }
+
+            viewTransform.position = new Vector3(1f, 1.7f, 2f);
+            viewTransform.rotation = Quaternion.Euler(-20f, 90f, 0f);
+            functionPanelObject.transform.SetParent(anchorObject.transform, false);
+            videoPanelObject.transform.SetParent(anchorObject.transform, false);
+            functionPanelObject.transform.localPosition = new Vector3(-0.4f, 0.1f, 0f);
+            videoPanelObject.transform.localPosition = new Vector3(0.5f, 0.2f, 0.15f);
+            selectionPanelObject.transform.position = new Vector3(-3f, 1.4f, -2f);
+
+            var originalFunctionLocalPosition = functionPanelObject.transform.localPosition;
+            var originalVideoLocalPosition = videoPanelObject.transform.localPosition;
+            var originalSelectionPosition = selectionPanelObject.transform.position;
+            var videoLayout = videoPanelObject.AddComponent<RehabVideoPanelLayoutController>();
+            videoLayout.panelRoot = videoPanelObject.transform;
+
+            var controller = controllerObject.AddComponent<RehabPanelPlacementController>();
+            controller.headTransform = viewTransform;
+            controller.viewTransform = viewTransform;
+            controller.selectionPanelRoot = selectionPanelObject.transform;
+            controller.trainingLayoutAnchor = anchorObject.transform;
+            controller.trainingFunctionPanelRoot = functionPanelObject.transform;
+            controller.videoPanelRoot = videoPanelObject.transform;
+            controller.videoLayoutController = videoLayout;
+            controller.trainingLayoutDistance = 1.8f;
+            controller.trainingLayoutHeightOffset = -0.1f;
+
+            controller.RecenterTrainingLayout();
+
+            var expectedAnchorPosition = new Vector3(2.8f, 1.6f, 2f);
+            AssertTrue(Vector3.Distance(anchorObject.transform.position, expectedAnchorPosition) < 0.001f, "Training layout recenter should continue to update TrainingLayoutAnchor from the HMD yaw.");
+            AssertTrue(Quaternion.Angle(anchorObject.transform.rotation, Quaternion.LookRotation(Vector3.right, Vector3.up)) < 0.1f, "Training layout should remain upright and face the HMD yaw.");
+            AssertTrue(Vector3.Distance(functionPanelObject.transform.localPosition, originalFunctionLocalPosition) < 0.001f, "Training function panel should keep its authored offset under TrainingLayoutAnchor.");
+            AssertTrue(Vector3.Distance(videoPanelObject.transform.localPosition, originalVideoLocalPosition) < 0.001f, "Video panel should keep its authored offset under TrainingLayoutAnchor.");
+            AssertTrue(Vector3.Distance(selectionPanelObject.transform.position, originalSelectionPosition) < 0.001f, "Training layout recenter should not move the selection menu.");
+        }
+        finally
+        {
+            viewTransform.position = originalPosition;
+            viewTransform.rotation = originalRotation;
+            Object.DestroyImmediate(controllerObject);
+            Object.DestroyImmediate(selectionPanelObject);
+            Object.DestroyImmediate(videoPanelObject);
+            Object.DestroyImmediate(functionPanelObject);
+            Object.DestroyImmediate(anchorObject);
+            if (cameraObject != null)
+            {
+                Object.DestroyImmediate(cameraObject);
+            }
+        }
+    }
+
+    private static void AssertComfortUiHeight(float headHeight, float expectedHeight, string message)
+    {
+        var headObject = new GameObject("Head");
+        var uiObject = new GameObject("ComfortUiHeight");
+        try
+        {
+            headObject.transform.position = new Vector3(0f, headHeight, 0f);
+            headObject.transform.rotation = Quaternion.identity;
+
+            var placer = uiObject.AddComponent<ComfortWorldSpaceUIPlacer>();
+            placer.headTransform = headObject.transform;
+            placer.uiRoot = uiObject.transform;
+            placer.distanceMeters = 2f;
+            placer.hmdHeightOffsetMeters = -0.1f;
+            placer.usePreferredHeightInsteadOfHeadHeight = false;
+            placer.clampWorldHeight = true;
+            placer.minWorldHeight = 1.25f;
+            placer.maxWorldHeight = 1.75f;
+            placer.PlaceInFrontOfUser();
+
+            AssertTrue(Mathf.Abs(uiObject.transform.position.y - expectedHeight) < 0.001f, message);
         }
         finally
         {
@@ -969,7 +1138,7 @@ public static class RehabSelfTests
         }
     }
 
-    private static void TrainingSelectPanelUsesComfortRayPlacement()
+    private static void TrainingSelectPanelRecenterUsesConfiguredComfortPlacement()
     {
         var headObject = new GameObject("Head");
         var uiObject = new GameObject("RehabModeSelectCanvas", typeof(RectTransform));
@@ -986,8 +1155,12 @@ public static class RehabSelfTests
             var placer = uiObject.AddComponent<ComfortWorldSpaceUIPlacer>();
             placer.headTransform = headObject.transform;
             placer.uiRoot = rect;
-            placer.distanceMeters = 1.7f;
-            placer.hmdHeightOffsetMeters = -0.12f;
+            placer.distanceMeters = 2f;
+            placer.hmdHeightOffsetMeters = -0.1f;
+            placer.usePreferredHeightInsteadOfHeadHeight = false;
+            placer.clampWorldHeight = true;
+            placer.minWorldHeight = 1.25f;
+            placer.maxWorldHeight = 1.75f;
             placer.enableRayDrag = true;
             placer.enableThumbstickNavigation = true;
 
@@ -1000,8 +1173,10 @@ public static class RehabSelfTests
 
             modeUi.ShowTrainingSelectPanel();
 
-            AssertTrue(uiObject.transform.position.z > 2.4f, "Training selection panel should open farther from the user.");
-            AssertTrue(uiObject.transform.position.y > 1.67f, "Training selection panel should open higher than the old low placement.");
+            AssertTrue(Mathf.Abs(uiObject.transform.position.z - 2f) < 0.001f, "Training selection panel recenter should keep the configured rehab distance.");
+            AssertTrue(Mathf.Abs(uiObject.transform.position.y - 1.5f) < 0.001f, "Training selection panel recenter should use HMD-relative height.");
+            AssertTrue(Mathf.Abs(placer.distanceMeters - 2f) < 0.001f, "Opening the selection page should not replace the startup distance configuration.");
+            AssertTrue(Mathf.Abs(placer.hmdHeightOffsetMeters + 0.1f) < 0.001f, "Opening the selection page should not replace the HMD height offset.");
             AssertTrue(rect.Find("RayDragHandle") != null, "Training selection panel should expose a ray-drag handle.");
         }
         finally

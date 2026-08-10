@@ -346,9 +346,17 @@ public static class RehabSceneBuilder
         var trainingArea = BuildTrainingArea(visualRoot.transform);
         var rehabUi = BuildRehabPromptCanvas(uiRoot.transform, mainCamera, homeMenu);
         var promptCanvas = rehabUi.canvas;
-        var rehabUiPlacer = ConfigureComfortUiPlacer(uiRoot, hmd, uiRoot.transform, 2f);
-        rehabUiPlacer.placeOnStart = false;
-        rehabUiPlacer.recenterDuringStartup = false;
+        var rehabUiPlacer = ConfigureComfortUiPlacer(uiRoot, hmd, rehabUi.rehabTrainingSelectPanel.transform, 2f);
+        rehabUiPlacer.placeOnStart = true;
+        rehabUiPlacer.recenterDuringStartup = true;
+        rehabUiPlacer.startupRecenterSeconds = 1.25f;
+        rehabUiPlacer.startupRecenterFrames = 18;
+        rehabUiPlacer.usePreferredHeightInsteadOfHeadHeight = false;
+        rehabUiPlacer.hmdHeightOffsetMeters = -0.1f;
+        rehabUiPlacer.clampWorldHeight = true;
+        rehabUiPlacer.minWorldHeight = 1.25f;
+        rehabUiPlacer.maxWorldHeight = 1.75f;
+        rehabUiPlacer.comfortFollowEnabled = false;
 
         var poseTracker = managers.AddComponent<HandPoseTracker>();
         poseTracker.hmdTransform = hmd;
@@ -403,6 +411,7 @@ public static class RehabSceneBuilder
         panelPlacement.videoPanelDistance = 2.2f;
         panelPlacement.videoPanelYawOffsetDegrees = 40f;
         panelPlacement.panelHeight = 1.45f;
+        panelPlacement.placeOnStart = false;
 
         var virtualCoach = BuildVirtualCoach(visualRoot.transform, hmd);
 
@@ -455,8 +464,9 @@ public static class RehabSceneBuilder
         modeSelectUi.panelPlacementController = panelPlacement;
         modeSelectUi.sessionManager = session;
         modeSelectUi.showTrainingSelectOnStart = true;
-        modeSelectUi.placeUiOnStart = true;
+        modeSelectUi.placeUiOnStart = false;
         modeSelectUi.placeUiOnMainMenuOpen = true;
+        modeSelectUi.placeUiOnTrainingSelectOpen = true;
         session.modeSelectUI = modeSelectUi;
         AddPersistentButtonListener(rehabUi.baduanjinButton, modeSelectUi.StartBaduanjinTraining);
         AddPersistentButtonListener(rehabUi.taiChiButton, modeSelectUi.StartTaiChiTraining);

@@ -1198,19 +1198,19 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   headTransform: {fileID: 816540687}
-  uiRoot: {fileID: 290964137}
-  distanceMeters: 1.35
+  uiRoot: {fileID: 1888995546}
+  distanceMeters: 2
   hmdHeightOffsetMeters: -0.1
-  placeOnStart: 0
+  placeOnStart: 1
   placeOnEnable: 0
-  recenterDuringStartup: 0
+  recenterDuringStartup: 1
   startupRecenterSeconds: 1.25
   startupRecenterFrames: 18
   clampWorldHeight: 1
   minWorldHeight: 1.25
   maxWorldHeight: 1.75
   preferredWorldHeight: 1.45
-  usePreferredHeightInsteadOfHeadHeight: 1
+  usePreferredHeightInsteadOfHeadHeight: 0
   enableRayDrag: 1
   enableThumbstickNavigation: 1
   invertThumbstickHorizontal: 0
@@ -8205,7 +8205,7 @@ MonoBehaviour:
   videoPanelRoot: {fileID: 902136581}
   videoLayoutController: {fileID: 902136585}
   useSceneAuthoredTrainingLayout: 1
-  placeOnStart: 1
+  placeOnStart: 0
   selectionPanelDistance: 1.35
   selectionPanelHeight: 1.35
   promptPanelDistance: 1.8
@@ -8587,7 +8587,7 @@ MonoBehaviour:
   showTrainingSelectOnStart: 1
   placeUiOnStart: 0
   placeUiOnMainMenuOpen: 0
-  placeUiOnTrainingSelectOpen: 0
+  placeUiOnTrainingSelectOpen: 1
   startRecenterDelayFrames: 2
   startRecenterSeconds: 1.25
   startRecenterFrames: 18
