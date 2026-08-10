@@ -129,8 +129,10 @@ namespace PicoElderCare.Rehab
             StyleTrainingDebugText(ui.rehabTrainingPanel);
             var startButton = FindButton(ui.rehabTrainingPanel, "StartButton");
             ConfigureTrainingFooterButton(startButton, new Vector2(-232f, -174f));
+            ConfigureTrainingFooterButton(ui.trainingRecenterButton, new Vector2(0f, -174f));
             ConfigureTrainingFooterButton(ui.trainingBackButton, new Vector2(232f, -174f));
             StyleTrainingActionButton(startButton, "StartButton", Amber, true);
+            StyleTrainingActionButton(ui.trainingRecenterButton, "RecenterButton", Jade, false);
             StyleTrainingActionButton(ui.trainingBackButton, "TrainingBackButton", GoldStroke, false);
             HideBottomHint(ui.rehabTrainingPanel);
             StyleBottomDock(ui.rehabTrainingPanel);

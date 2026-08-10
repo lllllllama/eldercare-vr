@@ -2316,7 +2316,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!4 &582264891
 Transform:
   m_ObjectHideFlags: 0
@@ -6029,7 +6029,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!114 &1463058331
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -7964,7 +7964,7 @@ MonoBehaviour:
   promptHeightMeters: 1.65
   promptForwardOffsetMeters: 0.85
   autoStartSession: 0
-  placeTrainingAreaOnStart: 1
+  placeTrainingAreaOnStart: 0
   useOpenSpacePlacement: 1
   refreshOpenSpaceAfterPlacement: 0
   openSpaceClearanceRadiusMeters: 0.85
@@ -8199,8 +8199,11 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   headTransform: {fileID: 816540687}
+  viewTransform: {fileID: 816540687}
   selectionPanelRoot: {fileID: 1888995546}
+  trainingLayoutAnchor: {fileID: 0}
   trainingFunctionPanelRoot: {fileID: 681238604}
+  resultPanelRoot: {fileID: 559362484}
   promptPanelRoot: {fileID: 1888995546}
   videoPanelRoot: {fileID: 902136581}
   videoLayoutController: {fileID: 902136585}
@@ -8208,6 +8211,13 @@ MonoBehaviour:
   placeOnStart: 0
   selectionPanelDistance: 1.35
   selectionPanelHeight: 1.35
+  trainingLayoutDistance: 1.8
+  trainingLayoutHeightOffset: -0.1
+  resultPanelDistance: 2
+  resultPanelHeightOffset: -0.1
+  clampResultPanelHeight: 1
+  minResultPanelHeight: 1.25
+  maxResultPanelHeight: 1.75
   promptPanelDistance: 1.8
   videoPanelDistance: 2.2
   videoPanelYawOffsetDegrees: 40
@@ -8578,6 +8588,7 @@ MonoBehaviour:
   taiChiButton: {fileID: 397022949}
   backButton: {fileID: 850986672}
   trainingBackButton: {fileID: 0}
+  trainingRecenterButton: {fileID: 0}
   resultBackButton: {fileID: 0}
   homeMenu: {fileID: 1970877965}
   uiPlacer: {fileID: 290964136}

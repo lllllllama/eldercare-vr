@@ -40,8 +40,12 @@ public static class RehabSceneBuilder
     {
         public GameObject canvas;
         public GameObject mainMenuPanel;
+        public GameObject selectionPanelRoot;
         public GameObject rehabTrainingSelectPanel;
+        public GameObject trainingLayoutAnchor;
+        public GameObject trainingFunctionPanelRoot;
         public GameObject rehabTrainingPanel;
+        public GameObject resultPanelRoot;
         public GameObject trainingResultPanel;
         public TMP_Text title;
         public TMP_Text status;
@@ -55,6 +59,7 @@ public static class RehabSceneBuilder
         public Button backButton;
         public Button startButton;
         public Button trainingBackButton;
+        public Button trainingRecenterButton;
         public Button resultBackButton;
     }
 
@@ -346,7 +351,7 @@ public static class RehabSceneBuilder
         var trainingArea = BuildTrainingArea(visualRoot.transform);
         var rehabUi = BuildRehabPromptCanvas(uiRoot.transform, mainCamera, homeMenu);
         var promptCanvas = rehabUi.canvas;
-        var rehabUiPlacer = ConfigureComfortUiPlacer(uiRoot, hmd, rehabUi.rehabTrainingSelectPanel.transform, 2f);
+        var rehabUiPlacer = ConfigureComfortUiPlacer(uiRoot, hmd, rehabUi.selectionPanelRoot.transform, 2f);
         rehabUiPlacer.placeOnStart = true;
         rehabUiPlacer.recenterDuringStartup = true;
         rehabUiPlacer.startupRecenterSeconds = 1.25f;
@@ -406,7 +411,18 @@ public static class RehabSceneBuilder
 
         var panelPlacement = managers.AddComponent<RehabPanelPlacementController>();
         panelPlacement.headTransform = hmd;
-        panelPlacement.promptPanelRoot = promptCanvas.transform;
+        panelPlacement.selectionPanelRoot = rehabUi.selectionPanelRoot.transform;
+        panelPlacement.trainingLayoutAnchor = rehabUi.trainingLayoutAnchor.transform;
+        panelPlacement.trainingFunctionPanelRoot = rehabUi.trainingFunctionPanelRoot.transform;
+        panelPlacement.resultPanelRoot = rehabUi.resultPanelRoot.transform;
+        panelPlacement.promptPanelRoot = rehabUi.selectionPanelRoot.transform;
+        panelPlacement.trainingLayoutDistance = 1.8f;
+        panelPlacement.trainingLayoutHeightOffset = -0.1f;
+        panelPlacement.resultPanelDistance = 2f;
+        panelPlacement.resultPanelHeightOffset = -0.1f;
+        panelPlacement.clampResultPanelHeight = true;
+        panelPlacement.minResultPanelHeight = 1.25f;
+        panelPlacement.maxResultPanelHeight = 1.75f;
         panelPlacement.promptPanelDistance = 1.8f;
         panelPlacement.videoPanelDistance = 2.2f;
         panelPlacement.videoPanelYawOffsetDegrees = 40f;
@@ -414,6 +430,7 @@ public static class RehabSceneBuilder
         panelPlacement.placeOnStart = false;
 
         var virtualCoach = BuildVirtualCoach(visualRoot.transform, hmd);
+        virtualCoach.gameObject.SetActive(false);
 
         var session = managers.AddComponent<RehabSessionManager>();
         session.handPoseTracker = poseTracker;
@@ -435,6 +452,7 @@ public static class RehabSceneBuilder
         session.debugText = rehabUi.debug;
         session.sessionDurationSeconds = 300f;
         session.autoStartSession = false;
+        session.placeTrainingAreaOnStart = false;
         session.trainingDistanceMeters = 1.5f;
         session.trainingFloorY = 0f;
         session.promptHeightMeters = 1.65f;
@@ -458,6 +476,7 @@ public static class RehabSceneBuilder
         modeSelectUi.taiChiButton = rehabUi.taiChiButton;
         modeSelectUi.backButton = rehabUi.backButton;
         modeSelectUi.trainingBackButton = rehabUi.trainingBackButton;
+        modeSelectUi.trainingRecenterButton = rehabUi.trainingRecenterButton;
         modeSelectUi.resultBackButton = rehabUi.resultBackButton;
         modeSelectUi.homeMenu = homeMenu;
         modeSelectUi.uiPlacer = rehabUiPlacer;
@@ -467,11 +486,17 @@ public static class RehabSceneBuilder
         modeSelectUi.placeUiOnStart = false;
         modeSelectUi.placeUiOnMainMenuOpen = true;
         modeSelectUi.placeUiOnTrainingSelectOpen = true;
+        var modeSelectSerialized = new SerializedObject(modeSelectUi);
+        modeSelectSerialized.FindProperty("selectionPanelRoot").objectReferenceValue = rehabUi.selectionPanelRoot;
+        modeSelectSerialized.FindProperty("trainingFunctionPanelRoot").objectReferenceValue = rehabUi.trainingFunctionPanelRoot;
+        modeSelectSerialized.FindProperty("resultPanelRoot").objectReferenceValue = rehabUi.resultPanelRoot;
+        modeSelectSerialized.ApplyModifiedPropertiesWithoutUndo();
         session.modeSelectUI = modeSelectUi;
         AddPersistentButtonListener(rehabUi.baduanjinButton, modeSelectUi.StartBaduanjinTraining);
         AddPersistentButtonListener(rehabUi.taiChiButton, modeSelectUi.StartTaiChiTraining);
         AddPersistentButtonListener(rehabUi.backButton, modeSelectUi.ReturnToMainEntry);
         AddPersistentButtonListener(rehabUi.trainingBackButton, modeSelectUi.ShowTrainingSelectPanel);
+        AddPersistentButtonListener(rehabUi.trainingRecenterButton, modeSelectUi.RecenterTrainingEnvironment);
         AddPersistentButtonListener(rehabUi.resultBackButton, modeSelectUi.ShowTrainingSelectPanel);
 
         var mrManager = managers.AddComponent<RehabMixedRealityManager>();
@@ -800,6 +825,7 @@ public static class RehabSceneBuilder
     {
         var root = new GameObject("TrainingArea");
         root.transform.SetParent(parent, false);
+        root.SetActive(false);
 
         var circle = new GameObject("TrainingCircle");
         circle.transform.SetParent(root.transform, false);
@@ -837,13 +863,21 @@ public static class RehabSceneBuilder
         var canvas = canvasGo.GetComponent<Canvas>();
         canvas.worldCamera = mainCamera;
 
+        var selectionPanelRoot = CreatePageRoot(canvasGo.transform, "SelectionPanelRoot");
+        var trainingLayoutAnchor = CreatePageRoot(canvasGo.transform, "TrainingLayoutAnchor");
+        var trainingFunctionPanelRoot = CreatePageRoot(trainingLayoutAnchor.transform, "TrainingFunctionPanelRoot");
+        var resultPanelRoot = CreatePageRoot(canvasGo.transform, "ResultPanelRoot");
         var ui = new RehabTrainingUi
         {
             canvas = canvasGo,
             mainMenuPanel = CreatePanel(canvasGo.transform, "MainMenuPanel"),
-            rehabTrainingSelectPanel = CreatePanel(canvasGo.transform, "RehabTrainingSelectPanel"),
-            rehabTrainingPanel = CreatePanel(canvasGo.transform, "RehabTrainingPanel"),
-            trainingResultPanel = CreatePanel(canvasGo.transform, "TrainingResultPanel")
+            selectionPanelRoot = selectionPanelRoot,
+            rehabTrainingSelectPanel = CreatePanel(selectionPanelRoot.transform, "RehabTrainingSelectPanel"),
+            trainingLayoutAnchor = trainingLayoutAnchor,
+            trainingFunctionPanelRoot = trainingFunctionPanelRoot,
+            rehabTrainingPanel = CreatePanel(trainingFunctionPanelRoot.transform, "RehabTrainingPanel"),
+            resultPanelRoot = resultPanelRoot,
+            trainingResultPanel = CreatePanel(resultPanelRoot.transform, "TrainingResultPanel")
         };
 
         CreateText(ui.mainMenuPanel.transform, "Title", "康复运动", ElderCareUiTheme.Title, FontStyles.Bold, TextAlignmentOptions.Center, new Vector2(0f, 104f), new Vector2(800f, 80f));
@@ -869,6 +903,7 @@ public static class RehabSceneBuilder
         ui.debug.enableWordWrapping = false;
         ui.debug.overflowMode = TextOverflowModes.Ellipsis;
         ui.startButton = CreateButton(ui.rehabTrainingPanel.transform, "StartButton", "开始", new Vector2(-232f, -174f), new Vector2(186f, 82f));
+        ui.trainingRecenterButton = CreateButton(ui.rehabTrainingPanel.transform, "RecenterButton", "重新对准", new Vector2(0f, -174f), new Vector2(186f, 82f));
         ui.trainingBackButton = CreateButton(ui.rehabTrainingPanel.transform, "HomeButton", "返回", new Vector2(232f, -174f), new Vector2(186f, 82f));
 
         CreateText(ui.trainingResultPanel.transform, "Title", "训练结果", ElderCareUiTheme.Title, FontStyles.Bold, TextAlignmentOptions.Center, new Vector2(0f, 128f), new Vector2(800f, 76f));
@@ -877,10 +912,23 @@ public static class RehabSceneBuilder
         ui.resultBackButton = CreateButton(ui.trainingResultPanel.transform, "BackButton", "返回选择", new Vector2(0f, -112f), new Vector2(292f, 82f));
 
         ui.mainMenuPanel.SetActive(false);
-        ui.rehabTrainingSelectPanel.SetActive(true);
-        ui.rehabTrainingPanel.SetActive(false);
-        ui.trainingResultPanel.SetActive(false);
+        ui.selectionPanelRoot.SetActive(true);
+        ui.trainingFunctionPanelRoot.SetActive(false);
+        ui.resultPanelRoot.SetActive(false);
         return ui;
+    }
+
+    private static GameObject CreatePageRoot(Transform parent, string name)
+    {
+        var root = CreateUiObject(name, parent);
+        var rect = root.GetComponent<RectTransform>();
+        rect.anchorMin = Vector2.zero;
+        rect.anchorMax = Vector2.one;
+        rect.offsetMin = Vector2.zero;
+        rect.offsetMax = Vector2.zero;
+        rect.localRotation = Quaternion.identity;
+        rect.localScale = Vector3.one;
+        return root;
     }
 
     private static TMP_Text CreateRehabDataBlock(Transform parent, string name, string label, string value, Vector2 anchoredPosition, Vector2 size, Color accentColor)

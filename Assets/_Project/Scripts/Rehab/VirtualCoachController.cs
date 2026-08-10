@@ -168,6 +168,12 @@ namespace PicoElderCare.Rehab
             SetPlaceholderVisible(false, string.Empty);
         }
 
+        public void RecenterToUser()
+        {
+            ResolveReferences();
+            PlaceCoachInFrontOfUser(true);
+        }
+
         private void ResolveReferences()
         {
             if (coachRoot == null) coachRoot = transform;

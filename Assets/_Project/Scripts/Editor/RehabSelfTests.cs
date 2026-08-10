@@ -30,6 +30,7 @@ public static class RehabSelfTests
         ManualTrainingAreaPlacementUpdatesSessionCenter();
         PromptPanelStaysOutsideTrainingCircle();
         RunComfortPlacementTests();
+        RunPageLayoutTests();
         ComfortUiCreatesRayDragAndThumbstickHelpers();
         ComfortUiRayDragKeepsStableHeightWhenDraggedFar();
         HtmlStyleMainEntryPanelUsesVrReadableScale();
@@ -54,6 +55,23 @@ public static class RehabSelfTests
         TrainingSelectPanelRecenterUsesConfiguredComfortPlacement();
         TrainingLayoutRecenterRemainsIndependentOfSelectionPlacement();
         Debug.Log("Rehab comfort placement tests passed.");
+    }
+
+    public static void RunPageLayoutTests()
+    {
+        SelectionPageHidesTrainingContent();
+        StartingTrainingShowsTrainingContent();
+        ReturningToSelectionHidesTrainingContent();
+        ResultPageHidesTrainingContent();
+        TrainingEnvironmentRecenterPreservesSessionProgress();
+        TrainingEnvironmentRecenterUsesCurrentHmdPose();
+        TrainingRecenterButtonUsesUnifiedPlacement();
+        TrainingLayoutRecenterUsesYawOnly();
+        ResultPanelRecenterUsesCurrentHmdPose();
+        ResultPanelRecenterClampsMinimumHeight();
+        ResultPanelRecenterClampsMaximumHeight();
+        ResultPanelRecenterDoesNotMoveSelectionPanel();
+        Debug.Log("Rehab page layout tests passed.");
     }
 
     private static void TwoHandsAboveHeadPoseAccumulatesHold()
@@ -704,6 +722,231 @@ public static class RehabSelfTests
         }
     }
 
+    private static void SelectionPageHidesTrainingContent()
+    {
+        var fixture = new RehabPageLayoutFixture();
+        try
+        {
+            fixture.modeUi.ShowTrainingSelectPanel();
+
+            AssertTrue(fixture.selectionRoot.activeSelf, "Selection page should show SelectionPanelRoot.");
+            AssertTrue(!fixture.trainingArea.activeSelf, "Selection page should hide the training area.");
+            AssertTrue(!fixture.trainingRoot.activeSelf, "Selection page should hide the training function panel.");
+            AssertTrue(!fixture.videoPanel.activeSelf, "Selection page should hide the rehab video panel.");
+            AssertTrue(!fixture.resultRoot.activeSelf, "Selection page should hide ResultPanelRoot.");
+            AssertTrue(!fixture.coachRoot.activeSelf, "Selection page should hide the virtual coach.");
+        }
+        finally
+        {
+            fixture.Destroy();
+        }
+    }
+
+    private static void StartingTrainingShowsTrainingContent()
+    {
+        var fixture = new RehabPageLayoutFixture();
+        try
+        {
+            fixture.modeUi.StartBaduanjinTraining();
+
+            AssertTrue(fixture.session.IsSessionActive, "Starting a rehab mode should begin the session.");
+            AssertTrue(fixture.trainingArea.activeSelf, "Starting training should show the training area.");
+            AssertTrue(fixture.trainingRoot.activeSelf, "Starting training should show the training function panel.");
+            AssertTrue(fixture.videoPanel.activeSelf, "Starting training should show the rehab video panel shell.");
+            AssertTrue(fixture.coachRoot.activeSelf, "Starting training should show the virtual coach.");
+            AssertTrue(!fixture.selectionRoot.activeSelf && !fixture.resultRoot.activeSelf, "Training should hide selection and result pages.");
+        }
+        finally
+        {
+            fixture.Destroy();
+        }
+    }
+
+    private static void ReturningToSelectionHidesTrainingContent()
+    {
+        var fixture = new RehabPageLayoutFixture();
+        try
+        {
+            fixture.modeUi.StartBaduanjinTraining();
+            fixture.modeUi.ShowTrainingSelectPanel();
+
+            AssertTrue(!fixture.session.IsSessionActive, "Returning to selection should cancel the active session.");
+            AssertTrue(!fixture.trainingArea.activeSelf, "Returning to selection should hide the training area.");
+            AssertTrue(!fixture.trainingRoot.activeSelf && !fixture.videoPanel.activeSelf, "Returning to selection should hide training UI and video.");
+            AssertTrue(!fixture.coachRoot.activeSelf, "Returning to selection should hide the virtual coach.");
+        }
+        finally
+        {
+            fixture.Destroy();
+        }
+    }
+
+    private static void ResultPageHidesTrainingContent()
+    {
+        var fixture = new RehabPageLayoutFixture();
+        try
+        {
+            fixture.modeUi.StartBaduanjinTraining();
+            fixture.modeUi.ShowTrainingResultPanel();
+
+            AssertTrue(fixture.resultRoot.activeSelf, "Result page should show ResultPanelRoot.");
+            AssertTrue(!fixture.trainingArea.activeSelf, "Result page should hide the training area.");
+            AssertTrue(!fixture.trainingRoot.activeSelf && !fixture.videoPanel.activeSelf, "Result page should hide training UI and video.");
+            AssertTrue(!fixture.coachRoot.activeSelf, "Result page should hide the virtual coach.");
+        }
+        finally
+        {
+            fixture.Destroy();
+        }
+    }
+
+    private static void TrainingEnvironmentRecenterPreservesSessionProgress()
+    {
+        var fixture = new RehabPageLayoutFixture();
+        try
+        {
+            fixture.session.StartTraining(RehabTrainingType.Baduanjin);
+            var sample = CreateSample(1.6f, 1.9f, 1.9f);
+            var before = fixture.evaluator.Evaluate(sample, 0.5f, false, 0.5f);
+            var movementBefore = fixture.evaluator.CurrentMovement;
+
+            fixture.modeUi.RecenterTrainingEnvironment();
+            var after = fixture.evaluator.Evaluate(sample, 0f, false, 0.5f);
+
+            AssertTrue(fixture.session.IsSessionActive, "Recenter should not stop or restart the current session.");
+            AssertTrue(fixture.evaluator.CurrentMovement == movementBefore, "Recenter should preserve the current movement.");
+            AssertTrue(after.currentHoldSeconds >= before.currentHoldSeconds - 0.001f, "Recenter should preserve movement evaluation progress.");
+        }
+        finally
+        {
+            fixture.Destroy();
+        }
+    }
+
+    private static void TrainingEnvironmentRecenterUsesCurrentHmdPose()
+    {
+        var fixture = new RehabPageLayoutFixture();
+        try
+        {
+            fixture.head.position = new Vector3(1f, 1.7f, -2f);
+            fixture.head.rotation = Quaternion.Euler(-25f, 90f, 0f);
+            fixture.modeUi.RecenterTrainingEnvironment();
+
+            AssertTrue(Vector3.Distance(fixture.trainingArea.transform.position, new Vector3(1f, 0f, -2f)) < 0.001f, "Training recenter should move the training center below the current HMD position.");
+            AssertTrue(Vector3.Distance(fixture.trainingLayoutAnchor.position, new Vector3(2.8f, 1.6f, -2f)) < 0.001f, "Training recenter should move TrainingLayoutAnchor from the current HMD yaw.");
+            AssertTrue(Mathf.Abs(fixture.coachRoot.transform.position.x - 3f) < 0.001f, "Training recenter should move the coach in front of the current HMD yaw.");
+        }
+        finally
+        {
+            fixture.Destroy();
+        }
+    }
+
+    private static void TrainingLayoutRecenterUsesYawOnly()
+    {
+        var fixture = new RehabPageLayoutFixture();
+        try
+        {
+            fixture.head.rotation = Quaternion.Euler(-30f, 45f, 18f);
+            fixture.panelPlacement.RecenterTrainingLayout();
+
+            var expectedForward = Quaternion.Euler(0f, 45f, 0f) * Vector3.forward;
+            AssertTrue(Quaternion.Angle(fixture.trainingLayoutAnchor.rotation, Quaternion.LookRotation(expectedForward, Vector3.up)) < 0.1f, "Training layout rotation should use HMD yaw only.");
+            AssertTrue(Vector3.Dot(fixture.trainingLayoutAnchor.up, Vector3.up) > 0.999f, "Training layout should remain upright when HMD pitch or roll changes.");
+        }
+        finally
+        {
+            fixture.Destroy();
+        }
+    }
+
+    private static void TrainingRecenterButtonUsesUnifiedPlacement()
+    {
+        var fixture = new RehabPageLayoutFixture();
+        try
+        {
+            fixture.modeUi.StartBaduanjinTraining();
+            fixture.head.position = new Vector3(-1f, 1.7f, 2f);
+            fixture.head.rotation = Quaternion.Euler(20f, -90f, 0f);
+
+            AssertTrue(fixture.modeUi.trainingRecenterButton != null, "Training page should expose the RecenterButton route.");
+            fixture.modeUi.trainingRecenterButton.onClick.Invoke();
+
+            AssertTrue(Vector3.Distance(fixture.trainingArea.transform.position, new Vector3(-1f, 0f, 2f)) < 0.001f, "RecenterButton should update the training center.");
+            AssertTrue(Vector3.Distance(fixture.trainingLayoutAnchor.position, new Vector3(-2.8f, 1.6f, 2f)) < 0.001f, "RecenterButton should update TrainingLayoutAnchor.");
+            AssertTrue(Mathf.Abs(fixture.coachRoot.transform.position.x + 3f) < 0.001f, "RecenterButton should update the virtual coach through the unified route.");
+        }
+        finally
+        {
+            fixture.Destroy();
+        }
+    }
+
+    private static void ResultPanelRecenterUsesCurrentHmdPose()
+    {
+        var fixture = new RehabPageLayoutFixture();
+        try
+        {
+            fixture.head.position = new Vector3(0.5f, 1.65f, -0.25f);
+            fixture.head.rotation = Quaternion.Euler(-30f, 45f, 12f);
+            fixture.panelPlacement.RecenterResultPanel();
+
+            var forward = Quaternion.Euler(0f, 45f, 0f) * Vector3.forward;
+            var expected = fixture.head.position + forward * 2f;
+            expected.y = 1.55f;
+            AssertTrue(Vector3.Distance(fixture.resultRoot.transform.position, expected) < 0.001f, "Result panel should use current HMD position, yaw, distance and height offset.");
+            AssertTrue(Quaternion.Angle(fixture.resultRoot.transform.rotation, Quaternion.LookRotation(forward, Vector3.up)) < 0.1f, "Result panel should remain upright and use HMD yaw only.");
+        }
+        finally
+        {
+            fixture.Destroy();
+        }
+    }
+
+    private static void ResultPanelRecenterClampsMinimumHeight()
+    {
+        AssertResultPanelHeight(1.2f, 1.25f, "Result panel should clamp low HMD-relative height.");
+    }
+
+    private static void ResultPanelRecenterClampsMaximumHeight()
+    {
+        AssertResultPanelHeight(1.95f, 1.75f, "Result panel should clamp high HMD-relative height.");
+    }
+
+    private static void ResultPanelRecenterDoesNotMoveSelectionPanel()
+    {
+        var fixture = new RehabPageLayoutFixture();
+        try
+        {
+            fixture.selectionRoot.transform.position = new Vector3(-3f, 1.4f, -2f);
+            var selectionPosition = fixture.selectionRoot.transform.position;
+            fixture.head.position = new Vector3(0.5f, 1.65f, 0.25f);
+            fixture.modeUi.ShowTrainingResultPanel();
+
+            AssertTrue(Vector3.Distance(fixture.selectionRoot.transform.position, selectionPosition) < 0.001f, "Result recenter should not move SelectionPanelRoot.");
+            AssertTrue(Vector3.Distance(fixture.resultRoot.transform.position, new Vector3(0.5f, 1.55f, 2.25f)) < 0.001f, "Showing results should recenter ResultPanelRoot from the current HMD pose.");
+        }
+        finally
+        {
+            fixture.Destroy();
+        }
+    }
+
+    private static void AssertResultPanelHeight(float headHeight, float expectedHeight, string message)
+    {
+        var fixture = new RehabPageLayoutFixture();
+        try
+        {
+            fixture.head.position = new Vector3(0f, headHeight, 0f);
+            fixture.panelPlacement.RecenterResultPanel();
+            AssertTrue(Mathf.Abs(fixture.resultRoot.transform.position.y - expectedHeight) < 0.001f, message);
+        }
+        finally
+        {
+            fixture.Destroy();
+        }
+    }
+
     private static void AssertComfortUiHeight(float headHeight, float expectedHeight, string message)
     {
         var headObject = new GameObject("Head");
@@ -1184,6 +1427,124 @@ public static class RehabSelfTests
             Object.DestroyImmediate(selectPanel);
             Object.DestroyImmediate(uiObject);
             Object.DestroyImmediate(headObject);
+        }
+    }
+
+    private sealed class RehabPageLayoutFixture
+    {
+        public readonly GameObject root;
+        public readonly Transform head;
+        public readonly GameObject trainingArea;
+        public readonly GameObject selectionRoot;
+        public readonly GameObject trainingRoot;
+        public readonly GameObject resultRoot;
+        public readonly GameObject videoPanel;
+        public readonly GameObject coachRoot;
+        public readonly Transform trainingLayoutAnchor;
+        public readonly MovementEvaluator evaluator;
+        public readonly RehabSessionManager session;
+        public readonly RehabPanelPlacementController panelPlacement;
+        public readonly RehabModeSelectUI modeUi;
+
+        public RehabPageLayoutFixture()
+        {
+            root = new GameObject("RehabPageLayoutFixture");
+            var headObject = new GameObject("RehabPageLayoutHead");
+            head = headObject.transform;
+            head.position = new Vector3(0f, 1.6f, 0f);
+            head.rotation = Quaternion.identity;
+
+            trainingArea = CreateChild(root.transform, "TrainingArea");
+            selectionRoot = CreateChild(root.transform, "SelectionPanelRoot");
+            var selectionPanel = CreateChild(selectionRoot.transform, "RehabTrainingSelectPanel");
+            trainingLayoutAnchor = CreateChild(root.transform, "TrainingLayoutAnchor").transform;
+            trainingRoot = CreateChild(trainingLayoutAnchor, "TrainingFunctionPanelRoot");
+            var trainingPanel = CreateChild(trainingRoot.transform, "RehabTrainingPanel");
+            videoPanel = CreateChild(trainingLayoutAnchor, "RehabVideoPanel");
+            resultRoot = CreateChild(root.transform, "ResultPanelRoot");
+            var resultPanel = CreateChild(resultRoot.transform, "TrainingResultPanel");
+
+            coachRoot = CreateChild(root.transform, "VirtualCoach");
+            var coach = coachRoot.AddComponent<VirtualCoachController>();
+            coach.userHeadTransform = head;
+            coach.coachRoot = coachRoot.transform;
+            coach.preferredDistanceMeters = 2f;
+            coach.minDistanceMeters = 1.8f;
+            coach.maxDistanceMeters = 2.2f;
+            coach.floorY = 0f;
+            coach.keepInFrontOfUser = false;
+            coach.placeInFrontOnStart = false;
+
+            var circleAnchor = root.AddComponent<TrainingCircleAnchor>();
+            circleAnchor.headTransform = head;
+            circleAnchor.trainingAreaRoot = trainingArea.transform;
+            circleAnchor.fallbackFloorY = 0f;
+            circleAnchor.useRaycastFloorHeight = false;
+
+            panelPlacement = root.AddComponent<RehabPanelPlacementController>();
+            panelPlacement.headTransform = head;
+            panelPlacement.viewTransform = head;
+            panelPlacement.selectionPanelRoot = selectionRoot.transform;
+            panelPlacement.trainingLayoutAnchor = trainingLayoutAnchor;
+            panelPlacement.trainingFunctionPanelRoot = trainingRoot.transform;
+            panelPlacement.resultPanelRoot = resultRoot.transform;
+            panelPlacement.videoPanelRoot = videoPanel.transform;
+            panelPlacement.trainingLayoutDistance = 1.8f;
+            panelPlacement.trainingLayoutHeightOffset = -0.1f;
+            panelPlacement.resultPanelDistance = 2f;
+            panelPlacement.resultPanelHeightOffset = -0.1f;
+            panelPlacement.clampResultPanelHeight = true;
+            panelPlacement.minResultPanelHeight = 1.25f;
+            panelPlacement.maxResultPanelHeight = 1.75f;
+
+            var safety = root.AddComponent<SafetyMonitor>();
+            safety.hmdTransform = head;
+            evaluator = root.AddComponent<MovementEvaluator>();
+            evaluator.baduanjinEvaluator = root.AddComponent<BaduanjinEvaluator>();
+            evaluator.taiChiEvaluator = root.AddComponent<TaiChiEvaluator>();
+            var recorder = root.AddComponent<TrainingResultRecorder>();
+
+            session = root.AddComponent<RehabSessionManager>();
+            session.safetyMonitor = safety;
+            session.movementEvaluator = evaluator;
+            session.resultRecorder = recorder;
+            session.virtualCoachController = coach;
+            session.trainingCircleAnchor = circleAnchor;
+            session.panelPlacementController = panelPlacement;
+            session.trainingAreaRoot = trainingArea.transform;
+            session.autoCreateVirtualCoach = false;
+            session.autoStartSession = false;
+            session.placeTrainingAreaOnStart = false;
+
+            modeUi = root.AddComponent<RehabModeSelectUI>();
+            modeUi.rehabTrainingSelectPanel = selectionPanel;
+            modeUi.rehabTrainingPanel = trainingPanel;
+            modeUi.trainingResultPanel = resultPanel;
+            modeUi.panelPlacementController = panelPlacement;
+            modeUi.sessionManager = session;
+            modeUi.placeUiOnTrainingSelectOpen = false;
+            modeUi.applyHtmlStylePanels = false;
+            session.modeSelectUI = modeUi;
+        }
+
+        public void Destroy()
+        {
+            if (root != null)
+            {
+                Object.DestroyImmediate(root);
+            }
+
+            if (head != null)
+            {
+                Object.DestroyImmediate(head.gameObject);
+            }
+        }
+
+        private static GameObject CreateChild(Transform parent, string name)
+        {
+            var child = new GameObject(name);
+            child.transform.SetParent(parent, false);
+            return child;
         }
     }
 
