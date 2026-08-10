@@ -24,6 +24,17 @@ public static class CurrentUiScreenshotExporter
         Debug.Log("UI_SCREENSHOTS_EXPORTED: " + Path.GetFullPath(OutputDirectory));
     }
 
+    [MenuItem("Tools/PICO ElderCare/Export Health Game Menu Preview")]
+    public static void ExportHealthGameMenu()
+    {
+        Directory.CreateDirectory(OutputDirectory);
+        EditorSceneManager.OpenScene("Assets/_Project/Scenes/02_HealthGameMenu.unity");
+        SetActiveIfFound("[Building Block] PICO Controller Tracking XR Origin (XR Rig)", false);
+        CaptureTargets("health-game-menu.png", "HealthGameMenuCanvas");
+        AssetDatabase.Refresh();
+        Debug.Log("HEALTH_GAME_MENU_SCREENSHOT_EXPORTED: " + Path.GetFullPath(Path.Combine(OutputDirectory, "health-game-menu.png")));
+    }
+
     private static void CaptureMainEntry()
     {
         EditorSceneManager.OpenScene("Assets/_Project/Scenes/00_MainEntry.unity");

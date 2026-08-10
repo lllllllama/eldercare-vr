@@ -1,0 +1,27 @@
+Twemoji graphics attribution
+
+Source:
+https://github.com/twitter/twemoji
+
+Graphics:
+Copyright Twitter, Inc and other contributors.
+
+License:
+Creative Commons Attribution 4.0 International (CC BY 4.0)
+
+Official graphics license file:
+https://github.com/twitter/twemoji/blob/master/LICENSE-GRAPHICS
+
+This package only renames and groups selected original Twemoji SVG assets.
+No graphical modifications have been applied in this package.
+
+Selected original files:
+- assets/svg/1f3d3.svg
+- assets/svg/1f3f9.svg
+- assets/svg/1f3af.svg
+- assets/svg/23f1.svg
+- assets/svg/2728.svg
+- assets/svg/2b05.svg
+- assets/svg/1f3e0.svg
+- assets/svg/2699.svg
+- assets/svg/2764.svg

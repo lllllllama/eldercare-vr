@@ -33,6 +33,8 @@ public static class RehabSceneBuilder
     private const string XriDefaultInputActionsPath = "Assets/Samples/XR Interaction Toolkit/2.6.4/Starter Assets/XRI Default Input Actions.inputactions";
     private const string RehabChineseFontSourcePath = FontRoot + "/NotoSansSC-VF.ttf";
     private const string RehabChineseFontAssetPath = MaterialRoot + "/RehabChineseTMP.asset";
+    private const string HealthSportSpriteRoot = "Assets/Resources/HealthSportsIcons/CoreSports/GeneratedSprites/";
+    private const string HealthUiSpriteRoot = "Assets/Resources/UiIcons/Tabler/UnityWarm/GeneratedSprites/";
 
     private static TMP_FontAsset rehabFontAsset;
 
@@ -254,77 +256,24 @@ public static class RehabSceneBuilder
             "HealthGameMenuCanvas",
             cameraTransform,
             new Vector3(0f, 1.45f, ElderCareUiTheme.MainEntryDistanceMeters),
-            new Vector2(760f, 520f));
+            HealthGameMenuVisualSkin.CanvasSize);
+        canvasGo.transform.localScale = Vector3.one * HealthGameMenuVisualSkin.CanvasWorldScale;
         EnsureComponent<MrKeepVisible>(canvasGo);
 
-        var panel = CreateUiObject("Panel", canvasGo.transform);
-        var panelRect = panel.GetComponent<RectTransform>();
-        panelRect.anchorMin = Vector2.zero;
-        panelRect.anchorMax = Vector2.one;
-        panelRect.offsetMin = Vector2.zero;
-        panelRect.offsetMax = Vector2.zero;
+        var visual = HealthGameMenuVisualSkin.Build(
+            canvasGo.transform,
+            GetRehabFontAsset(),
+            LoadHealthMenuSprite(HealthSportSpriteRoot + "table_tennis.png"),
+            LoadHealthMenuSprite(HealthSportSpriteRoot + "bow_and_arrow.png"),
+            LoadHealthMenuSprite(HealthSportSpriteRoot + "direct_hit.png"),
+            LoadHealthMenuSprite(HealthUiSpriteRoot + "arrow-left.png"),
+            LoadHealthMenuSprite(HealthUiSpriteRoot + "clock.png"),
+            LoadHealthMenuSprite(HealthUiSpriteRoot + "player-play.png"));
 
-        var panelImage = panel.AddComponent<ElderCareRoundedPanel>();
-        panelImage.cornerRadius = 44f;
-        panelImage.cornerSegments = 12;
-        panelImage.color = WithAlpha(Color.Lerp(ElderCareUiTheme.PanelStrong, ElderCareUiTheme.Cyan, 0.08f), 1f);
-        panelImage.raycastTarget = false;
-
-        var panelOutline = panel.AddComponent<Outline>();
-        panelOutline.effectColor = WithAlpha(ElderCareUiTheme.PanelStroke, 0.72f);
-        panelOutline.effectDistance = new Vector2(3f, -3f);
-
-        var title = CreateText(
-            panel.transform,
-            "Title",
-            "健康游戏",
-            ElderCareUiTheme.Title,
-            FontStyles.Bold,
-            TextAlignmentOptions.Center,
-            new Vector2(0f, 174f),
-            new Vector2(660f, 76f));
-        title.color = ElderCareUiTheme.TextPrimary;
-
-        var subtitle = CreateText(
-            panel.transform,
-            "Subtitle",
-            "请选择训练项目",
-            ElderCareUiTheme.Body,
-            FontStyles.Normal,
-            TextAlignmentOptions.Center,
-            new Vector2(0f, 112f),
-            new Vector2(620f, 44f));
-        subtitle.color = ElderCareUiTheme.TextSecondary;
-
-        var pingPongButton = CreateButton(
-            panel.transform,
-            "PingPongTrainingButton",
-            "乒乓球训练",
-            new Vector2(-166f, 26f),
-            new Vector2(304f, 88f));
-        var archeryButton = CreateButton(
-            panel.transform,
-            "ArcheryTrainingButton",
-            "射箭训练",
-            new Vector2(166f, 26f),
-            new Vector2(304f, 88f));
-        var dartsButton = CreateButton(
-            panel.transform,
-            "DartsTrainingButton",
-            "飞镖训练",
-            new Vector2(0f, -78f),
-            new Vector2(304f, 88f));
-        var backButton = CreateButton(
-            panel.transform,
-            "BackButton",
-            "返回",
-            new Vector2(0f, -186f),
-            new Vector2(636f, 72f));
-
-        UnityEventTools.AddPersistentListener(pingPongButton.onClick, controller.LoadPingPong);
-        UnityEventTools.AddPersistentListener(archeryButton.onClick, controller.LoadArchery);
-        UnityEventTools.AddPersistentListener(dartsButton.onClick, controller.LoadDarts);
-        UnityEventTools.AddPersistentListener(backButton.onClick, controller.ReturnToMainEntry);
+        UnityEventTools.AddPersistentListener(visual.pingPongButton.onClick, controller.LoadPingPong);
+        UnityEventTools.AddPersistentListener(visual.archeryButton.onClick, controller.LoadArchery);
+        UnityEventTools.AddPersistentListener(visual.dartsButton.onClick, controller.LoadDarts);
+        UnityEventTools.AddPersistentListener(visual.backButton.onClick, controller.ReturnToMainEntry);
         return canvasGo;
     }
 
@@ -1288,6 +1237,36 @@ public static class RehabSceneBuilder
         label.enableWordWrapping = true;
         label.raycastTarget = false;
         return label;
+    }
+
+    private static Sprite LoadHealthMenuSprite(string assetPath)
+    {
+        if (string.IsNullOrWhiteSpace(assetPath)) return null;
+
+        AssetDatabase.ImportAsset(assetPath, ImportAssetOptions.ForceSynchronousImport);
+        var importer = AssetImporter.GetAtPath(assetPath) as TextureImporter;
+        if (importer != null &&
+            (importer.textureType != TextureImporterType.Sprite ||
+             importer.spriteImportMode != SpriteImportMode.Single ||
+             importer.mipmapEnabled ||
+             !importer.alphaIsTransparency))
+        {
+            importer.textureType = TextureImporterType.Sprite;
+            importer.spriteImportMode = SpriteImportMode.Single;
+            importer.mipmapEnabled = false;
+            importer.alphaIsTransparency = true;
+            importer.wrapMode = TextureWrapMode.Clamp;
+            importer.filterMode = FilterMode.Bilinear;
+            importer.SaveAndReimport();
+        }
+
+        var sprite = AssetDatabase.LoadAssetAtPath<Sprite>(assetPath);
+        if (sprite == null)
+        {
+            Debug.LogError("Health game menu sprite could not be loaded: " + assetPath);
+        }
+
+        return sprite;
     }
 
     private static Button CreateButton(Transform parent, string name, string text, Vector2 anchoredPosition, Vector2 size)
