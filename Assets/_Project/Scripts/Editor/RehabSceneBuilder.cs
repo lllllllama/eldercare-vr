@@ -108,10 +108,6 @@ public static class RehabSceneBuilder
         ConfigureMixedRealityProjectSettings();
         BuildMainEntrySceneInternal();
         BuildHealthGameMenuSceneInternal();
-        BuildPingPongSceneInternal();
-        ConfigurePingPongReturnNavigationInternal();
-        ArcheryGameSceneBuilder.BuildArcheryTrainingSceneInternal();
-        DartsGameSceneBuilder.BuildDartsTrainingSceneInternal();
         BuildRehabSceneInternal();
         ConfigureBuildSettings();
         AssetDatabase.SaveAssets();
@@ -148,7 +144,7 @@ public static class RehabSceneBuilder
         SetupPicoRoomSensingManagers(managers.transform);
 
         var uiRoot = CreateUiRoot("UIRoot", null);
-        var entryCanvas = BuildEntryCanvas(menu, null);
+        var entryCanvas = BuildBakedMainEntryCanvas(menu, null);
         AttachUiToRoot(entryCanvas.transform, uiRoot.transform);
         var entryUiPlacer = ConfigureComfortUiPlacer(uiRoot, mainCamera != null ? mainCamera.transform : null, uiRoot.transform, ElderCareUiTheme.MainEntryDistanceMeters);
         entryUiPlacer.placeOnStart = false;
@@ -165,6 +161,8 @@ public static class RehabSceneBuilder
         menu.panelPlacementController = entryPanelPlacement;
         menu.recenterPanelsOnEnable = true;
         menu.recenterDelayFrames = 2;
+        menu.applyHtmlStyleMainPanel = false;
+        menu.htmlStyleMainCanvas = entryCanvas.transform;
 
         EditorUtility.SetDirty(managers);
         EditorUtility.SetDirty(uiRoot);
@@ -361,7 +359,9 @@ public static class RehabSceneBuilder
         var panelPlacement = managers.AddComponent<RehabPanelPlacementController>();
         panelPlacement.headTransform = hmd;
         panelPlacement.selectionPanelRoot = rehabUi.selectionPanelRoot.transform;
-        panelPlacement.trainingLayoutAnchor = rehabUi.trainingLayoutAnchor.transform;
+        panelPlacement.trainingLayoutAnchor = rehabUi.trainingLayoutAnchor != null
+            ? rehabUi.trainingLayoutAnchor.transform
+            : null;
         panelPlacement.trainingFunctionPanelRoot = rehabUi.trainingFunctionPanelRoot.transform;
         panelPlacement.resultPanelRoot = rehabUi.resultPanelRoot.transform;
         panelPlacement.promptPanelRoot = rehabUi.selectionPanelRoot.transform;
@@ -435,12 +435,14 @@ public static class RehabSceneBuilder
         modeSelectUi.placeUiOnStart = false;
         modeSelectUi.placeUiOnMainMenuOpen = true;
         modeSelectUi.placeUiOnTrainingSelectOpen = true;
+        modeSelectUi.applyHtmlStylePanels = false;
         var modeSelectSerialized = new SerializedObject(modeSelectUi);
         modeSelectSerialized.FindProperty("selectionPanelRoot").objectReferenceValue = rehabUi.selectionPanelRoot;
         modeSelectSerialized.FindProperty("trainingFunctionPanelRoot").objectReferenceValue = rehabUi.trainingFunctionPanelRoot;
         modeSelectSerialized.FindProperty("resultPanelRoot").objectReferenceValue = rehabUi.resultPanelRoot;
         modeSelectSerialized.ApplyModifiedPropertiesWithoutUndo();
         session.modeSelectUI = modeSelectUi;
+        RehabVideoGuideSceneRepair.EnsureRehabBaduanjinVideoGuideInOpenScene();
         AddPersistentButtonListener(rehabUi.baduanjinButton, modeSelectUi.StartBaduanjinTraining);
         AddPersistentButtonListener(rehabUi.taiChiButton, modeSelectUi.StartTaiChiTraining);
         AddPersistentButtonListener(rehabUi.backButton, modeSelectUi.ReturnToMainEntry);
@@ -463,6 +465,7 @@ public static class RehabSceneBuilder
         SetupPicoRoomSensingManagers(managers.transform);
 
         EditorUtility.SetDirty(rehabRoot);
+        EditorUtility.SetDirty(modeSelectUi);
         if (xrOrigin != null) EditorUtility.SetDirty(xrOrigin);
         EditorSceneManager.SaveScene(scene, RehabScenePath);
     }
@@ -519,6 +522,25 @@ public static class RehabSceneBuilder
         return controller;
     }
 
+    private static GameObject BuildBakedMainEntryCanvas(UnifiedEntryMenu menu, Transform cameraTransform)
+    {
+        var canvasGo = CreateWorldCanvas(
+            "MainEntryCanvas",
+            cameraTransform,
+            new Vector3(0f, 1.45f, ElderCareUiTheme.MainEntryDistanceMeters),
+            HtmlStyleMainEntryPanel.CanvasSize);
+        EnsureComponent<MrKeepVisible>(canvasGo);
+
+        var visual = HtmlStyleMainEntryPanel.Ensure(canvasGo.transform, menu, GetRehabFontAsset());
+        visual.rebuildOnEnable = false;
+        visual.normalizeWorldCanvasScale = true;
+        visual.targetWorldWidthMeters = 1.55f;
+        visual.BuildOrRepair();
+        EditorUtility.SetDirty(visual);
+        return canvasGo;
+    }
+
+    // Retained only as a migration reference for older generated scenes. New builds use BuildBakedMainEntryCanvas.
     private static GameObject BuildEntryCanvas(UnifiedEntryMenu menu, Transform cameraTransform)
     {
         var canvasGo = CreateWorldCanvas("MainEntryCanvas", cameraTransform, new Vector3(0f, 1.45f, ElderCareUiTheme.MainEntryDistanceMeters), ElderCareUiTheme.MainEntryCanvasSize);
@@ -813,16 +835,22 @@ public static class RehabSceneBuilder
         canvas.worldCamera = mainCamera;
 
         var selectionPanelRoot = CreatePageRoot(canvasGo.transform, "SelectionPanelRoot");
-        var trainingLayoutAnchor = CreatePageRoot(canvasGo.transform, "TrainingLayoutAnchor");
-        var trainingFunctionPanelRoot = CreatePageRoot(trainingLayoutAnchor.transform, "TrainingFunctionPanelRoot");
+        var selectionRect = selectionPanelRoot.GetComponent<RectTransform>();
+        selectionRect.anchorMin = new Vector2(0.5f, 0.5f);
+        selectionRect.anchorMax = new Vector2(0.5f, 0.5f);
+        selectionRect.pivot = new Vector2(0.5f, 0.5f);
+        selectionRect.sizeDelta = RehabSelectionVisualSkin.CanvasSize;
+        selectionRect.anchoredPosition = Vector2.zero;
+        selectionRect.localScale = Vector3.one * RehabSelectionVisualSkin.SelectionRootScale;
+        var trainingFunctionPanelRoot = CreatePageRoot(canvasGo.transform, "TrainingFunctionPanelRoot");
         var resultPanelRoot = CreatePageRoot(canvasGo.transform, "ResultPanelRoot");
         var ui = new RehabTrainingUi
         {
             canvas = canvasGo,
             mainMenuPanel = CreatePanel(canvasGo.transform, "MainMenuPanel"),
             selectionPanelRoot = selectionPanelRoot,
-            rehabTrainingSelectPanel = CreatePanel(selectionPanelRoot.transform, "RehabTrainingSelectPanel"),
-            trainingLayoutAnchor = trainingLayoutAnchor,
+            rehabTrainingSelectPanel = CreatePageRoot(selectionPanelRoot.transform, "RehabTrainingSelectPanel"),
+            trainingLayoutAnchor = null,
             trainingFunctionPanelRoot = trainingFunctionPanelRoot,
             rehabTrainingPanel = CreatePanel(trainingFunctionPanelRoot.transform, "RehabTrainingPanel"),
             resultPanelRoot = resultPanelRoot,
@@ -832,12 +860,15 @@ public static class RehabSceneBuilder
         CreateText(ui.mainMenuPanel.transform, "Title", "康复运动", ElderCareUiTheme.Title, FontStyles.Bold, TextAlignmentOptions.Center, new Vector2(0f, 104f), new Vector2(800f, 80f));
         ui.rehabButton = CreateButton(ui.mainMenuPanel.transform, "RehabButton", "康复运动", new Vector2(0f, -36f), new Vector2(400f, 88f));
 
-        var selectTitle = CreateText(ui.rehabTrainingSelectPanel.transform, "Title", "请选择康复训练类型", ElderCareUiTheme.Title, FontStyles.Bold, TextAlignmentOptions.Center, new Vector2(0f, 154f), new Vector2(820f, 74f));
-        selectTitle.color = ElderCareUiTheme.TextPrimary;
-        CreateEntryDivider(ui.rehabTrainingSelectPanel.transform, "TitleTrace", new Vector2(0f, 112f), new Vector2(420f, 4f), WithAlpha(ElderCareUiTheme.Cyan, 0.38f), 3f);
-        ui.baduanjinButton = CreateButton(ui.rehabTrainingSelectPanel.transform, "BaduanjinButton", "八段锦训练", new Vector2(-152f, 30f), new Vector2(292f, 142f));
-        ui.taiChiButton = CreateButton(ui.rehabTrainingSelectPanel.transform, "TaiChiButton", "太极训练", new Vector2(152f, 30f), new Vector2(292f, 142f));
-        ui.backButton = CreateButton(ui.rehabTrainingSelectPanel.transform, "BackButton", "返回", new Vector2(0f, -146f), new Vector2(606f, 58f));
+        var selectionVisual = RehabSelectionVisualSkin.Build(
+            ui.rehabTrainingSelectPanel.transform,
+            GetRehabFontAsset(),
+            LoadHealthMenuSprite(HealthUiSpriteRoot + "arrow-left.png"),
+            LoadHealthMenuSprite(HealthUiSpriteRoot + "clock.png"),
+            LoadHealthMenuSprite(HealthUiSpriteRoot + "player-play.png"));
+        ui.baduanjinButton = selectionVisual.baduanjinButton;
+        ui.taiChiButton = selectionVisual.taiChiButton;
+        ui.backButton = selectionVisual.backButton;
 
         ui.title = CreateText(ui.rehabTrainingPanel.transform, "MovementTitle", "八段锦：双手托天理三焦", ElderCareUiTheme.Title, FontStyles.Bold, TextAlignmentOptions.Center, new Vector2(0f, 158f), new Vector2(620f, 58f));
         ui.status = CreateText(ui.rehabTrainingPanel.transform, "StatusText", "请准备：双手托天理三焦", ElderCareUiTheme.Body, FontStyles.Normal, TextAlignmentOptions.Center, new Vector2(0f, 104f), new Vector2(620f, 42f));

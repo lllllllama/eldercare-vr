@@ -158,22 +158,39 @@ public static class RehabVideoGuideSceneRepair
             return;
         }
 
+        EnsureRehabBaduanjinVideoGuideInOpenScene();
+        EditorSceneManager.MarkSceneDirty(scene);
+
+        Debug.Log("Rehab Baduanjin video guide repaired. RehabVideoPanel, VideoQuad, RehabVideoCanvas, RenderTexture, material, and controller references are ready.");
+    }
+
+    /// <summary>
+    /// Creates or repairs the video guide in the scene that is already open.
+    /// Scene builders use this entry point so rebuilding MR_Rehab_Main cannot
+    /// silently discard the existing training-video feature.
+    /// </summary>
+    public static RehabVideoGuideController EnsureRehabBaduanjinVideoGuideInOpenScene()
+    {
         EnsureFolder("Assets/_Project/RenderTextures");
         EnsureFolder("Assets/_Project/Materials");
 
         var renderTexture = LoadOrCreateRenderTexture();
         var videoMaterial = LoadOrCreateVideoMaterial(renderTexture);
-        var panel = EnsurePanelHierarchy(out var visualsRoot);
+        var panel = EnsurePanelHierarchy(out var visualsRoot, out var panelCreated);
         var videoPlayer = EnsureComponent<VideoPlayer>(panel);
         var audioSource = EnsureComponent<AudioSource>(panel);
         var layoutController = EnsureComponent<RehabVideoPanelLayoutController>(panel);
         var guideController = EnsureComponent<RehabVideoGuideController>(panel);
+        EnsureComponent<MrKeepVisible>(panel);
         var videoQuad = EnsureVideoQuad(panel.transform, videoMaterial);
         var videoCanvas = EnsureVideoCanvas(panel.transform);
         var rawImage = EnsureVideoRawImage(videoCanvas.transform, renderTexture);
         var quadRenderer = videoQuad.GetComponent<Renderer>();
 
-        ConfigurePanelTransform(panel.transform);
+        if (panelCreated)
+        {
+            ConfigurePanelTransform(panel.transform);
+        }
         ConfigureVideoPlayer(videoPlayer, audioSource, renderTexture);
         ConfigureAudioSource(audioSource);
         ConfigureLayout(layoutController, panel.transform, videoQuad.transform);
@@ -190,7 +207,7 @@ public static class RehabVideoGuideSceneRepair
             renderTexture,
             layoutController);
 
-        BindGuideToSceneControllers(guideController);
+        BindGuideToSceneControllers(guideController, layoutController, panel.transform);
 
         videoQuad.SetActive(false);
         videoCanvas.SetActive(false);
@@ -202,9 +219,7 @@ public static class RehabVideoGuideSceneRepair
         EditorUtility.SetDirty(audioSource);
         EditorUtility.SetDirty(layoutController);
         EditorUtility.SetDirty(guideController);
-        EditorSceneManager.MarkSceneDirty(scene);
-
-        Debug.Log("Rehab Baduanjin video guide repaired. RehabVideoPanel, VideoQuad, RehabVideoCanvas, RenderTexture, material, and controller references are ready.");
+        return guideController;
     }
 
     [MenuItem("Tools/PICO ElderCare/Rehab/Check Baduanjin Video Guide Only")]
@@ -242,7 +257,7 @@ public static class RehabVideoGuideSceneRepair
         Debug.Log(message);
     }
 
-    private static GameObject EnsurePanelHierarchy(out GameObject visualsRoot)
+    private static GameObject EnsurePanelHierarchy(out GameObject visualsRoot, out bool panelCreated)
     {
         var rehab = FindSceneObject("Rehab") ?? new GameObject("Rehab");
         visualsRoot = FindChild(rehab.transform, "RehabVisuals");
@@ -252,10 +267,16 @@ public static class RehabVideoGuideSceneRepair
             visualsRoot.transform.SetParent(rehab.transform, false);
         }
 
-        var panel = FindSceneObject("RehabVideoPanel") ?? new GameObject("RehabVideoPanel");
+        var panel = FindSceneObject("RehabVideoPanel");
+        panelCreated = panel == null;
+        if (panelCreated)
+        {
+            panel = new GameObject("RehabVideoPanel");
+        }
+
         if (panel.transform.parent != visualsRoot.transform)
         {
-            panel.transform.SetParent(visualsRoot.transform, false);
+            panel.transform.SetParent(visualsRoot.transform, !panelCreated);
         }
 
         return panel;
@@ -342,8 +363,8 @@ public static class RehabVideoGuideSceneRepair
 
     private static void ConfigurePanelTransform(Transform panel)
     {
-        panel.localPosition = new Vector3(1.15f, 1.35f, 1.8f);
-        panel.localRotation = Quaternion.Euler(0f, -25f, 0f);
+        panel.localPosition = new Vector3(0f, 1.45f, 1.8f);
+        panel.localRotation = Quaternion.identity;
         panel.localScale = Vector3.one;
     }
 
@@ -459,7 +480,10 @@ public static class RehabVideoGuideSceneRepair
         return index >= 0 && index < bindings.Length ? bindings[index] : null;
     }
 
-    private static void BindGuideToSceneControllers(RehabVideoGuideController guide)
+    private static void BindGuideToSceneControllers(
+        RehabVideoGuideController guide,
+        RehabVideoPanelLayoutController layout,
+        Transform panelRoot)
     {
         foreach (var sessionManager in Object.FindObjectsOfType<RehabSessionManager>(true))
         {
@@ -473,6 +497,21 @@ public static class RehabVideoGuideSceneRepair
             if (modeSelect == null) continue;
             modeSelect.videoGuideController = guide;
             EditorUtility.SetDirty(modeSelect);
+        }
+
+        foreach (var placement in Object.FindObjectsOfType<RehabPanelPlacementController>(true))
+        {
+            if (placement == null) continue;
+            placement.videoPanelRoot = panelRoot;
+            placement.videoLayoutController = layout;
+            EditorUtility.SetDirty(placement);
+        }
+
+        foreach (var rayControl in Object.FindObjectsOfType<RehabSpatialRayControl>(true))
+        {
+            if (rayControl == null) continue;
+            rayControl.videoLayoutController = layout;
+            EditorUtility.SetDirty(rayControl);
         }
     }
 

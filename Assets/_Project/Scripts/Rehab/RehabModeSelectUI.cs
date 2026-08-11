@@ -47,7 +47,10 @@ namespace PicoElderCare.Rehab
         public float trainingSelectDistanceMeters = 2.45f;
         [HideInInspector]
         public float trainingSelectHeightOffsetMeters = 0.08f;
+        // New scenes bake the complete visual skin in the editor. Enable only as an explicit legacy-scene repair path.
         public bool applyHtmlStylePanels = false;
+        [Tooltip("Apply the warm visual skin only to the existing training and result panels. Does not style selection or video panels.")]
+        public bool applyTrainingAndResultVisualSkin = true;
 
         private Coroutine _routeRebindCoroutine;
         private Coroutine _trainingLayoutRecenterCoroutine;
@@ -303,7 +306,7 @@ namespace PicoElderCare.Rehab
             ResolvePanelReferences();
             ResolveNonPanelReferences();
 
-            Debug.Log($"[RehabModeSelectUI] RefreshHtmlUIAndButtonBindings reason={reason}, applyHtmlStylePanels={applyHtmlStylePanels}, object={name}, scene={gameObject.scene.name}");
+            Debug.Log($"[RehabModeSelectUI] RefreshHtmlUIAndButtonBindings reason={reason}, applyHtmlStylePanels={applyHtmlStylePanels}, applyTrainingAndResultVisualSkin={applyTrainingAndResultVisualSkin}, object={name}, scene={gameObject.scene.name}");
 
             if (applyHtmlStylePanels)
             {
@@ -316,9 +319,20 @@ namespace PicoElderCare.Rehab
                     Debug.LogError($"[RehabModeSelectUI] HtmlStyleRehabVisualSkin failed during {reason}: {ex}");
                 }
             }
+            else if (applyTrainingAndResultVisualSkin)
+            {
+                try
+                {
+                    HtmlStyleRehabVisualSkin.ApplyTrainingAndResultPanels(this);
+                }
+                catch (System.Exception ex)
+                {
+                    Debug.LogError($"[RehabModeSelectUI] Training/result visual skin failed during {reason}: {ex}");
+                }
+            }
             else
             {
-                Debug.Log($"[RehabModeSelectUI] HTML visual skin skipped during {reason} because applyHtmlStylePanels=false, object={name}, scene={gameObject.scene.name}");
+                Debug.Log($"[RehabModeSelectUI] HTML visual skin skipped during {reason} because both visual-skin switches are false, object={name}, scene={gameObject.scene.name}");
             }
 
             ResolveNavigationButtons();

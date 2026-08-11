@@ -31,6 +31,7 @@ public static class RehabSelfTests
         PromptPanelStaysOutsideTrainingCircle();
         RunComfortPlacementTests();
         RunPageLayoutTests();
+        RunVisualSkinScopeTests();
         ComfortUiCreatesRayDragAndThumbstickHelpers();
         ComfortUiRayDragKeepsStableHeightWhenDraggedFar();
         HtmlStyleMainEntryPanelUsesVrReadableScale();
@@ -72,6 +73,52 @@ public static class RehabSelfTests
         ResultPanelRecenterClampsMaximumHeight();
         ResultPanelRecenterDoesNotMoveSelectionPanel();
         Debug.Log("Rehab page layout tests passed.");
+    }
+
+    public static void RunVisualSkinScopeTests()
+    {
+        var root = new GameObject("RehabVisualSkinScopeFixture");
+        root.SetActive(false);
+
+        var selectionPanel = new GameObject("RehabTrainingSelectPanel", typeof(RectTransform));
+        var trainingPanel = new GameObject("RehabTrainingPanel", typeof(RectTransform));
+        var resultPanel = new GameObject("TrainingResultPanel", typeof(RectTransform));
+        var videoPanel = new GameObject("RehabVideoPanel");
+        selectionPanel.transform.SetParent(root.transform, false);
+        trainingPanel.transform.SetParent(root.transform, false);
+        resultPanel.transform.SetParent(root.transform, false);
+        videoPanel.transform.SetParent(root.transform, false);
+
+        var selectionPosition = new Vector3(-1f, 2f, 3f);
+        var videoPosition = new Vector3(4f, 5f, 6f);
+        selectionPanel.transform.localPosition = selectionPosition;
+        videoPanel.transform.localPosition = videoPosition;
+        var selectionChildCount = selectionPanel.transform.childCount;
+        var videoChildCount = videoPanel.transform.childCount;
+
+        try
+        {
+            var modeUi = root.AddComponent<RehabModeSelectUI>();
+            modeUi.applyHtmlStylePanels = false;
+            modeUi.applyTrainingAndResultVisualSkin = true;
+            modeUi.rehabTrainingSelectPanel = selectionPanel;
+            modeUi.rehabTrainingPanel = trainingPanel;
+            modeUi.trainingResultPanel = resultPanel;
+
+            HtmlStyleRehabVisualSkin.ApplyTrainingAndResultPanels(modeUi);
+
+            AssertTrue(trainingPanel.transform.Find("HtmlVisual_PanelRoot") != null, "Training-only skin should add the warm visual root to the original training panel.");
+            AssertTrue(resultPanel.transform.Find("HtmlVisual_PanelRoot") != null, "Training-only skin should add the warm visual root to the original result panel.");
+            AssertTrue(selectionPanel.transform.childCount == selectionChildCount, "Training/result-only skin must not add selection-page visuals.");
+            AssertTrue(videoPanel.transform.childCount == videoChildCount, "Training/result-only skin must not add video-panel visuals.");
+            AssertTrue(Vector3.Distance(selectionPanel.transform.localPosition, selectionPosition) < 0.0001f, "Training/result-only skin must not move the selection panel.");
+            AssertTrue(Vector3.Distance(videoPanel.transform.localPosition, videoPosition) < 0.0001f, "Training/result-only skin must not move the video panel.");
+            Debug.Log("Rehab visual skin scope tests passed.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(root);
+        }
     }
 
     private static void TwoHandsAboveHeadPoseAccumulatesHold()
@@ -1408,6 +1455,7 @@ public static class RehabSelfTests
             placer.enableThumbstickNavigation = true;
 
             var modeUi = uiObject.AddComponent<RehabModeSelectUI>();
+            modeUi.applyTrainingAndResultVisualSkin = false;
             modeUi.uiPlacer = placer;
             modeUi.rehabTrainingSelectPanel = selectPanel;
             modeUi.placeUiOnTrainingSelectOpen = true;
@@ -1524,6 +1572,7 @@ public static class RehabSelfTests
             modeUi.sessionManager = session;
             modeUi.placeUiOnTrainingSelectOpen = false;
             modeUi.applyHtmlStylePanels = false;
+            modeUi.applyTrainingAndResultVisualSkin = false;
             session.modeSelectUI = modeUi;
         }
 

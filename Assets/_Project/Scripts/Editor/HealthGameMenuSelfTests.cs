@@ -4,6 +4,7 @@ using PicoElderCare.HealthGame;
 using PicoElderCare.Rehab;
 using TMPro;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -16,7 +17,8 @@ public static class HealthGameMenuSelfTests
     [MenuItem("Tools/PICO ElderCare/Run Health Game Menu Self Tests")]
     public static void RunAll()
     {
-        RehabSceneBuilder.BuildHealthGameMenuScene();
+        // Validate the authored scene in place. Self-tests must never rebuild or overwrite it.
+        EditorSceneManager.OpenScene(ScenePath, OpenSceneMode.Single);
         ValidateGeneratedMenu();
         Debug.Log("Health game menu self tests passed.");
     }
@@ -41,7 +43,7 @@ public static class HealthGameMenuSelfTests
         AssertText(header, "Title", "请选择健康运动类型");
         AssertText(header, "Subtitle", "选择喜欢的运动，活动身体、轻松锻炼");
 
-        var cards = RequireTransform(panel, "SportCards");
+        var cards = RequireTransform(panel, "ChoiceCards");
         AssertSportCard(
             cards,
             "PingPongCard",
@@ -115,9 +117,9 @@ public static class HealthGameMenuSelfTests
         AssertText(card, "Content/Metadata/DurationPill/Label", duration);
         AssertText(card, "Content/Metadata/IntensityPill/Label", intensity);
         AssertText(card, "Content/StartButtonVisual/Label", "开始运动");
-        AssertSpriteName(card, "Content/IconContainer/SportIcon", iconName);
+        AssertSpriteName(card, "Content/IconContainer/HeroIcon", iconName);
         AssertSpriteName(card, "Content/Metadata/DurationPill/ClockIcon", "clock");
-        AssertSpriteName(card, "Content/StartButtonVisual/PlayIcon", "player-play");
+        AssertSpriteName(card, "Content/StartButtonVisual/ActionIcon", "player-play");
 
         var ribbon = card.Find("Content/RecommendationRibbon");
         AssertTrue((ribbon != null && ribbon.gameObject.activeSelf) == recommended, cardName + " recommendation ribbon state should match the specification.");

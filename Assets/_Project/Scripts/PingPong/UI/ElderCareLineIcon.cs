@@ -14,9 +14,14 @@ public enum ElderCareIconType
     Gear = 7,
     User = 8,
     Trophy = 9,
-    Target = 10
+    Target = 10,
+    BaduanjinStretch = 11,
+    TaiChi = 12,
+    Minus = 13,
+    Close = 14
 }
 
+[RequireComponent(typeof(CanvasRenderer))]
 public class ElderCareLineIcon : MaskableGraphic
 {
     public ElderCareIconType iconType = ElderCareIconType.Gamepad;
@@ -27,7 +32,10 @@ public class ElderCareLineIcon : MaskableGraphic
     {
         vh.Clear();
 
-        var rect = GetPixelAdjustedRect();
+        // Graphic mesh vertices are expressed in this RectTransform's local space.
+        // GetPixelAdjustedRect can include Canvas-space offsets for World Space UI,
+        // which double-applies anchoredPosition and pushes icons outside their cards.
+        var rect = rectTransform.rect;
         var size = Mathf.Min(rect.width, rect.height);
         var center = rect.center;
         var stroke = Mathf.Max(1f, strokeWidth);
@@ -68,7 +76,61 @@ public class ElderCareLineIcon : MaskableGraphic
             case ElderCareIconType.Target:
                 DrawTarget(vh, center, size, stroke, c);
                 break;
+            case ElderCareIconType.BaduanjinStretch:
+                DrawBaduanjinStretch(vh, center, size, stroke, c);
+                break;
+            case ElderCareIconType.TaiChi:
+                DrawTaiChi(vh, center, size, stroke, c);
+                break;
+            case ElderCareIconType.Minus:
+                DrawLine(vh, center + Vector2.left * size * 0.30f, center + Vector2.right * size * 0.30f, stroke, c);
+                break;
+            case ElderCareIconType.Close:
+                DrawLine(vh, center + new Vector2(-0.25f, -0.25f) * size, center + new Vector2(0.25f, 0.25f) * size, stroke, c);
+                DrawLine(vh, center + new Vector2(-0.25f, 0.25f) * size, center + new Vector2(0.25f, -0.25f) * size, stroke, c);
+                break;
         }
+    }
+
+    private void DrawBaduanjinStretch(VertexHelper vh, Vector2 center, float size, float stroke, Color32 c)
+    {
+        DrawCircle(vh, center + Vector2.up * size * 0.25f, size * 0.10f, stroke, c);
+        DrawLine(vh, center + Vector2.up * size * 0.14f, center + Vector2.down * size * 0.19f, stroke, c);
+        DrawPolyline(vh, new[]
+        {
+            center + Vector2.up * size * 0.10f,
+            center + new Vector2(-0.23f, 0.28f) * size,
+            center + new Vector2(-0.14f, 0.43f) * size,
+            center + new Vector2(0.14f, 0.43f) * size,
+            center + new Vector2(0.23f, 0.28f) * size,
+            center + Vector2.up * size * 0.10f,
+        }, stroke, c);
+        DrawLine(vh, center + Vector2.down * size * 0.19f, center + new Vector2(-0.22f, -0.43f) * size, stroke, c);
+        DrawLine(vh, center + Vector2.down * size * 0.19f, center + new Vector2(0.22f, -0.43f) * size, stroke, c);
+    }
+
+    private void DrawTaiChi(VertexHelper vh, Vector2 center, float size, float stroke, Color32 c)
+    {
+        var radius = size * 0.39f;
+        DrawCircle(vh, center, radius, stroke, c);
+
+        var segments = Mathf.Max(12, circleSegments / 2);
+        var previous = center + Vector2.up * radius;
+        for (var i = 1; i <= segments; i++)
+        {
+            var t = i / (float)segments;
+            var angle = Mathf.PI * 0.5f - Mathf.PI * t;
+            var arcCenter = t < 0.5f
+                ? center + Vector2.up * radius * 0.5f
+                : center + Vector2.down * radius * 0.5f;
+            var arcRadius = radius * 0.5f;
+            var next = arcCenter + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * arcRadius;
+            DrawLine(vh, previous, next, stroke, c);
+            previous = next;
+        }
+
+        DrawCircle(vh, center + Vector2.up * radius * 0.5f, radius * 0.10f, stroke, c);
+        DrawCircle(vh, center + Vector2.down * radius * 0.5f, radius * 0.10f, stroke, c);
     }
 
     private void DrawTarget(VertexHelper vh, Vector2 center, float size, float stroke, Color32 c)
