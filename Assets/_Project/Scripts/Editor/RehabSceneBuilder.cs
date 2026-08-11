@@ -35,6 +35,12 @@ public static class RehabSceneBuilder
     private const string RehabChineseFontAssetPath = MaterialRoot + "/RehabChineseTMP.asset";
     private const string HealthSportSpriteRoot = "Assets/Resources/HealthSportsIcons/CoreSports/GeneratedSprites/";
     private const string HealthUiSpriteRoot = "Assets/Resources/UiIcons/Tabler/UnityWarm/GeneratedSprites/";
+    private const float MainEntryPlacementDistanceMeters = 1.35f;
+    private const float MainEntryHmdHeightOffsetMeters = -0.15f;
+    private const float MainEntryMinWorldHeight = 1.10f;
+    private const float MainEntryMaxWorldHeight = 1.55f;
+    private const float MainEntryStartupRecenterSeconds = 1.25f;
+    private const int MainEntryStartupRecenterFrames = 18;
 
     private static TMP_FontAsset rehabFontAsset;
 
@@ -101,8 +107,15 @@ public static class RehabSceneBuilder
 
         var menu = FindSingleSceneComponent<UnifiedEntryMenu>(scene, "UnifiedEntryMenu");
         var placement = FindSingleSceneComponent<RehabPanelPlacementController>(scene, "main-entry RehabPanelPlacementController");
+        var placer = FindSingleSceneComponent<ComfortWorldSpaceUIPlacer>(scene, "main-entry ComfortWorldSpaceUIPlacer");
         var canvas = FindSceneGameObject(scene, "MainEntryCanvas");
-        if (menu == null || placement == null || canvas == null ||
+        var canvasComponent = canvas != null ? canvas.GetComponent<Canvas>() : null;
+        var uiRoot = canvas != null ? canvas.transform.parent : null;
+        var headTransform = canvasComponent != null && canvasComponent.worldCamera != null
+            ? canvasComponent.worldCamera.transform
+            : null;
+        if (menu == null || placement == null || placer == null || canvas == null ||
+            uiRoot == null || headTransform == null ||
             FindSceneGameObject(scene, "Module_HealthGame") == null ||
             FindSceneGameObject(scene, "Module_Rehab") == null)
         {
@@ -111,19 +124,33 @@ public static class RehabSceneBuilder
         }
 
         var menuChanged = menu.applyHtmlStyleMainPanel ||
-                          !menu.recenterPanelsOnEnable ||
+                          menu.recenterPanelsOnEnable ||
                           menu.panelPlacementController != placement ||
                           menu.htmlStyleMainCanvas != canvas.transform;
-        var placementChanged = !placement.placeOnStart ||
-                               !Mathf.Approximately(placement.selectionPanelHeight, 1.27f) ||
-                               !Mathf.Approximately(placement.promptPanelDistance, 1.35f) ||
-                               !Mathf.Approximately(placement.panelHeight, 1.27f);
+        var placementChanged = placement.placeOnStart;
+        var placerChanged = !placer.enabled ||
+                            placer.headTransform != headTransform ||
+                            placer.uiRoot != uiRoot ||
+                            !Mathf.Approximately(placer.distanceMeters, MainEntryPlacementDistanceMeters) ||
+                            !Mathf.Approximately(placer.hmdHeightOffsetMeters, MainEntryHmdHeightOffsetMeters) ||
+                            !placer.placeOnStart ||
+                            placer.placeOnEnable ||
+                            !placer.recenterDuringStartup ||
+                            !Mathf.Approximately(placer.startupRecenterSeconds, MainEntryStartupRecenterSeconds) ||
+                            placer.startupRecenterFrames != MainEntryStartupRecenterFrames ||
+                            placer.usePreferredHeightInsteadOfHeadHeight ||
+                            !placer.clampWorldHeight ||
+                            !Mathf.Approximately(placer.minWorldHeight, MainEntryMinWorldHeight) ||
+                            !Mathf.Approximately(placer.maxWorldHeight, MainEntryMaxWorldHeight) ||
+                            placer.comfortFollowEnabled ||
+                            placer.enableRayDrag ||
+                            placer.enableThumbstickNavigation;
 
         if (menuChanged)
         {
             Undo.RecordObject(menu, "Synchronize authored main-entry behavior");
             menu.applyHtmlStyleMainPanel = false;
-            menu.recenterPanelsOnEnable = true;
+            menu.recenterPanelsOnEnable = false;
             menu.panelPlacementController = placement;
             menu.htmlStyleMainCanvas = canvas.transform;
             EditorUtility.SetDirty(menu);
@@ -132,17 +159,37 @@ public static class RehabSceneBuilder
         if (placementChanged)
         {
             Undo.RecordObject(placement, "Synchronize authored main-entry placement");
-            placement.placeOnStart = true;
-            placement.selectionPanelHeight = 1.27f;
-            placement.promptPanelDistance = 1.35f;
-            placement.panelHeight = 1.27f;
+            placement.placeOnStart = false;
             EditorUtility.SetDirty(placement);
+        }
+
+        if (placerChanged)
+        {
+            Undo.RecordObject(placer, "Synchronize authored main-entry HMD-relative placement");
+            placer.enabled = true;
+            placer.headTransform = headTransform;
+            placer.uiRoot = uiRoot;
+            placer.distanceMeters = MainEntryPlacementDistanceMeters;
+            placer.hmdHeightOffsetMeters = MainEntryHmdHeightOffsetMeters;
+            placer.placeOnStart = true;
+            placer.placeOnEnable = false;
+            placer.recenterDuringStartup = true;
+            placer.startupRecenterSeconds = MainEntryStartupRecenterSeconds;
+            placer.startupRecenterFrames = MainEntryStartupRecenterFrames;
+            placer.usePreferredHeightInsteadOfHeadHeight = false;
+            placer.clampWorldHeight = true;
+            placer.minWorldHeight = MainEntryMinWorldHeight;
+            placer.maxWorldHeight = MainEntryMaxWorldHeight;
+            placer.comfortFollowEnabled = false;
+            placer.enableRayDrag = false;
+            placer.enableThumbstickNavigation = false;
+            EditorUtility.SetDirty(placer);
         }
 
         var strokeMigration = MigrateMainEntryNativeStrokes(canvas.transform);
         SaveAuthoredSceneIfChanged(
             scene,
-            menuChanged || placementChanged || strokeMigration.changed,
+            menuChanged || placementChanged || placerChanged || strokeMigration.changed,
             "main entry");
     }
 
@@ -1458,8 +1505,8 @@ public static class RehabSceneBuilder
         ui.debug.color = WithAlpha(ElderCareUiTheme.TextMuted, 0.42f);
         ui.debug.enableWordWrapping = false;
         ui.debug.overflowMode = TextOverflowModes.Ellipsis;
-        ui.startButton = CreateButton(ui.rehabTrainingPanel.transform, "StartButton", "开始", new Vector2(-232f, -174f), new Vector2(186f, 82f));
-        ui.trainingRecenterButton = CreateButton(ui.rehabTrainingPanel.transform, "RecenterButton", "重新对准", new Vector2(0f, -174f), new Vector2(186f, 82f));
+        ui.startButton = CreateButton(ui.rehabTrainingPanel.transform, "StartButton", "开始", new Vector2(0f, -174f), new Vector2(186f, 82f));
+        ui.trainingRecenterButton = CreateButton(ui.rehabTrainingPanel.transform, "RecenterButton", "重新对准", new Vector2(-232f, -174f), new Vector2(186f, 82f));
         ui.trainingBackButton = CreateButton(ui.rehabTrainingPanel.transform, "HomeButton", "返回", new Vector2(232f, -174f), new Vector2(186f, 82f));
 
         CreateText(ui.trainingResultPanel.transform, "Title", "训练结果", ElderCareUiTheme.Title, FontStyles.Bold, TextAlignmentOptions.Center, new Vector2(0f, 128f), new Vector2(800f, 76f));

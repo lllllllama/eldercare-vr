@@ -2755,7 +2755,7 @@ MonoBehaviour:
   htmlStyleCanvasName: MainEntryCanvas
   htmlStyleMainCanvas: {fileID: 2088800493}
   panelPlacementController: {fileID: 956850575}
-  recenterPanelsOnEnable: 1
+  recenterPanelsOnEnable: 0
   recenterDelayFrames: 2
 --- !u!114 &652587184
 MonoBehaviour:
@@ -3944,7 +3944,7 @@ MonoBehaviour:
   videoPanelRoot: {fileID: 0}
   videoLayoutController: {fileID: 0}
   useSceneAuthoredTrainingLayout: 1
-  placeOnStart: 1
+  placeOnStart: 0
   selectionPanelDistance: 1.35
   selectionPanelHeight: 1.27
   trainingLayoutDistance: 1.8
@@ -5550,7 +5550,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1297796638}
-  m_Enabled: 0
+  m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 6a9c032b7e634b1391809eaada1a9ed9, type: 3}
   m_Name: 
@@ -5558,19 +5558,19 @@ MonoBehaviour:
   headTransform: {fileID: 564418155}
   uiRoot: {fileID: 1297796640}
   distanceMeters: 1.35
-  hmdHeightOffsetMeters: -0.25
-  placeOnStart: 0
+  hmdHeightOffsetMeters: -0.15
+  placeOnStart: 1
   placeOnEnable: 0
-  recenterDuringStartup: 0
+  recenterDuringStartup: 1
   startupRecenterSeconds: 1.25
   startupRecenterFrames: 18
   clampWorldHeight: 1
-  minWorldHeight: 1.25
-  maxWorldHeight: 1.75
+  minWorldHeight: 1.1
+  maxWorldHeight: 1.55
   preferredWorldHeight: 1.45
-  usePreferredHeightInsteadOfHeadHeight: 1
-  enableRayDrag: 1
-  enableThumbstickNavigation: 1
+  usePreferredHeightInsteadOfHeadHeight: 0
+  enableRayDrag: 0
+  enableThumbstickNavigation: 0
   invertThumbstickHorizontal: 0
   comfortFollowEnabled: 0
   followYawThresholdDegrees: 35

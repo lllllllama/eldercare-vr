@@ -1,6 +1,7 @@
 using PicoElderCare.Rehab;
 using PicoElderCare.UI;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -45,6 +46,7 @@ public static class RehabSelfTests
         VideoSpatialControlsStayHiddenUntilVideoGuideShows();
         VideoGuidePauseKeepsDisplayVisible();
         SpatialRayControlDragsVideoOnlyWhileTriggerHeld();
+        MainEntrySceneUsesSingleHmdRelativePlacementOwner();
         Debug.Log("Rehab self tests passed.");
     }
 
@@ -56,6 +58,7 @@ public static class RehabSelfTests
         ComfortUiPlacementUsesCurrentHeadYaw();
         ComfortUiStartupRecenterFollowsSettledHeadPose();
         ComfortUiStopsFollowingAfterStartupWindow();
+        MainEntryComfortPlacementUsesHmdRelativeRootHeight();
         TrainingSelectPanelRecenterUsesConfiguredComfortPlacement();
         TrainingLayoutRecenterRemainsIndependentOfSelectionPlacement();
         Debug.Log("Rehab comfort placement tests passed.");
@@ -915,6 +918,73 @@ public static class RehabSelfTests
             Object.DestroyImmediate(uiObject);
             Object.DestroyImmediate(headObject);
         }
+    }
+
+    private static void MainEntryComfortPlacementUsesHmdRelativeRootHeight()
+    {
+        var headObject = new GameObject("MainEntryHead");
+        var rootObject = new GameObject("MainEntryUiRoot");
+        try
+        {
+            headObject.transform.position = new Vector3(0.2f, 1.30f, -0.1f);
+            headObject.transform.rotation = Quaternion.Euler(-25f, 30f, 8f);
+
+            var placer = rootObject.AddComponent<ComfortWorldSpaceUIPlacer>();
+            placer.headTransform = headObject.transform;
+            placer.uiRoot = rootObject.transform;
+            placer.distanceMeters = 1.35f;
+            placer.hmdHeightOffsetMeters = -0.15f;
+            placer.usePreferredHeightInsteadOfHeadHeight = false;
+            placer.clampWorldHeight = true;
+            placer.minWorldHeight = 1.10f;
+            placer.maxWorldHeight = 1.55f;
+            placer.PlaceInFrontOfUser();
+
+            var forward = Quaternion.Euler(0f, 30f, 0f) * Vector3.forward;
+            var expected = headObject.transform.position + forward * 1.35f;
+            expected.y = 1.15f;
+            AssertTrue(Vector3.Distance(rootObject.transform.position, expected) < 0.001f, "Main entry root should sit 0.15 metres below the current HMD height.");
+            AssertTrue(Quaternion.Angle(rootObject.transform.rotation, Quaternion.LookRotation(forward, Vector3.up)) < 0.1f, "Main entry should use HMD yaw without pitch or roll.");
+
+            headObject.transform.position = new Vector3(0f, 1.10f, 0f);
+            placer.PlaceInFrontOfUser();
+            AssertTrue(Mathf.Abs(rootObject.transform.position.y - 1.10f) < 0.001f, "Main entry should clamp low seated placement to 1.10 metres.");
+
+            headObject.transform.position = new Vector3(0f, 1.90f, 0f);
+            placer.PlaceInFrontOfUser();
+            AssertTrue(Mathf.Abs(rootObject.transform.position.y - 1.55f) < 0.001f, "Main entry should clamp high placement to 1.55 metres.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(rootObject);
+            Object.DestroyImmediate(headObject);
+        }
+    }
+
+    private static void MainEntrySceneUsesSingleHmdRelativePlacementOwner()
+    {
+        const string scenePath = "Assets/_Project/Scenes/00_MainEntry.unity";
+        EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Single);
+
+        var menu = Object.FindObjectOfType<UnifiedEntryMenu>(true);
+        var placement = Object.FindObjectOfType<RehabPanelPlacementController>(true);
+        var placer = Object.FindObjectOfType<ComfortWorldSpaceUIPlacer>(true);
+        var canvasObject = GameObject.Find("MainEntryCanvas");
+        var uiRoot = canvasObject != null ? canvasObject.transform.parent : null;
+        var panel = canvasObject != null ? canvasObject.transform.Find("Panel") as RectTransform : null;
+        var canvasRect = canvasObject != null ? canvasObject.GetComponent<RectTransform>() : null;
+
+        AssertTrue(menu != null && !menu.recenterPanelsOnEnable, "Main entry should not run the legacy delayed panel recenter.");
+        AssertTrue(placement != null && !placement.placeOnStart, "Main entry should not let RehabPanelPlacementController compete during startup.");
+        AssertTrue(placer != null && placer.enabled && placer.placeOnStart && placer.recenterDuringStartup, "Main entry should use ComfortWorldSpaceUIPlacer as its only startup placement owner.");
+        AssertTrue(placer != null && uiRoot != null && placer.uiRoot == uiRoot, "Main entry placer should move only the existing UIRoot.");
+        AssertTrue(!placer.usePreferredHeightInsteadOfHeadHeight && Mathf.Approximately(placer.hmdHeightOffsetMeters, -0.15f), "Main entry should derive root height from the current HMD.");
+        AssertTrue(placer.clampWorldHeight && Mathf.Approximately(placer.minWorldHeight, 1.10f) && Mathf.Approximately(placer.maxWorldHeight, 1.55f), "Main entry should clamp HMD-relative height to its comfort range.");
+        AssertTrue(Mathf.Approximately(placer.distanceMeters, 1.35f), "Main entry should preserve its current 1.35 metre viewing distance.");
+        AssertTrue(Mathf.Approximately(placer.startupRecenterSeconds, 1.25f) && placer.startupRecenterFrames == 18, "Main entry should follow settling XR pose for 1.25 seconds and at least 18 frames.");
+        AssertTrue(!placer.comfortFollowEnabled && !placer.enableRayDrag && !placer.enableThumbstickNavigation, "Main entry should freeze after startup without introducing unrelated drag/navigation helpers.");
+        AssertTrue(canvasRect != null && Vector2.Distance(canvasRect.sizeDelta, new Vector2(1120f, 680f)) < 0.01f, "Main entry canvas visual size should remain unchanged.");
+        AssertTrue(panel != null && Vector2.Distance(panel.sizeDelta, new Vector2(1040f, 468f)) < 0.01f, "Main entry panel visual size should remain unchanged.");
     }
 
     private static void TrainingLayoutRecenterRemainsIndependentOfSelectionPlacement()
