@@ -165,9 +165,8 @@ public static class RehabVideoGuideSceneRepair
     }
 
     /// <summary>
-    /// Creates or repairs the video guide in the scene that is already open.
-    /// Scene builders use this entry point so rebuilding MR_Rehab_Main cannot
-    /// silently discard the existing training-video feature.
+    /// Creates missing video-guide components in the scene that is already open.
+    /// Existing authored hierarchy and spatial transforms are preserved.
     /// </summary>
     public static RehabVideoGuideController EnsureRehabBaduanjinVideoGuideInOpenScene()
     {
@@ -179,12 +178,17 @@ public static class RehabVideoGuideSceneRepair
         var panel = EnsurePanelHierarchy(out var visualsRoot, out var panelCreated);
         var videoPlayer = EnsureComponent<VideoPlayer>(panel);
         var audioSource = EnsureComponent<AudioSource>(panel);
-        var layoutController = EnsureComponent<RehabVideoPanelLayoutController>(panel);
+        var layoutController = panel.GetComponent<RehabVideoPanelLayoutController>();
+        var layoutCreated = layoutController == null;
+        if (layoutCreated)
+        {
+            layoutController = panel.AddComponent<RehabVideoPanelLayoutController>();
+        }
         var guideController = EnsureComponent<RehabVideoGuideController>(panel);
         EnsureComponent<MrKeepVisible>(panel);
-        var videoQuad = EnsureVideoQuad(panel.transform, videoMaterial);
-        var videoCanvas = EnsureVideoCanvas(panel.transform);
-        var rawImage = EnsureVideoRawImage(videoCanvas.transform, renderTexture);
+        var videoQuad = EnsureVideoQuad(panel.transform, videoMaterial, out var videoQuadCreated);
+        var videoCanvas = EnsureVideoCanvas(panel.transform, out _);
+        var rawImage = EnsureVideoRawImage(videoCanvas.transform, renderTexture, out _);
         var quadRenderer = videoQuad.GetComponent<Renderer>();
 
         if (panelCreated)
@@ -193,7 +197,7 @@ public static class RehabVideoGuideSceneRepair
         }
         ConfigureVideoPlayer(videoPlayer, audioSource, renderTexture);
         ConfigureAudioSource(audioSource);
-        ConfigureLayout(layoutController, panel.transform, videoQuad.transform);
+        ConfigureLayout(layoutController, panel.transform, videoQuad.transform, layoutCreated || videoQuadCreated);
         ConfigureGuideController(
             guideController,
             panel,
@@ -259,33 +263,34 @@ public static class RehabVideoGuideSceneRepair
 
     private static GameObject EnsurePanelHierarchy(out GameObject visualsRoot, out bool panelCreated)
     {
+        var panel = FindSceneObject("RehabVideoPanel");
+        panelCreated = panel == null;
+        if (!panelCreated)
+        {
+            // The authored scene owns the video panel hierarchy and world pose.
+            // A repair must never reparent an existing panel to a legacy visual root.
+            visualsRoot = panel.transform.parent != null ? panel.transform.parent.gameObject : panel;
+            return panel;
+        }
+
         var rehab = FindSceneObject("Rehab") ?? new GameObject("Rehab");
-        visualsRoot = FindChild(rehab.transform, "RehabVisuals");
+        visualsRoot = FindChild(rehab.transform, "RehabUIRoot");
         if (visualsRoot == null)
         {
-            visualsRoot = new GameObject("RehabVisuals");
+            visualsRoot = new GameObject("RehabUIRoot");
             visualsRoot.transform.SetParent(rehab.transform, false);
         }
 
-        var panel = FindSceneObject("RehabVideoPanel");
-        panelCreated = panel == null;
-        if (panelCreated)
-        {
-            panel = new GameObject("RehabVideoPanel");
-        }
-
-        if (panel.transform.parent != visualsRoot.transform)
-        {
-            panel.transform.SetParent(visualsRoot.transform, !panelCreated);
-        }
-
+        panel = new GameObject("RehabVideoPanel");
+        panel.transform.SetParent(visualsRoot.transform, false);
         return panel;
     }
 
-    private static GameObject EnsureVideoQuad(Transform panel, Material material)
+    private static GameObject EnsureVideoQuad(Transform panel, Material material, out bool created)
     {
         var quad = FindChild(panel, "VideoQuad");
-        if (quad == null)
+        created = quad == null;
+        if (created)
         {
             quad = GameObject.CreatePrimitive(PrimitiveType.Quad);
             quad.name = "VideoQuad";
@@ -298,9 +303,12 @@ public static class RehabVideoGuideSceneRepair
             Object.DestroyImmediate(collider);
         }
 
-        quad.transform.localPosition = Vector3.zero;
-        quad.transform.localRotation = Quaternion.identity;
-        quad.transform.localScale = new Vector3(0.78f, 0.44f, 1f);
+        if (created)
+        {
+            quad.transform.localPosition = Vector3.zero;
+            quad.transform.localRotation = Quaternion.identity;
+            quad.transform.localScale = new Vector3(0.78f, 0.44f, 1f);
+        }
 
         var renderer = quad.GetComponent<Renderer>();
         if (renderer != null)
@@ -311,20 +319,24 @@ public static class RehabVideoGuideSceneRepair
         return quad;
     }
 
-    private static GameObject EnsureVideoCanvas(Transform panel)
+    private static GameObject EnsureVideoCanvas(Transform panel, out bool created)
     {
         var canvasObject = FindChild(panel, "RehabVideoCanvas");
-        if (canvasObject == null)
+        created = canvasObject == null;
+        if (created)
         {
             canvasObject = new GameObject("RehabVideoCanvas", typeof(RectTransform), typeof(Canvas), typeof(CanvasScaler));
             canvasObject.transform.SetParent(panel, false);
         }
 
         var rect = EnsureComponent<RectTransform>(canvasObject);
-        rect.sizeDelta = new Vector2(960f, 540f);
-        rect.localPosition = Vector3.zero;
-        rect.localRotation = Quaternion.identity;
-        rect.localScale = Vector3.one * 0.0015f;
+        if (created)
+        {
+            rect.sizeDelta = new Vector2(960f, 540f);
+            rect.localPosition = Vector3.zero;
+            rect.localRotation = Quaternion.identity;
+            rect.localScale = Vector3.one * 0.0015f;
+        }
 
         var canvas = EnsureComponent<Canvas>(canvasObject);
         canvas.renderMode = RenderMode.WorldSpace;
@@ -336,22 +348,26 @@ public static class RehabVideoGuideSceneRepair
         return canvasObject;
     }
 
-    private static RawImage EnsureVideoRawImage(Transform canvas, RenderTexture renderTexture)
+    private static RawImage EnsureVideoRawImage(Transform canvas, RenderTexture renderTexture, out bool created)
     {
         var rawObject = FindChild(canvas, "VideoRawImage");
-        if (rawObject == null)
+        created = rawObject == null;
+        if (created)
         {
             rawObject = new GameObject("VideoRawImage", typeof(RectTransform), typeof(CanvasRenderer), typeof(RawImage));
             rawObject.transform.SetParent(canvas, false);
         }
 
         var rect = EnsureComponent<RectTransform>(rawObject);
-        rect.anchorMin = Vector2.zero;
-        rect.anchorMax = Vector2.one;
-        rect.offsetMin = Vector2.zero;
-        rect.offsetMax = Vector2.zero;
-        rect.localRotation = Quaternion.identity;
-        rect.localScale = Vector3.one;
+        if (created)
+        {
+            rect.anchorMin = Vector2.zero;
+            rect.anchorMax = Vector2.one;
+            rect.offsetMin = Vector2.zero;
+            rect.offsetMax = Vector2.zero;
+            rect.localRotation = Quaternion.identity;
+            rect.localScale = Vector3.one;
+        }
 
         EnsureComponent<CanvasRenderer>(rawObject);
         var rawImage = EnsureComponent<RawImage>(rawObject);
@@ -388,10 +404,16 @@ public static class RehabVideoGuideSceneRepair
         audioSource.enabled = true;
     }
 
-    private static void ConfigureLayout(RehabVideoPanelLayoutController layout, Transform panel, Transform quad)
+    private static void ConfigureLayout(
+        RehabVideoPanelLayoutController layout,
+        Transform panel,
+        Transform quad,
+        bool configureDefaults)
     {
         layout.panelRoot = panel;
         layout.videoQuad = quad;
+        if (!configureDefaults) return;
+
         layout.panelDistance = 2.15f;
         layout.videoRightOffset = 0.9f;
         layout.heightOffset = 0.08f;

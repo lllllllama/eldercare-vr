@@ -36,14 +36,15 @@ public static class HealthGameMenuSelfTests
         AssertTrue(canvasObject.GetComponent<TrackedDeviceGraphicRaycaster>() != null, "Health menu should keep XR tracked-device raycasting.");
 
         var panel = RequireTransform(canvasObject.transform, "Panel");
-        RequireTransform(panel, "VisualRoot/WoodFrame");
-        RequireTransform(panel, "VisualRoot/RicePaperPanel");
-        RequireTransform(panel, "VisualRoot/RiceWarmEdge");
+        AssertNativeStroke(RequireTransform(panel, "VisualRoot/WoodFrame"), "WoodFrame");
+        AssertNativeStroke(RequireTransform(panel, "VisualRoot/RicePaperPanel"), "RicePaperPanel");
+        AssertNoStrokeOrOutline(RequireTransform(panel, "VisualRoot/RiceWarmEdge"), "RiceWarmEdge");
         var header = RequireTransform(panel, "Header");
         AssertText(header, "Title", "请选择健康运动类型");
         AssertText(header, "Subtitle", "选择喜欢的运动，活动身体、轻松锻炼");
 
-        var cards = RequireTransform(panel, "ChoiceCards");
+        var cards = panel.Find("SportCards") ?? panel.Find("ChoiceCards");
+        AssertTrue(cards != null, "Health menu should preserve its authored three-card container.");
         AssertSportCard(
             cards,
             "PingPongCard",
@@ -76,8 +77,10 @@ public static class HealthGameMenuSelfTests
             false);
 
         var dock = RequireTransform(panel, "BottomDock");
+        AssertNativeStroke(dock, "BottomDock");
         var backButton = RequireTransform(dock, "BackButton").GetComponent<Button>();
         AssertTrue(backButton != null, "Bottom dock should contain a back Button.");
+        AssertNativeStroke(backButton.transform, "BackButton");
         AssertPersistentListener(backButton, "ReturnToMainEntry");
         AssertText(backButton.transform, "Label", "返回上一页");
         AssertSpriteName(backButton.transform, "ArrowIcon", "arrow-left");
@@ -92,6 +95,7 @@ public static class HealthGameMenuSelfTests
 
         var eventSystem = UnityEngine.Object.FindObjectOfType<EventSystem>();
         AssertTrue(eventSystem != null && eventSystem.GetComponent<XRUIInputModule>() != null, "Health menu should preserve XR UI input.");
+        AssertTrue(panel.GetComponentsInChildren<Outline>(true).Length == 0, "Health warm-menu scope should not retain Unity Outline components.");
         AssertNoMissingScripts();
         AssertIconSourcesPresent();
     }
@@ -117,9 +121,22 @@ public static class HealthGameMenuSelfTests
         AssertText(card, "Content/Metadata/DurationPill/Label", duration);
         AssertText(card, "Content/Metadata/IntensityPill/Label", intensity);
         AssertText(card, "Content/StartButtonVisual/Label", "开始运动");
-        AssertSpriteName(card, "Content/IconContainer/HeroIcon", iconName);
+        var sportIconPath = card.Find("Content/IconContainer/HeroIcon") != null
+            ? "Content/IconContainer/HeroIcon"
+            : "Content/IconContainer/SportIcon";
+        var actionIconPath = card.Find("Content/StartButtonVisual/ActionIcon") != null
+            ? "Content/StartButtonVisual/ActionIcon"
+            : "Content/StartButtonVisual/PlayIcon";
+        AssertSpriteName(card, sportIconPath, iconName);
         AssertSpriteName(card, "Content/Metadata/DurationPill/ClockIcon", "clock");
-        AssertSpriteName(card, "Content/StartButtonVisual/ActionIcon", "player-play");
+        AssertSpriteName(card, actionIconPath, "player-play");
+        AssertNativeStroke(RequireTransform(card, "Content/Background"), cardName + "/Background");
+        AssertNativeStroke(RequireTransform(card, "Content/IconContainer"), cardName + "/IconContainer");
+        AssertNativeStroke(RequireTransform(card, "Content/StartButtonVisual"), cardName + "/StartButtonVisual");
+        AssertNoStrokeOrOutline(RequireTransform(card, "Content/InnerRice"), cardName + "/InnerRice");
+        AssertNoStrokeOrOutline(RequireTransform(card, "Content/Metadata/DurationPill"), cardName + "/DurationPill");
+        AssertNoStrokeOrOutline(RequireTransform(card, "Content/Metadata/IntensityPill"), cardName + "/IntensityPill");
+        AssertNoStrokeOrOutline(RequireTransform(card, "Content/RecommendationRibbon"), cardName + "/RecommendationRibbon");
 
         var ribbon = card.Find("Content/RecommendationRibbon");
         AssertTrue((ribbon != null && ribbon.gameObject.activeSelf) == recommended, cardName + " recommendation ribbon state should match the specification.");
@@ -163,6 +180,20 @@ public static class HealthGameMenuSelfTests
     {
         AssertTrue(button.onClick.GetPersistentEventCount() == 1, button.name + " should have exactly one persistent route.");
         AssertTrue(button.onClick.GetPersistentMethodName(0) == methodName, button.name + " should route through " + methodName + ".");
+    }
+
+    private static void AssertNativeStroke(Transform target, string label)
+    {
+        var rounded = target != null ? target.GetComponent<ElderCareRoundedPanel>() : null;
+        AssertTrue(rounded != null && rounded.DrawStroke && rounded.StrokeWidth > 0f, label + " should use ElderCareRoundedPanel native stroke.");
+        AssertTrue(target.GetComponent<Outline>() == null, label + " should not use Unity Outline.");
+    }
+
+    private static void AssertNoStrokeOrOutline(Transform target, string label)
+    {
+        var rounded = target != null ? target.GetComponent<ElderCareRoundedPanel>() : null;
+        AssertTrue(rounded != null && !rounded.DrawStroke, label + " should remain a fill-only rounded layer.");
+        AssertTrue(target.GetComponent<Outline>() == null, label + " should not use Unity Outline.");
     }
 
     private static void AssertText(Transform root, string path, string expected)

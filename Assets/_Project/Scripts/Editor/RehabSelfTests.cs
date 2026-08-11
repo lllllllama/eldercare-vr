@@ -1,4 +1,5 @@
 using PicoElderCare.Rehab;
+using PicoElderCare.UI;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -32,6 +33,8 @@ public static class RehabSelfTests
         RunComfortPlacementTests();
         RunPageLayoutTests();
         RunVisualSkinScopeTests();
+        RunSceneBuilderSafetyTests();
+        RunP0UiFoundationTests();
         ComfortUiCreatesRayDragAndThumbstickHelpers();
         ComfortUiRayDragKeepsStableHeightWhenDraggedFar();
         HtmlStyleMainEntryPanelUsesVrReadableScale();
@@ -119,6 +122,220 @@ public static class RehabSelfTests
         {
             Object.DestroyImmediate(root);
         }
+    }
+
+    public static void RunSceneBuilderSafetyTests()
+    {
+        AssertDestructiveBuilderIsDisabled("BuildMainEntrySceneFromScratchLegacy");
+        AssertDestructiveBuilderIsDisabled("BuildHealthGameMenuSceneFromScratchLegacy");
+        AssertDestructiveBuilderIsDisabled("BuildRehabSceneFromScratchLegacy");
+        Debug.Log("Rehab scene builder safety tests passed.");
+    }
+
+    public static void RunP0UiFoundationTests()
+    {
+        RoundedPanelNativeStrokeIsBackwardCompatible();
+        ChoiceCardUsesNativeStrokeWithoutRedundantOutlines();
+        RehabSelectionUsesSharedNativeStrokeBuilder();
+        RehabSelectionScaleCompensationUsesSharedWorldScaleTokens();
+        Debug.Log("P0 UI foundation tests passed.");
+    }
+
+    private static void RoundedPanelNativeStrokeIsBackwardCompatible()
+    {
+        var panelObject = new GameObject(
+            "RoundedPanelStrokeFixture",
+            typeof(RectTransform),
+            typeof(CanvasRenderer),
+            typeof(ElderCareRoundedPanel));
+        try
+        {
+            var rect = panelObject.GetComponent<RectTransform>();
+            rect.sizeDelta = new Vector2(240f, 120f);
+            var panel = panelObject.GetComponent<ElderCareRoundedPanel>();
+            panel.cornerRadius = 28f;
+            panel.cornerSegments = 8;
+            panel.color = ElderCareMenuDesignTokens.Card;
+
+            AssertTrue(!panel.DrawStroke, "Legacy rounded panels should not draw a stroke by default.");
+            AssertTrue(Mathf.Approximately(panel.StrokeWidth, 0f), "Legacy rounded panels should keep a zero default stroke width.");
+
+            var populateMesh = typeof(ElderCareRoundedPanel).GetMethod(
+                "OnPopulateMesh",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic,
+                null,
+                new[] { typeof(VertexHelper) },
+                null);
+            AssertTrue(populateMesh != null, "Rounded panel mesh generator should be available for the native-stroke test.");
+
+            var legacyMesh = new VertexHelper();
+            populateMesh.Invoke(panel, new object[] { legacyMesh });
+            var legacyVertexCount = legacyMesh.currentVertCount;
+            legacyMesh.Dispose();
+            AssertTrue(legacyVertexCount > 0, "Legacy fill-only rounded panels should still generate geometry.");
+
+            panel.StrokeWidth = -5f;
+            AssertTrue(panel.StrokeWidth >= 0f, "Rounded panel stroke width should clamp to a non-negative value.");
+            panel.DrawStroke = true;
+            panel.StrokeColor = ElderCareMenuDesignTokens.GoldStroke;
+            panel.StrokeWidth = 3f;
+
+            var strokeMesh = new VertexHelper();
+            populateMesh.Invoke(panel, new object[] { strokeMesh });
+            AssertTrue(strokeMesh.currentVertCount > legacyVertexCount, "Native stroke should add an inner/outer contour ring to the fill mesh.");
+            AssertTrue(strokeMesh.currentIndexCount > 0, "Native stroke mesh should contain triangles.");
+            strokeMesh.Dispose();
+        }
+        finally
+        {
+            Object.DestroyImmediate(panelObject);
+        }
+    }
+
+    private static void ChoiceCardUsesNativeStrokeWithoutRedundantOutlines()
+    {
+        var root = new GameObject("ChoiceCardStrokeFixture", typeof(RectTransform));
+        var iconTexture = new Texture2D(2, 2);
+        var iconSprite = Sprite.Create(iconTexture, new Rect(0f, 0f, 2f, 2f), new Vector2(0.5f, 0.5f));
+        try
+        {
+            var button = ElderCareChoiceCardBuilder.Build(
+                root.GetComponent<RectTransform>(),
+                null,
+                new ElderCareChoiceCardSpec
+                {
+                    Name = "P0ChoiceCard",
+                    Size = ElderCareMenuDesignTokens.SecondaryThreeCardSize,
+                    Title = "Test",
+                    Subtitle = "Test",
+                    Duration = "8 min",
+                    Intensity = "Light",
+                    ActionText = "Start",
+                    UseLineHero = true,
+                    LineHeroType = ElderCareIconType.Heart,
+                    ClockIcon = iconSprite,
+                    ActionIcon = iconSprite,
+                    Accent = ElderCareMenuDesignTokens.Jade,
+                    Recommended = true
+                });
+
+            var background = button.transform.Find("Content/Background");
+            var backgroundPanel = background != null ? background.GetComponent<ElderCareRoundedPanel>() : null;
+            AssertTrue(backgroundPanel != null && backgroundPanel.DrawStroke && backgroundPanel.StrokeWidth > 0f, "Shared Health/Rehab choice-card background should use the native rounded stroke.");
+            AssertTrue(background.GetComponent<Outline>() == null, "Choice-card background should not use Unity Outline.");
+            AssertTrue(button.GetComponent<Outline>() == null, "Choice-card button root should not carry a visual Outline.");
+
+            var noStrokePaths = new[]
+            {
+                "Content/InnerRice",
+                "Content/RecommendationRibbon",
+                "Content/Metadata/DurationPill",
+                "Content/Metadata/IntensityPill"
+            };
+            for (var i = 0; i < noStrokePaths.Length; i++)
+            {
+                var surface = button.transform.Find(noStrokePaths[i]);
+                var rounded = surface != null ? surface.GetComponent<ElderCareRoundedPanel>() : null;
+                AssertTrue(surface != null && surface.GetComponent<Outline>() == null, noStrokePaths[i] + " should not use Unity Outline.");
+                AssertTrue(rounded != null && !rounded.DrawStroke, noStrokePaths[i] + " should remain a fill-only layer.");
+            }
+        }
+        finally
+        {
+            Object.DestroyImmediate(root);
+            Object.DestroyImmediate(iconSprite);
+            Object.DestroyImmediate(iconTexture);
+        }
+    }
+
+    private static void RehabSelectionScaleCompensationUsesSharedWorldScaleTokens()
+    {
+        var expectedCompensation = ElderCareMenuDesignTokens.SecondaryCanvasWorldScale /
+                                   ElderCareMenuDesignTokens.RehabPromptCanvasWorldScale;
+        AssertTrue(
+            Mathf.Abs(ElderCareMenuDesignTokens.RehabSelectionWorldScaleCompensation - expectedCompensation) < 0.000001f,
+            "Rehab selection scale compensation should be derived from the shared world-scale tokens.");
+
+        var effectiveScale = ElderCareMenuDesignTokens.RehabPromptCanvasWorldScale *
+                             ElderCareMenuDesignTokens.RehabSelectionWorldScaleCompensation;
+        AssertTrue(
+            Mathf.Abs(effectiveScale - ElderCareMenuDesignTokens.SecondaryCanvasWorldScale) < 0.000001f,
+            "Rehab selection effective world scale should match the Health secondary-menu world scale.");
+
+        var canvas = new GameObject("RehabPromptCanvasScaleFixture", typeof(RectTransform));
+        var selection = new GameObject("SelectionPanelRoot", typeof(RectTransform));
+        var training = new GameObject("TrainingFunctionPanelRoot", typeof(RectTransform));
+        var result = new GameObject("ResultPanelRoot", typeof(RectTransform));
+        try
+        {
+            selection.transform.SetParent(canvas.transform, false);
+            training.transform.SetParent(canvas.transform, false);
+            result.transform.SetParent(canvas.transform, false);
+            canvas.transform.localScale = Vector3.one * ElderCareMenuDesignTokens.RehabPromptCanvasWorldScale;
+            training.transform.localScale = new Vector3(1.1f, 0.9f, 1f);
+            result.transform.localScale = new Vector3(0.95f, 1.05f, 1f);
+            var trainingScale = training.transform.localScale;
+            var resultScale = result.transform.localScale;
+
+            selection.transform.localScale = Vector3.one * ElderCareMenuDesignTokens.RehabSelectionWorldScaleCompensation;
+
+            AssertTrue(Vector3.Distance(training.transform.localScale, trainingScale) < 0.000001f, "Selection scale compensation must not change TrainingFunctionPanelRoot.");
+            AssertTrue(Vector3.Distance(result.transform.localScale, resultScale) < 0.000001f, "Selection scale compensation must not change ResultPanelRoot.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(canvas);
+        }
+    }
+
+    private static void RehabSelectionUsesSharedNativeStrokeBuilder()
+    {
+        var panel = new GameObject(
+            "RehabTrainingSelectPanel",
+            typeof(RectTransform),
+            typeof(CanvasRenderer),
+            typeof(ElderCareRoundedPanel));
+        var iconTexture = new Texture2D(2, 2);
+        var iconSprite = Sprite.Create(iconTexture, new Rect(0f, 0f, 2f, 2f), new Vector2(0.5f, 0.5f));
+        try
+        {
+            var legacyRootSurface = panel.GetComponent<ElderCareRoundedPanel>();
+            legacyRootSurface.color = new Color(0.0915f, 0.2466f, 0.2074f, 1f);
+            var elements = RehabSelectionVisualSkin.Build(
+                panel.transform,
+                null,
+                iconSprite,
+                iconSprite,
+                iconSprite);
+            var baduanjinSurface = panel.transform.Find("ChoiceCards/BaduanjinButton/Content/Background");
+            var taiChiSurface = panel.transform.Find("ChoiceCards/TaiChiButton/Content/Background");
+            var baduanjinRounded = baduanjinSurface != null ? baduanjinSurface.GetComponent<ElderCareRoundedPanel>() : null;
+            var taiChiRounded = taiChiSurface != null ? taiChiSurface.GetComponent<ElderCareRoundedPanel>() : null;
+
+            AssertTrue(elements.baduanjinButton != null && elements.taiChiButton != null && elements.backButton != null, "Rehab selection should preserve all three navigation Button references.");
+            AssertTrue(baduanjinRounded != null && baduanjinRounded.DrawStroke && baduanjinSurface.GetComponent<Outline>() == null, "Baduanjin card should use the shared native stroke.");
+            AssertTrue(taiChiRounded != null && taiChiRounded.DrawStroke && taiChiSurface.GetComponent<Outline>() == null, "TaiChi card should use the shared native stroke.");
+            AssertTrue(panel.GetComponentsInChildren<Outline>(true).Length == 0, "Generated Rehab selection should not contain Unity Outline components.");
+            AssertTrue(!legacyRootSurface.enabled && !legacyRootSurface.raycastTarget, "Rehab selection should suppress the obsolete teal root surface without changing the page Transform.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(panel);
+            Object.DestroyImmediate(iconSprite);
+            Object.DestroyImmediate(iconTexture);
+        }
+    }
+
+    private static void AssertDestructiveBuilderIsDisabled(string methodName)
+    {
+        var method = typeof(RehabSceneBuilder).GetMethod(
+            methodName,
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        AssertTrue(method != null, methodName + " should remain present as an explicitly disabled legacy path.");
+
+        var obsolete = method.GetCustomAttributes(typeof(System.ObsoleteAttribute), false);
+        AssertTrue(obsolete.Length == 1, methodName + " should be guarded by ObsoleteAttribute.");
+        AssertTrue(((System.ObsoleteAttribute)obsolete[0]).IsError, methodName + " must fail compilation if it is called again.");
     }
 
     private static void TwoHandsAboveHeadPoseAccumulatesHold()
@@ -1107,8 +1324,10 @@ public static class RehabSelfTests
             var travelCard = canvasObject.transform.Find("Panel/Module_Travel");
             var memoryCard = canvasObject.transform.Find("Panel/Module_Memory");
             var healthGroup = healthCard != null ? healthCard.GetComponent<CanvasGroup>() : null;
-            var healthIcon = healthCard != null ? healthCard.Find("Icon")?.GetComponent<Image>() : null;
+            var healthIcon = healthCard != null ? healthCard.Find("HeroIcon")?.GetComponent<Image>() : null;
+            var healthSurface = healthCard != null ? healthCard.Find("Surface")?.GetComponent<ElderCareRoundedPanel>() : null;
             var greetingText = canvasObject.transform.Find("Panel/Greeting")?.GetComponent<TMPro.TMP_Text>();
+            var outlines = canvasObject.GetComponentsInChildren<Outline>(true);
 
             AssertTrue(panel != null, "HTML-style main entry panel should be created.");
             AssertTrue(rect != null && Mathf.Abs(rect.sizeDelta.x - 1120f) < 0.01f, "Main entry panel should use the wide HTML-style canvas pixel size.");
@@ -1120,6 +1339,8 @@ public static class RehabSelfTests
             AssertTrue(greetingText.font != null && greetingText.font.name == "RehabChineseTMP", "Main entry text should bind to the project Chinese TMP font instead of the default missing-glyph font.");
             AssertTrue(healthIcon != null && healthIcon.sprite != null, "Main entry runtime GUI should use the provided SVG-derived table tennis icon sprite.");
             AssertTrue(healthGroup == null || healthGroup.alpha > 0.99f, "Main entry cards should be visible immediately instead of waiting on entrance animation.");
+            AssertTrue(healthSurface != null && healthSurface.DrawStroke && healthSurface.GetComponent<Outline>() == null, "Main-entry module surfaces should use the native rounded stroke instead of Unity Outline.");
+            AssertTrue(outlines.Length == 1 && outlines[0].name == "Window", "MainEntry should retain only the explicit room-window decor shadow Outline.");
         }
         finally
         {
@@ -1315,6 +1536,7 @@ public static class RehabSelfTests
             control.videoLayoutController = layout;
             control.hmdTransform = headObject.transform;
             control.maxRayDistanceMeters = 5f;
+            control.createVisibleVideoControls = true;
             control.EnsureControlCanvas();
             control.EnsureVideoRayTarget();
             control.SetControlCanvasVisible(true);
@@ -1361,6 +1583,7 @@ public static class RehabSelfTests
 
             var control = controlObject.AddComponent<RehabSpatialRayControl>();
             control.videoLayoutController = layout;
+            control.createVisibleVideoControls = true;
             control.EnsureControlCanvas();
 
             var guide = panelObject.AddComponent<RehabVideoGuideController>();
@@ -1407,6 +1630,7 @@ public static class RehabSelfTests
 
             var control = controlObject.AddComponent<RehabSpatialRayControl>();
             control.videoLayoutController = layout;
+            control.createVisibleVideoControls = true;
             control.EnsureControlCanvas();
             control.SetControlCanvasVisible(false);
 

@@ -181,6 +181,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 1
   cornerSegments: 8
+  drawStroke: 0
+  strokeColor: {r: 0, g: 0, b: 0, a: 0}
+  strokeWidth: 0
 --- !u!222 &5779226
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -200,7 +203,6 @@ GameObject:
   - component: {fileID: 9626073}
   - component: {fileID: 9626076}
   - component: {fileID: 9626075}
-  - component: {fileID: 9626074}
   m_Layer: 0
   m_Name: StartButtonVisual
   m_TagString: Untagged
@@ -229,21 +231,6 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: -113}
   m_SizeDelta: {x: 280, y: 68}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &9626074
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 9626072}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e19747de3f5aca642ab2be37e372fb86, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_EffectColor: {r: 0.37254903, g: 0.52156866, b: 0.3764706, a: 0.76}
-  m_EffectDistance: {x: 1.2, y: -1.2}
-  m_UseGraphicAlpha: 1
 --- !u!114 &9626075
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -266,6 +253,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 24
   cornerSegments: 12
+  drawStroke: 1
+  strokeColor: {r: 0.37254903, g: 0.52156866, b: 0.3764706, a: 0.76}
+  strokeWidth: 1.2
 --- !u!222 &9626076
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -608,7 +598,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 4280233534
   m_fontColor: {r: 0.24313726, g: 0.18039216, b: 0.12156863, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -621,7 +611,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -735,6 +725,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 3
   cornerSegments: 12
+  drawStroke: 0
+  strokeColor: {r: 0, g: 0, b: 0, a: 0}
+  strokeWidth: 0
 --- !u!222 &35838853
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -1129,7 +1122,6 @@ GameObject:
   - component: {fileID: 134761936}
   - component: {fileID: 134761939}
   - component: {fileID: 134761938}
-  - component: {fileID: 134761937}
   m_Layer: 0
   m_Name: RecommendationRibbon
   m_TagString: Untagged
@@ -1157,21 +1149,6 @@ RectTransform:
   m_AnchoredPosition: {x: -115, y: 136}
   m_SizeDelta: {x: 94, y: 26}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &134761937
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 134761935}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e19747de3f5aca642ab2be37e372fb86, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_EffectColor: {r: 0.70980394, g: 0.4509804, b: 0.15294118, a: 0.5}
-  m_EffectDistance: {x: 1, y: -1}
-  m_UseGraphicAlpha: 1
 --- !u!114 &134761938
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1194,6 +1171,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 13
   cornerSegments: 12
+  drawStroke: 0
+  strokeColor: {r: 0, g: 0, b: 0, a: 0}
+  strokeWidth: 0
 --- !u!222 &134761939
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -1477,7 +1457,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 4282275178
   m_fontColor: {r: 0.41568628, g: 0.33333334, b: 0.24313726, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -1490,7 +1470,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -1611,7 +1591,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 4280233534
   m_fontColor: {r: 0.24313726, g: 0.18039216, b: 0.12156863, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -1624,7 +1604,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -1745,7 +1725,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 4280233534
   m_fontColor: {r: 0.24313726, g: 0.18039216, b: 0.12156863, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -1758,7 +1738,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -2194,7 +2174,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 4280233534
   m_fontColor: {r: 0.24313726, g: 0.18039216, b: 0.12156863, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -2207,7 +2187,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -2321,6 +2301,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 3.5
   cornerSegments: 12
+  drawStroke: 0
+  strokeColor: {r: 0, g: 0, b: 0, a: 0}
+  strokeWidth: 0
 --- !u!222 &282849060
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -2463,7 +2446,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 4282275178
   m_fontColor: {r: 0.41568628, g: 0.33333334, b: 0.24313726, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -2476,7 +2459,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -2542,7 +2525,6 @@ GameObject:
   - component: {fileID: 347447819}
   - component: {fileID: 347447825}
   - component: {fileID: 347447824}
-  - component: {fileID: 347447823}
   - component: {fileID: 347447822}
   - component: {fileID: 347447821}
   - component: {fileID: 347447820}
@@ -2677,21 +2659,6 @@ MonoBehaviour:
           m_StringArgument: 
           m_BoolArgument: 0
         m_CallState: 2
---- !u!114 &347447823
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 347447818}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e19747de3f5aca642ab2be37e372fb86, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_EffectColor: {r: 0.7882353, g: 0.6627451, b: 0.41568628, a: 0.66}
-  m_EffectDistance: {x: 1.2, y: -1.2}
-  m_UseGraphicAlpha: 1
 --- !u!114 &347447824
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2714,6 +2681,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 26
   cornerSegments: 10
+  drawStroke: 1
+  strokeColor: {r: 0.7882353, g: 0.6627451, b: 0.41568628, a: 0.66}
+  strokeWidth: 1.2
 --- !u!222 &347447825
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -3001,6 +2971,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 2.5
   cornerSegments: 12
+  drawStroke: 0
+  strokeColor: {r: 0, g: 0, b: 0, a: 0}
+  strokeWidth: 0
 --- !u!222 &423803779
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -3020,7 +2993,6 @@ GameObject:
   - component: {fileID: 433740094}
   - component: {fileID: 433740097}
   - component: {fileID: 433740096}
-  - component: {fileID: 433740095}
   m_Layer: 0
   m_Name: BottomDock
   m_TagString: Untagged
@@ -3049,21 +3021,6 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: -230}
   m_SizeDelta: {x: 824, y: 72}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &433740095
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 433740093}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e19747de3f5aca642ab2be37e372fb86, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_EffectColor: {r: 0.7882353, g: 0.6627451, b: 0.41568628, a: 0.46}
-  m_EffectDistance: {x: 1, y: -1}
-  m_UseGraphicAlpha: 1
 --- !u!114 &433740096
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3086,6 +3043,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 28
   cornerSegments: 12
+  drawStroke: 1
+  strokeColor: {r: 0.7882353, g: 0.6627451, b: 0.41568628, a: 0.46}
+  strokeWidth: 1
 --- !u!222 &433740097
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -3105,7 +3065,6 @@ GameObject:
   - component: {fileID: 490553762}
   - component: {fileID: 490553765}
   - component: {fileID: 490553764}
-  - component: {fileID: 490553763}
   m_Layer: 0
   m_Name: Background
   m_TagString: Untagged
@@ -3132,21 +3091,6 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 338, y: 310}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &490553763
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 490553761}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e19747de3f5aca642ab2be37e372fb86, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_EffectColor: {r: 0.83137256, g: 0.56078434, b: 0.22745098, a: 0.72}
-  m_EffectDistance: {x: 1.5, y: -1.5}
-  m_UseGraphicAlpha: 1
 --- !u!114 &490553764
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3169,6 +3113,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 27
   cornerSegments: 12
+  drawStroke: 1
+  strokeColor: {r: 0.83137256, g: 0.56078434, b: 0.22745098, a: 0.72}
+  strokeWidth: 1.5
 --- !u!222 &490553765
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -3310,6 +3257,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 22
   cornerSegments: 10
+  drawStroke: 0
+  strokeColor: {r: 0, g: 0, b: 0, a: 0}
+  strokeWidth: 0
 --- !u!222 &495819418
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -3404,7 +3354,6 @@ GameObject:
   - component: {fileID: 511635537}
   - component: {fileID: 511635540}
   - component: {fileID: 511635539}
-  - component: {fileID: 511635538}
   m_Layer: 0
   m_Name: DurationPill
   m_TagString: Untagged
@@ -3433,21 +3382,6 @@ RectTransform:
   m_AnchoredPosition: {x: -49, y: 0}
   m_SizeDelta: {x: 112, y: 32}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &511635538
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 511635536}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e19747de3f5aca642ab2be37e372fb86, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_EffectColor: {r: 0.7882353, g: 0.6627451, b: 0.41568628, a: 0.42}
-  m_EffectDistance: {x: 0.7, y: -0.7}
-  m_UseGraphicAlpha: 1
 --- !u!114 &511635539
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -3470,6 +3404,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 16
   cornerSegments: 12
+  drawStroke: 0
+  strokeColor: {r: 0, g: 0, b: 0, a: 0}
+  strokeWidth: 0
 --- !u!222 &511635540
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -3815,7 +3752,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 4282275178
   m_fontColor: {r: 0.41568628, g: 0.33333334, b: 0.24313726, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -3828,7 +3765,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -4219,6 +4156,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 28
   cornerSegments: 12
+  drawStroke: 0
+  strokeColor: {r: 0, g: 0, b: 0, a: 0}
+  strokeWidth: 0
 --- !u!222 &569909231
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -4238,7 +4178,6 @@ GameObject:
   - component: {fileID: 578924541}
   - component: {fileID: 578924544}
   - component: {fileID: 578924543}
-  - component: {fileID: 578924542}
   m_Layer: 0
   m_Name: IconContainer
   m_TagString: Untagged
@@ -4266,21 +4205,6 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 88}
   m_SizeDelta: {x: 82, y: 82}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &578924542
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 578924540}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e19747de3f5aca642ab2be37e372fb86, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_EffectColor: {r: 0.37254903, g: 0.52156866, b: 0.3764706, a: 0.46}
-  m_EffectDistance: {x: 1, y: -1}
-  m_UseGraphicAlpha: 1
 --- !u!114 &578924543
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -4303,6 +4227,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 41
   cornerSegments: 12
+  drawStroke: 1
+  strokeColor: {r: 0.37254903, g: 0.52156866, b: 0.3764706, a: 0.46}
+  strokeWidth: 1
 --- !u!222 &578924544
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -4593,7 +4520,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 4280233534
   m_fontColor: {r: 0.24313726, g: 0.18039216, b: 0.12156863, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -4606,7 +4533,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -4802,6 +4729,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 42
   cornerSegments: 12
+  drawStroke: 0
+  strokeColor: {r: 0, g: 0, b: 0, a: 0}
+  strokeWidth: 0
 --- !u!222 &753659854
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -4937,6 +4867,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 1.5
   cornerSegments: 8
+  drawStroke: 0
+  strokeColor: {r: 0, g: 0, b: 0, a: 0}
+  strokeWidth: 0
 --- !u!222 &763149770
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -4993,7 +4926,6 @@ GameObject:
   - component: {fileID: 792636393}
   - component: {fileID: 792636396}
   - component: {fileID: 792636395}
-  - component: {fileID: 792636394}
   m_Layer: 0
   m_Name: IntensityPill
   m_TagString: Untagged
@@ -5021,21 +4953,6 @@ RectTransform:
   m_AnchoredPosition: {x: 62, y: 0}
   m_SizeDelta: {x: 94, y: 32}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &792636394
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 792636392}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e19747de3f5aca642ab2be37e372fb86, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_EffectColor: {r: 0.37254903, g: 0.52156866, b: 0.3764706, a: 0.48}
-  m_EffectDistance: {x: 0.7, y: -0.7}
-  m_UseGraphicAlpha: 1
 --- !u!114 &792636395
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5058,6 +4975,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 16
   cornerSegments: 12
+  drawStroke: 0
+  strokeColor: {r: 0, g: 0, b: 0, a: 0}
+  strokeWidth: 0
 --- !u!222 &792636396
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -5125,6 +5045,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 1.5
   cornerSegments: 8
+  drawStroke: 0
+  strokeColor: {r: 0, g: 0, b: 0, a: 0}
+  strokeWidth: 0
 --- !u!222 &795216751
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -5464,7 +5387,6 @@ GameObject:
   - component: {fileID: 840224834}
   - component: {fileID: 840224837}
   - component: {fileID: 840224836}
-  - component: {fileID: 840224835}
   m_Layer: 0
   m_Name: RiceWarmEdge
   m_TagString: Untagged
@@ -5491,21 +5413,6 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 4}
   m_SizeDelta: {x: 826, y: 486}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &840224835
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 840224833}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e19747de3f5aca642ab2be37e372fb86, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_EffectColor: {r: 0.7882353, g: 0.6627451, b: 0.41568628, a: 0.16}
-  m_EffectDistance: {x: 0.8, y: -0.8}
-  m_UseGraphicAlpha: 1
 --- !u!114 &840224836
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -5528,6 +5435,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 28
   cornerSegments: 12
+  drawStroke: 0
+  strokeColor: {r: 0, g: 0, b: 0, a: 0}
+  strokeWidth: 0
 --- !u!222 &840224837
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -5614,6 +5524,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 22
   cornerSegments: 10
+  drawStroke: 0
+  strokeColor: {r: 0, g: 0, b: 0, a: 0}
+  strokeWidth: 0
 --- !u!222 &857290645
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -5681,6 +5594,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 1.5
   cornerSegments: 8
+  drawStroke: 0
+  strokeColor: {r: 0, g: 0, b: 0, a: 0}
+  strokeWidth: 0
 --- !u!222 &861903551
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -6393,6 +6309,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 49
   cornerSegments: 12
+  drawStroke: 0
+  strokeColor: {r: 0, g: 0, b: 0, a: 0}
+  strokeWidth: 0
 --- !u!222 &930330085
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -6467,7 +6386,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 4282275178
   m_fontColor: {r: 0.41568628, g: 0.33333334, b: 0.24313726, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -6480,7 +6399,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -6546,7 +6465,6 @@ GameObject:
   - component: {fileID: 980472171}
   - component: {fileID: 980472174}
   - component: {fileID: 980472173}
-  - component: {fileID: 980472172}
   m_Layer: 0
   m_Name: IntensityPill
   m_TagString: Untagged
@@ -6574,21 +6492,6 @@ RectTransform:
   m_AnchoredPosition: {x: 62, y: 0}
   m_SizeDelta: {x: 94, y: 32}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &980472172
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 980472170}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e19747de3f5aca642ab2be37e372fb86, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_EffectColor: {r: 0.83137256, g: 0.56078434, b: 0.22745098, a: 0.48}
-  m_EffectDistance: {x: 0.7, y: -0.7}
-  m_UseGraphicAlpha: 1
 --- !u!114 &980472173
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6611,6 +6514,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 16
   cornerSegments: 12
+  drawStroke: 0
+  strokeColor: {r: 0, g: 0, b: 0, a: 0}
+  strokeWidth: 0
 --- !u!222 &980472174
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -6678,6 +6584,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 1.5
   cornerSegments: 12
+  drawStroke: 0
+  strokeColor: {r: 0, g: 0, b: 0, a: 0}
+  strokeWidth: 0
 --- !u!222 &1018460140
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -6744,7 +6653,6 @@ GameObject:
   - component: {fileID: 1104584936}
   - component: {fileID: 1104584939}
   - component: {fileID: 1104584938}
-  - component: {fileID: 1104584937}
   m_Layer: 0
   m_Name: Background
   m_TagString: Untagged
@@ -6771,21 +6679,6 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 338, y: 310}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &1104584937
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1104584935}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e19747de3f5aca642ab2be37e372fb86, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_EffectColor: {r: 0.7882353, g: 0.6627451, b: 0.41568628, a: 0.72}
-  m_EffectDistance: {x: 1.5, y: -1.5}
-  m_UseGraphicAlpha: 1
 --- !u!114 &1104584938
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -6808,6 +6701,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 27
   cornerSegments: 12
+  drawStroke: 1
+  strokeColor: {r: 0.7882353, g: 0.6627451, b: 0.41568628, a: 0.72}
+  strokeWidth: 1.5
 --- !u!222 &1104584939
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -7016,7 +6912,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 4280233534
   m_fontColor: {r: 0.24313726, g: 0.18039216, b: 0.12156863, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -7029,7 +6925,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -7143,6 +7039,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 4
   cornerSegments: 12
+  drawStroke: 0
+  strokeColor: {r: 0, g: 0, b: 0, a: 0}
+  strokeWidth: 0
 --- !u!222 &1132133789
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -7162,7 +7061,6 @@ GameObject:
   - component: {fileID: 1135686568}
   - component: {fileID: 1135686571}
   - component: {fileID: 1135686570}
-  - component: {fileID: 1135686569}
   m_Layer: 0
   m_Name: RecommendationRibbon
   m_TagString: Untagged
@@ -7190,21 +7088,6 @@ RectTransform:
   m_AnchoredPosition: {x: -115, y: 136}
   m_SizeDelta: {x: 94, y: 26}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &1135686569
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1135686567}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e19747de3f5aca642ab2be37e372fb86, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_EffectColor: {r: 0.70980394, g: 0.4509804, b: 0.15294118, a: 0.5}
-  m_EffectDistance: {x: 1, y: -1}
-  m_UseGraphicAlpha: 1
 --- !u!114 &1135686570
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -7227,6 +7110,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 13
   cornerSegments: 12
+  drawStroke: 0
+  strokeColor: {r: 0, g: 0, b: 0, a: 0}
+  strokeWidth: 0
 --- !u!222 &1135686571
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -7301,7 +7187,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 4280233534
   m_fontColor: {r: 0.24313726, g: 0.18039216, b: 0.12156863, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -7314,7 +7200,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -7551,7 +7437,6 @@ GameObject:
   - component: {fileID: 1193208813}
   - component: {fileID: 1193208816}
   - component: {fileID: 1193208815}
-  - component: {fileID: 1193208814}
   m_Layer: 0
   m_Name: InnerRice
   m_TagString: Untagged
@@ -7578,21 +7463,6 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 322, y: 294}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &1193208814
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1193208812}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e19747de3f5aca642ab2be37e372fb86, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_EffectColor: {r: 0.7882353, g: 0.6627451, b: 0.41568628, a: 0.14}
-  m_EffectDistance: {x: 0.7, y: -0.7}
-  m_UseGraphicAlpha: 1
 --- !u!114 &1193208815
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -7615,6 +7485,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 22
   cornerSegments: 12
+  drawStroke: 0
+  strokeColor: {r: 0, g: 0, b: 0, a: 0}
+  strokeWidth: 0
 --- !u!222 &1193208816
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -7823,7 +7696,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 4280233534
   m_fontColor: {r: 0.24313726, g: 0.18039216, b: 0.12156863, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -7836,7 +7709,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -8057,6 +7930,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 28
   cornerSegments: 12
+  drawStroke: 0
+  strokeColor: {r: 0, g: 0, b: 0, a: 0}
+  strokeWidth: 0
 --- !u!222 &1273649231
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -8278,6 +8154,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 32
   cornerSegments: 12
+  drawStroke: 0
+  strokeColor: {r: 0, g: 0, b: 0, a: 0}
+  strokeWidth: 0
 --- !u!222 &1279731284
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -8431,7 +8310,6 @@ GameObject:
   - component: {fileID: 1298326374}
   - component: {fileID: 1298326377}
   - component: {fileID: 1298326376}
-  - component: {fileID: 1298326375}
   m_Layer: 0
   m_Name: IconContainer
   m_TagString: Untagged
@@ -8459,21 +8337,6 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 88}
   m_SizeDelta: {x: 82, y: 82}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &1298326375
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1298326373}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e19747de3f5aca642ab2be37e372fb86, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_EffectColor: {r: 0.83137256, g: 0.56078434, b: 0.22745098, a: 0.46}
-  m_EffectDistance: {x: 1, y: -1}
-  m_UseGraphicAlpha: 1
 --- !u!114 &1298326376
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -8496,6 +8359,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 41
   cornerSegments: 12
+  drawStroke: 1
+  strokeColor: {r: 0.83137256, g: 0.56078434, b: 0.22745098, a: 0.46}
+  strokeWidth: 1
 --- !u!222 &1298326377
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -8734,6 +8600,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 1.5
   cornerSegments: 8
+  drawStroke: 0
+  strokeColor: {r: 0, g: 0, b: 0, a: 0}
+  strokeWidth: 0
 --- !u!222 &1325757677
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -8951,6 +8820,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 1
   cornerSegments: 8
+  drawStroke: 0
+  strokeColor: {r: 0, g: 0, b: 0, a: 0}
+  strokeWidth: 0
 --- !u!222 &1366663860
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -9039,6 +8911,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 32
   cornerSegments: 12
+  drawStroke: 0
+  strokeColor: {r: 0, g: 0, b: 0, a: 0}
+  strokeWidth: 0
 --- !u!222 &1368577447
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -9106,6 +8981,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 49
   cornerSegments: 12
+  drawStroke: 0
+  strokeColor: {r: 0, g: 0, b: 0, a: 0}
+  strokeWidth: 0
 --- !u!222 &1403291227
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -9173,6 +9051,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 1.5
   cornerSegments: 8
+  drawStroke: 0
+  strokeColor: {r: 0, g: 0, b: 0, a: 0}
+  strokeWidth: 0
 --- !u!222 &1418416541
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -9341,6 +9222,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 22
   cornerSegments: 10
+  drawStroke: 0
+  strokeColor: {r: 0, g: 0, b: 0, a: 0}
+  strokeWidth: 0
 --- !u!222 &1461957194
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -9487,7 +9371,6 @@ GameObject:
   - component: {fileID: 1489313746}
   - component: {fileID: 1489313749}
   - component: {fileID: 1489313748}
-  - component: {fileID: 1489313747}
   m_Layer: 0
   m_Name: WoodFrame
   m_TagString: Untagged
@@ -9514,21 +9397,6 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 892, y: 552}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &1489313747
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1489313745}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e19747de3f5aca642ab2be37e372fb86, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_EffectColor: {r: 0.7764706, g: 0.6901961, b: 0.52156866, a: 0.48}
-  m_EffectDistance: {x: 2, y: -2}
-  m_UseGraphicAlpha: 1
 --- !u!114 &1489313748
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -9551,6 +9419,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 44
   cornerSegments: 12
+  drawStroke: 1
+  strokeColor: {r: 0.7764706, g: 0.6901961, b: 0.52156866, a: 0.48}
+  strokeWidth: 2
 --- !u!222 &1489313749
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -9648,7 +9519,6 @@ GameObject:
   - component: {fileID: 1517727935}
   - component: {fileID: 1517727938}
   - component: {fileID: 1517727937}
-  - component: {fileID: 1517727936}
   m_Layer: 0
   m_Name: StartButtonVisual
   m_TagString: Untagged
@@ -9677,21 +9547,6 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: -113}
   m_SizeDelta: {x: 280, y: 68}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &1517727936
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1517727934}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e19747de3f5aca642ab2be37e372fb86, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_EffectColor: {r: 0.83137256, g: 0.56078434, b: 0.22745098, a: 0.76}
-  m_EffectDistance: {x: 1.2, y: -1.2}
-  m_UseGraphicAlpha: 1
 --- !u!114 &1517727937
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -9714,6 +9569,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 24
   cornerSegments: 12
+  drawStroke: 1
+  strokeColor: {r: 0.83137256, g: 0.56078434, b: 0.22745098, a: 0.76}
+  strokeWidth: 1.2
 --- !u!222 &1517727938
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -10459,7 +10317,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 4280233534
   m_fontColor: {r: 0.24313726, g: 0.18039216, b: 0.12156863, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -10472,7 +10330,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -10910,6 +10768,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 20
   cornerSegments: 8
+  drawStroke: 0
+  strokeColor: {r: 0, g: 0, b: 0, a: 0}
+  strokeWidth: 0
 --- !u!222 &1706739188
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -10977,6 +10838,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 31
   cornerSegments: 12
+  drawStroke: 0
+  strokeColor: {r: 0, g: 0, b: 0, a: 0}
+  strokeWidth: 0
 --- !u!222 &1724820075
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -11178,6 +11042,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 38
   cornerSegments: 12
+  drawStroke: 0
+  strokeColor: {r: 0, g: 0, b: 0, a: 0}
+  strokeWidth: 0
 --- !u!222 &1762872992
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -11245,6 +11112,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 31
   cornerSegments: 12
+  drawStroke: 0
+  strokeColor: {r: 0, g: 0, b: 0, a: 0}
+  strokeWidth: 0
 --- !u!222 &1769620555
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -11312,6 +11182,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 4.5
   cornerSegments: 12
+  drawStroke: 0
+  strokeColor: {r: 0, g: 0, b: 0, a: 0}
+  strokeWidth: 0
 --- !u!222 &1771284790
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -11379,6 +11252,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 30
   cornerSegments: 12
+  drawStroke: 0
+  strokeColor: {r: 0, g: 0, b: 0, a: 0}
+  strokeWidth: 0
 --- !u!222 &1784447515
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -11446,6 +11322,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 30
   cornerSegments: 12
+  drawStroke: 0
+  strokeColor: {r: 0, g: 0, b: 0, a: 0}
+  strokeWidth: 0
 --- !u!222 &1805697437
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -11571,7 +11450,6 @@ GameObject:
   - component: {fileID: 1854348421}
   - component: {fileID: 1854348424}
   - component: {fileID: 1854348423}
-  - component: {fileID: 1854348422}
   m_Layer: 0
   m_Name: InnerRice
   m_TagString: Untagged
@@ -11598,21 +11476,6 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 322, y: 294}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &1854348422
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1854348420}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e19747de3f5aca642ab2be37e372fb86, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_EffectColor: {r: 0.7882353, g: 0.6627451, b: 0.41568628, a: 0.14}
-  m_EffectDistance: {x: 0.7, y: -0.7}
-  m_UseGraphicAlpha: 1
 --- !u!114 &1854348423
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -11635,6 +11498,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 22
   cornerSegments: 12
+  drawStroke: 0
+  strokeColor: {r: 0, g: 0, b: 0, a: 0}
+  strokeWidth: 0
 --- !u!222 &1854348424
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -11654,7 +11520,6 @@ GameObject:
   - component: {fileID: 1859252019}
   - component: {fileID: 1859252022}
   - component: {fileID: 1859252021}
-  - component: {fileID: 1859252020}
   m_Layer: 0
   m_Name: RehabTrainingSelectPanel
   m_TagString: Untagged
@@ -11685,21 +11550,6 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &1859252020
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1859252018}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e19747de3f5aca642ab2be37e372fb86, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_EffectColor: {r: 0.38, g: 0.92, b: 1, a: 0.42}
-  m_EffectDistance: {x: 2.5, y: -2.5}
-  m_UseGraphicAlpha: 1
 --- !u!114 &1859252021
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -11707,7 +11557,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1859252018}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: 538917a84f8c445e919fac7edaf4c3cb, type: 3}
   m_Name: 
@@ -11722,6 +11572,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 32
   cornerSegments: 12
+  drawStroke: 0
+  strokeColor: {r: 0, g: 0, b: 0, a: 0}
+  strokeWidth: 0
 --- !u!222 &1859252022
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -11789,6 +11642,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 1
   cornerSegments: 8
+  drawStroke: 0
+  strokeColor: {r: 0, g: 0, b: 0, a: 0}
+  strokeWidth: 0
 --- !u!222 &1869725468
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -11863,7 +11719,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 4280233534
   m_fontColor: {r: 0.24313726, g: 0.18039216, b: 0.12156863, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -11876,7 +11732,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -12113,7 +11969,6 @@ GameObject:
   - component: {fileID: 1920472170}
   - component: {fileID: 1920472173}
   - component: {fileID: 1920472172}
-  - component: {fileID: 1920472171}
   m_Layer: 0
   m_Name: DurationPill
   m_TagString: Untagged
@@ -12142,21 +11997,6 @@ RectTransform:
   m_AnchoredPosition: {x: -49, y: 0}
   m_SizeDelta: {x: 112, y: 32}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &1920472171
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1920472169}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e19747de3f5aca642ab2be37e372fb86, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_EffectColor: {r: 0.7882353, g: 0.6627451, b: 0.41568628, a: 0.42}
-  m_EffectDistance: {x: 0.7, y: -0.7}
-  m_UseGraphicAlpha: 1
 --- !u!114 &1920472172
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -12179,6 +12019,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 16
   cornerSegments: 12
+  drawStroke: 0
+  strokeColor: {r: 0, g: 0, b: 0, a: 0}
+  strokeWidth: 0
 --- !u!222 &1920472173
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -12878,7 +12721,7 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
+    rgba: 4293326331
   m_fontColor: {r: 0.9843137, g: 0.9607843, b: 0.9019608, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
@@ -12891,7 +12734,7 @@ MonoBehaviour:
   m_spriteAsset: {fileID: 0}
   m_tintAllSprites: 0
   m_StyleSheet: {fileID: 0}
-  m_TextStyleHashCode: 0
+  m_TextStyleHashCode: -1183493901
   m_overrideHtmlColors: 0
   m_faceColor:
     serializedVersion: 2
@@ -13150,6 +12993,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 22
   cornerSegments: 10
+  drawStroke: 0
+  strokeColor: {r: 0, g: 0, b: 0, a: 0}
+  strokeWidth: 0
 --- !u!222 &2005363355
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -13700,6 +13546,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 32
   cornerSegments: 12
+  drawStroke: 0
+  strokeColor: {r: 0, g: 0, b: 0, a: 0}
+  strokeWidth: 0
 --- !u!222 &2097787054
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -13767,6 +13616,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 5
   cornerSegments: 12
+  drawStroke: 0
+  strokeColor: {r: 0, g: 0, b: 0, a: 0}
+  strokeWidth: 0
 --- !u!222 &2106662841
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -13834,6 +13686,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 2.5
   cornerSegments: 12
+  drawStroke: 0
+  strokeColor: {r: 0, g: 0, b: 0, a: 0}
+  strokeWidth: 0
 --- !u!222 &2111824121
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -13853,7 +13708,6 @@ GameObject:
   - component: {fileID: 2113504198}
   - component: {fileID: 2113504201}
   - component: {fileID: 2113504200}
-  - component: {fileID: 2113504199}
   m_Layer: 0
   m_Name: RicePaperPanel
   m_TagString: Untagged
@@ -13880,21 +13734,6 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: 5}
   m_SizeDelta: {x: 852, y: 512}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!114 &2113504199
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2113504197}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e19747de3f5aca642ab2be37e372fb86, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: 
-  m_EffectColor: {r: 0.7882353, g: 0.6627451, b: 0.41568628, a: 0.72}
-  m_EffectDistance: {x: 1.5, y: -1.5}
-  m_UseGraphicAlpha: 1
 --- !u!114 &2113504200
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -13917,6 +13756,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 34
   cornerSegments: 12
+  drawStroke: 1
+  strokeColor: {r: 0.7882353, g: 0.6627451, b: 0.41568628, a: 0.72}
+  strokeWidth: 1.5
 --- !u!222 &2113504201
 CanvasRenderer:
   m_ObjectHideFlags: 0
@@ -14058,6 +13900,9 @@ MonoBehaviour:
       m_Calls: []
   cornerRadius: 22
   cornerSegments: 10
+  drawStroke: 0
+  strokeColor: {r: 0, g: 0, b: 0, a: 0}
+  strokeWidth: 0
 --- !u!222 &2133368124
 CanvasRenderer:
   m_ObjectHideFlags: 0

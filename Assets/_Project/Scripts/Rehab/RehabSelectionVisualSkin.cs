@@ -9,7 +9,8 @@ namespace PicoElderCare.Rehab
     {
         public static readonly Vector2 CanvasSize = ElderCareMenuDesignTokens.SecondaryCanvasSize;
         public static readonly Vector2 CardSize = ElderCareMenuDesignTokens.SecondaryTwoCardSize;
-        public const float SelectionRootScale = ElderCareMenuDesignTokens.RehabSelectionRootScale;
+        public const float SelectionWorldScaleCompensation =
+            ElderCareMenuDesignTokens.RehabSelectionWorldScaleCompensation;
 
         public struct MenuElements
         {
@@ -26,6 +27,7 @@ namespace PicoElderCare.Rehab
         public static MenuElements Build(Transform panelTransform, TMP_FontAsset font, Sprite backIcon, Sprite clockIcon, Sprite playIcon)
         {
             if (panelTransform == null) throw new System.ArgumentNullException(nameof(panelTransform));
+            DisableLegacyRootSurface(panelTransform);
             ClearChildren(panelTransform);
 
             var panel = panelTransform as RectTransform;
@@ -90,6 +92,20 @@ namespace PicoElderCare.Rehab
                 taiChiButton = taiChiButton,
                 backButton = backButton
             };
+        }
+
+        private static void DisableLegacyRootSurface(Transform panelTransform)
+        {
+            // Older authored rehab scenes used the page root itself as a dark teal
+            // background. The shared warm frame now owns the complete visible
+            // surface, so leaving that Graphic enabled exposes a colored rim around
+            // the new frame. Keep the page/root Transform intact and suppress only
+            // the obsolete visual component.
+            var legacySurface = panelTransform.GetComponent<ElderCareRoundedPanel>();
+            if (legacySurface == null) return;
+
+            legacySurface.enabled = false;
+            legacySurface.raycastTarget = false;
         }
 
         private static void ClearChildren(Transform root)

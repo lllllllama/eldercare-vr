@@ -88,10 +88,10 @@ namespace PicoElderCare.Rehab
             CreatePanel(transform, "PanelShadow", PanelSize + new Vector2(44f, 36f), new Vector2(0f, 12f), ElderCareMenuDesignTokens.WarmShadow, 46f, false);
 
             var panel = CreatePanel(transform, "Panel", PanelSize, new Vector2(0f, 34f), ElderCareMenuDesignTokens.Wood, 42f, false);
-            AddOutline(panel.gameObject, ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.WoodDark, 0.52f), new Vector2(2f, -2f));
+            ConfigureNativeStroke(panel, ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.WoodDark, 0.52f), 2f);
             CreatePanel(panel.transform, "WoodWarmLayer", PanelSize - new Vector2(16f, 16f), new Vector2(0f, 1f), ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.RiceMid, 0.26f), 36f, false);
-            CreatePanel(panel.transform, "RicePaperPanel", PanelSize - new Vector2(36f, 36f), new Vector2(0f, 3f), ElderCareMenuDesignTokens.RiceLight, 32f, false);
-            AddOutline(panel.transform.Find("RicePaperPanel").gameObject, ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.GoldStroke, 0.68f), new Vector2(1.4f, -1.4f));
+            var ricePaperPanel = CreatePanel(panel.transform, "RicePaperPanel", PanelSize - new Vector2(36f, 36f), new Vector2(0f, 3f), ElderCareMenuDesignTokens.RiceLight, 32f, false);
+            ConfigureNativeStroke(ricePaperPanel, ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.GoldStroke, 0.68f), 1.4f);
             CreatePanel(panel.transform, "RiceWarmEdge", PanelSize - new Vector2(58f, 58f), new Vector2(0f, 3f), ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.RiceMid, 0.24f), 27f, false);
 
             CreateTopBar(panel.transform);
@@ -119,7 +119,7 @@ namespace PicoElderCare.Rehab
             CreatePanel(parent, "WarmRoomGlow", new Vector2(840f, 500f), new Vector2(-252f, 156f), RoomWarmGlow, 270f, false);
             CreatePanel(parent, "Floor", new Vector2(CanvasSize.x, 185f), new Vector2(0f, -238f), new Color(0.48f, 0.36f, 0.24f, 0.08f), 0f, false);
             CreatePanel(parent, "Window", new Vector2(228f, 172f), new Vector2(360f, 164f), new Color(0.9f, 0.86f, 0.72f, 0.08f), 10f, false);
-            AddOutline(parent.Find("Window").gameObject, new Color(0.2f, 0.16f, 0.12f, 0.10f), new Vector2(8f, -8f));
+            AddLegacyDecorShadow(parent.Find("Window").gameObject, new Color(0.2f, 0.16f, 0.12f, 0.10f), new Vector2(8f, -8f));
             CreatePanel(parent, "Sofa", new Vector2(340f, 150f), new Vector2(-360f, -244f), new Color(0.48f, 0.42f, 0.33f, 0.07f), 44f, false);
             CreatePanel(parent, "Plant", new Vector2(80f, 170f), new Vector2(382f, -222f), new Color(0.18f, 0.35f, 0.15f, 0.09f), 34f, false);
         }
@@ -153,12 +153,12 @@ namespace PicoElderCare.Rehab
 
             var surfaceColor = enabled ? ElderCareMenuDesignTokens.Card : Color.Lerp(ElderCareMenuDesignTokens.Card, ElderCareMenuDesignTokens.RiceMid, 0.36f);
             var surface = CreatePanel(rect, "Surface", CardSize, Vector2.zero, surfaceColor, 28f, true);
-            AddOutline(surface.gameObject, ElderCareMenuDesignTokens.WithAlpha(enabled ? accent : ElderCareMenuDesignTokens.GoldStroke, enabled ? 0.52f : 0.28f), new Vector2(1.5f, -1.5f));
+            ConfigureNativeStroke(surface, ElderCareMenuDesignTokens.WithAlpha(enabled ? accent : ElderCareMenuDesignTokens.GoldStroke, enabled ? 0.52f : 0.28f), 1.5f);
             CreatePanel(rect, "InnerRice", CardSize - new Vector2(16f, 16f), Vector2.zero, ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.RiceLight, 0.38f), 22f, false);
 
             CreatePanel(rect, "IconHalo", new Vector2(96f, 96f), new Vector2(0f, 66f), ElderCareMenuDesignTokens.WithAlpha(accent, enabled ? 0.18f : 0.10f), 48f, false);
-            CreatePanel(rect, "IconContainer", new Vector2(82f, 82f), new Vector2(0f, 66f), ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.RiceLight, 0.96f), 41f, false);
-            AddOutline(rect.Find("IconContainer").gameObject, ElderCareMenuDesignTokens.WithAlpha(accent, 0.42f), new Vector2(1f, -1f));
+            var iconContainer = CreatePanel(rect, "IconContainer", new Vector2(82f, 82f), new Vector2(0f, 66f), ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.RiceLight, 0.96f), 41f, false);
+            ConfigureNativeStroke(iconContainer, ElderCareMenuDesignTokens.WithAlpha(accent, 0.42f), 1f);
             CreateSvgIcon(rect, "HeroIcon", iconResource, iconType, new Vector2(72f, 72f), new Vector2(0f, 66f), enabled ? 1f : 0.72f);
             CreateText(rect, "Title", title, new Vector2(194f, 38f), new Vector2(0f, 4f), 30f, FontStyles.Bold, TextAlignmentOptions.Center, enabled ? ElderCareMenuDesignTokens.TextPrimary : ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.TextPrimary, 0.72f));
             CreateText(rect, "Description", description, new Vector2(194f, 30f), new Vector2(0f, -34f), 18f, FontStyles.Bold, TextAlignmentOptions.Center, enabled ? ElderCareMenuDesignTokens.TextSecondary : ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.TextSecondary, 0.68f));
@@ -166,8 +166,8 @@ namespace PicoElderCare.Rehab
             var ctaFill = enabled
                 ? Color.Lerp(ElderCareMenuDesignTokens.RiceLight, accent, 0.42f)
                 : ElderCareMenuDesignTokens.RiceMid;
-            CreatePanel(rect, "StatusPanel", new Vector2(178f, 42f), new Vector2(0f, -91f), ctaFill, 20f, false);
-            AddOutline(rect.Find("StatusPanel").gameObject, ElderCareMenuDesignTokens.WithAlpha(enabled ? accent : ElderCareMenuDesignTokens.GoldStroke, 0.52f), new Vector2(1f, -1f));
+            var statusPanel = CreatePanel(rect, "StatusPanel", new Vector2(178f, 42f), new Vector2(0f, -91f), ctaFill, 20f, false);
+            ConfigureNativeStroke(statusPanel, ElderCareMenuDesignTokens.WithAlpha(enabled ? accent : ElderCareMenuDesignTokens.GoldStroke, 0.52f), 1f);
             CreateText(rect, "Status", status, new Vector2(170f, 36f), new Vector2(0f, -91f), 18f, FontStyles.Bold, TextAlignmentOptions.Center, ElderCareMenuDesignTokens.TextPrimary);
 
             var button = go.AddComponent<Button>();
@@ -224,7 +224,7 @@ namespace PicoElderCare.Rehab
             var bar = CreateUiObject("SafeBar", parent);
             ConfigureRect(bar, new Vector2(626f, 62f), new Vector2(0f, -172f));
             var background = CreatePanel(bar.transform, "Background", new Vector2(626f, 62f), Vector2.zero, ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.RiceMid, 0.92f), 28f, false);
-            AddOutline(background.gameObject, ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.GoldStroke, 0.46f), new Vector2(1f, -1f));
+            ConfigureNativeStroke(background, ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.GoldStroke, 0.46f), 1f);
             CreateSafeButton(bar.transform, "Settings", ElderCareIconType.Gear, "设置", new Vector2(-218f, 0f));
             CreateSafeButton(bar.transform, "Health", ElderCareIconType.User, "我的健康", Vector2.zero);
             CreateSafeButton(bar.transform, "Rank", ElderCareIconType.Trophy, "排行榜", new Vector2(218f, 0f));
@@ -266,7 +266,7 @@ namespace PicoElderCare.Rehab
             var go = CreateUiObject(name, parent);
             ConfigureRect(go, size, position);
             var graphic = CreatePanel(go.transform, "Surface", size, Vector2.zero, enabled ? ElderCareMenuDesignTokens.CardHighlight : ElderCareMenuDesignTokens.Card, size.y * 0.5f, true);
-            AddOutline(graphic.gameObject, ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.GoldStroke, enabled ? 0.64f : 0.34f), new Vector2(1.5f, -1.5f));
+            ConfigureNativeStroke(graphic, ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.GoldStroke, enabled ? 0.64f : 0.34f), 1.5f);
             CreateText(go.transform, "Label", label, new Vector2(size.x - 58f, size.y - 6f), new Vector2(26f, 0f), 22f, FontStyles.Bold, TextAlignmentOptions.Center, enabled ? ElderCareMenuDesignTokens.TextPrimary : ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.TextPrimary, 0.72f));
             var button = go.AddComponent<Button>();
             button.targetGraphic = graphic;
@@ -280,7 +280,7 @@ namespace PicoElderCare.Rehab
             var go = CreateUiObject(name, parent);
             ConfigureRect(go, new Vector2(62f, 62f), position);
             var surface = CreatePanel(go.transform, "Surface", new Vector2(62f, 62f), Vector2.zero, ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.RiceMid, 0.86f), 31f, true);
-            AddOutline(surface.gameObject, ElderCareMenuDesignTokens.WithAlpha(accent, 0.34f), new Vector2(1.5f, -1.5f));
+            ConfigureNativeStroke(surface, ElderCareMenuDesignTokens.WithAlpha(accent, 0.34f), 1.5f);
             CreateLineIcon(go.transform, "Icon", iconType, new Vector2(26f, 26f), Vector2.zero, ElderCareMenuDesignTokens.TextPrimary, 3f);
 
             var button = go.AddComponent<Button>();
@@ -508,7 +508,14 @@ namespace PicoElderCare.Rehab
             return go;
         }
 
-        private static void AddOutline(GameObject go, Color color, Vector2 distance)
+        private static void ConfigureNativeStroke(ElderCareRoundedPanel panel, Color color, float width)
+        {
+            ElderCareMenuPanelBuilder.ConfigureNativeStroke(panel, color, width);
+        }
+
+        // This is an environmental drop shadow, not a rounded surface border. It is
+        // intentionally the only Outline retained by the current MainEntry skin.
+        private static void AddLegacyDecorShadow(GameObject go, Color color, Vector2 distance)
         {
             var outline = go.AddComponent<Outline>();
             outline.effectColor = color;

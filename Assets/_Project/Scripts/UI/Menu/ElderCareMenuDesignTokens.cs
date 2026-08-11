@@ -33,7 +33,14 @@ namespace PicoElderCare.UI
         public static readonly Vector2 MainEntrySafeButtonSize = new Vector2(190f, 56f);
 
         public const float SecondaryCanvasWorldScale = 0.00165f;
-        public const float RehabSelectionRootScale = 0.825f;
+        public const float RehabPromptCanvasWorldScale = 0.002f;
+
+        // Rehab selection shares the legacy 680x432 RehabPromptCanvas, while its
+        // design space is the same 900x560 space used by HealthGameMenu. Compensate
+        // only at SelectionPanelRoot so its effective world scale remains 0.00165:
+        // 0.00165 / 0.002 = 0.825.
+        public const float RehabSelectionWorldScaleCompensation =
+            SecondaryCanvasWorldScale / RehabPromptCanvasWorldScale;
         public const float PanelRadius = 44f;
         public const float CardRadius = 28f;
         public const float IconHaloSize = 98f;

@@ -53,20 +53,20 @@ namespace PicoElderCare.UI
 
             var content = ElderCareMenuPanelBuilder.CreateRect("Content", card, size, Vector2.zero);
             ElderCareMenuPanelBuilder.ConfigureStretch(content);
-            var glow = ElderCareMenuPanelBuilder.CreateRounded(content, "HoverGlow", size + new Vector2(20f, 18f), new Vector2(0f, -1f), ElderCareMenuDesignTokens.WithAlpha(spec.Accent, 0.025f), 31f, Color.clear, Vector2.zero);
-            ElderCareMenuPanelBuilder.CreateRounded(content, "Shadow", size + new Vector2(14f, 14f), new Vector2(0f, -7f), ElderCareMenuDesignTokens.WarmShadow, 30f, Color.clear, Vector2.zero);
+            var glow = ElderCareMenuPanelBuilder.CreateRounded(content, "HoverGlow", size + new Vector2(20f, 18f), new Vector2(0f, -1f), ElderCareMenuDesignTokens.WithAlpha(spec.Accent, 0.025f), 31f, Color.clear, 0f);
+            ElderCareMenuPanelBuilder.CreateRounded(content, "Shadow", size + new Vector2(14f, 14f), new Vector2(0f, -7f), ElderCareMenuDesignTokens.WarmShadow, 30f, Color.clear, 0f);
             var baseColor = spec.Recommended ? ElderCareMenuDesignTokens.CardHighlight : ElderCareMenuDesignTokens.Card;
-            var surface = ElderCareMenuPanelBuilder.CreateRounded(content, "Background", size - new Vector2(2f, 2f), Vector2.zero, baseColor, 27f, ElderCareMenuDesignTokens.WithAlpha(spec.Recommended ? ElderCareMenuDesignTokens.Amber : ElderCareMenuDesignTokens.GoldStroke, 0.72f), new Vector2(1.5f, -1.5f));
-            ElderCareMenuPanelBuilder.CreateRounded(content, "InnerRice", size - new Vector2(18f, 18f), Vector2.zero, ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.RiceLight, 0.34f), 22f, ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.GoldStroke, 0.14f), new Vector2(0.7f, -0.7f));
-            var edge = ElderCareMenuPanelBuilder.CreateRounded(content, "SideAccent", new Vector2(5f, size.y - 72f), new Vector2(-size.x * 0.5f + 15f, -5f), ElderCareMenuDesignTokens.WithAlpha(spec.Accent, 0.48f), 2.5f, Color.clear, Vector2.zero);
+            var surface = ElderCareMenuPanelBuilder.CreateRounded(content, "Background", size - new Vector2(2f, 2f), Vector2.zero, baseColor, 27f, ElderCareMenuDesignTokens.WithAlpha(spec.Recommended ? ElderCareMenuDesignTokens.Amber : ElderCareMenuDesignTokens.GoldStroke, 0.72f), 1.5f);
+            ElderCareMenuPanelBuilder.CreateRounded(content, "InnerRice", size - new Vector2(18f, 18f), Vector2.zero, ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.RiceLight, 0.34f), 22f, Color.clear, 0f);
+            var edge = ElderCareMenuPanelBuilder.CreateRounded(content, "SideAccent", new Vector2(5f, size.y - 72f), new Vector2(-size.x * 0.5f + 15f, -5f), ElderCareMenuDesignTokens.WithAlpha(spec.Accent, 0.48f), 2.5f, Color.clear, 0f);
 
             var iconPosition = new Vector2(0f, 88f);
-            ElderCareMenuPanelBuilder.CreateRounded(content, "IconHalo", new Vector2(ElderCareMenuDesignTokens.IconHaloSize, ElderCareMenuDesignTokens.IconHaloSize), iconPosition, ElderCareMenuDesignTokens.WithAlpha(spec.Accent, spec.Recommended ? 0.20f : 0.15f), ElderCareMenuDesignTokens.IconHaloSize * 0.5f, Color.clear, Vector2.zero);
-            var iconContainer = ElderCareMenuPanelBuilder.CreateRounded(content, "IconContainer", new Vector2(82f, 82f), iconPosition, ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.RiceLight, 0.97f), 41f, ElderCareMenuDesignTokens.WithAlpha(spec.Accent, 0.46f), new Vector2(1f, -1f));
+            ElderCareMenuPanelBuilder.CreateRounded(content, "IconHalo", new Vector2(ElderCareMenuDesignTokens.IconHaloSize, ElderCareMenuDesignTokens.IconHaloSize), iconPosition, ElderCareMenuDesignTokens.WithAlpha(spec.Accent, spec.Recommended ? 0.20f : 0.15f), ElderCareMenuDesignTokens.IconHaloSize * 0.5f, Color.clear, 0f);
+            var iconContainer = ElderCareMenuPanelBuilder.CreateRounded(content, "IconContainer", new Vector2(82f, 82f), iconPosition, ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.RiceLight, 0.97f), 41f, ElderCareMenuDesignTokens.WithAlpha(spec.Accent, 0.46f), 1f);
             BuildHeroIcon(iconContainer.rectTransform, spec);
 
             var ribbonX = -size.x * 0.5f + 55f;
-            var ribbon = ElderCareMenuPanelBuilder.CreateRounded(content, "RecommendationRibbon", new Vector2(94f, 26f), new Vector2(ribbonX, 136f), ElderCareMenuDesignTokens.Amber, 13f, ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.GoldDeep, 0.50f), new Vector2(1f, -1f));
+            var ribbon = ElderCareMenuPanelBuilder.CreateRounded(content, "RecommendationRibbon", new Vector2(94f, 26f), new Vector2(ribbonX, 136f), ElderCareMenuDesignTokens.Amber, 13f, Color.clear, 0f);
             ElderCareMenuPanelBuilder.CreateText(ribbon.rectTransform, "Label", "今日推荐", new Vector2(88f, 24f), Vector2.zero, 13f, FontStyles.Bold, ElderCareMenuDesignTokens.RiceLight, font);
             ribbon.gameObject.SetActive(spec.Recommended);
 
@@ -75,15 +75,15 @@ namespace PicoElderCare.UI
 
             var metadataWidth = Mathf.Min(size.x - 26f, 280f);
             var metadata = ElderCareMenuPanelBuilder.CreateRect("Metadata", content, new Vector2(metadataWidth, 34f), new Vector2(0f, -51f));
-            var durationPill = ElderCareMenuPanelBuilder.CreateRounded(metadata, "DurationPill", new Vector2(112f, ElderCareMenuDesignTokens.MetadataHeight), new Vector2(-49f, 0f), ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.RiceMid, 0.94f), 16f, ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.GoldStroke, 0.42f), new Vector2(0.7f, -0.7f));
+            var durationPill = ElderCareMenuPanelBuilder.CreateRounded(metadata, "DurationPill", new Vector2(112f, ElderCareMenuDesignTokens.MetadataHeight), new Vector2(-49f, 0f), ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.RiceMid, 0.94f), 16f, Color.clear, 0f);
             BuildFunctionalIcon(durationPill.rectTransform, "ClockIcon", spec.ClockIcon, ElderCareIconType.Target, new Vector2(18f, 18f), new Vector2(-39f, 0f));
             ElderCareMenuPanelBuilder.CreateText(durationPill.rectTransform, "Label", spec.Duration, new Vector2(80f, 26f), new Vector2(10f, 0f), 15f, FontStyles.Bold, ElderCareMenuDesignTokens.TextPrimary, font);
-            var intensityPill = ElderCareMenuPanelBuilder.CreateRounded(metadata, "IntensityPill", new Vector2(94f, ElderCareMenuDesignTokens.MetadataHeight), new Vector2(62f, 0f), ElderCareMenuDesignTokens.WithAlpha(spec.Accent, 0.16f), 16f, ElderCareMenuDesignTokens.WithAlpha(spec.Accent, 0.48f), new Vector2(0.7f, -0.7f));
+            var intensityPill = ElderCareMenuPanelBuilder.CreateRounded(metadata, "IntensityPill", new Vector2(94f, ElderCareMenuDesignTokens.MetadataHeight), new Vector2(62f, 0f), ElderCareMenuDesignTokens.WithAlpha(spec.Accent, 0.16f), 16f, Color.clear, 0f);
             ElderCareMenuPanelBuilder.CreateText(intensityPill.rectTransform, "Label", spec.Intensity, new Vector2(88f, 26f), Vector2.zero, 15f, FontStyles.Bold, ElderCareMenuDesignTokens.TextPrimary, font);
 
             var startWidth = Mathf.Min(size.x - 40f, 280f);
             var startFill = Color.Lerp(ElderCareMenuDesignTokens.RiceLight, spec.Accent, 0.48f);
-            var startButton = ElderCareMenuPanelBuilder.CreateRounded(content, "StartButtonVisual", new Vector2(startWidth, ElderCareMenuDesignTokens.ChoiceCtaHeight), new Vector2(0f, -113f), startFill, 24f, ElderCareMenuDesignTokens.WithAlpha(spec.Accent, 0.76f), new Vector2(1.2f, -1.2f));
+            var startButton = ElderCareMenuPanelBuilder.CreateRounded(content, "StartButtonVisual", new Vector2(startWidth, ElderCareMenuDesignTokens.ChoiceCtaHeight), new Vector2(0f, -113f), startFill, 24f, ElderCareMenuDesignTokens.WithAlpha(spec.Accent, 0.76f), 1.2f);
             BuildFunctionalIcon(startButton.rectTransform, "ActionIcon", spec.ActionIcon, ElderCareIconType.Check, new Vector2(22f, 22f), new Vector2(-startWidth * 0.25f, 0f));
             ElderCareMenuPanelBuilder.CreateText(startButton.rectTransform, "Label", spec.ActionText, new Vector2(startWidth - 82f, 34f), new Vector2(18f, 0f), 21f, FontStyles.Bold, ElderCareMenuDesignTokens.TextPrimary, font);
 

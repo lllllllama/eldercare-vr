@@ -11,16 +11,16 @@ namespace PicoElderCare.UI
             var root = CreateRect("VisualRoot", panel, canvasSize, Vector2.zero);
             ConfigureStretch(root);
 
-            CreateRounded(root, "Shadow", canvasSize - new Vector2(34f, 34f), new Vector2(0f, -8f), ElderCareMenuDesignTokens.WarmShadow, 42f, Color.clear, Vector2.zero);
-            CreateRounded(root, "WoodFrame", canvasSize - new Vector2(8f, 8f), Vector2.zero, ElderCareMenuDesignTokens.Wood, ElderCareMenuDesignTokens.PanelRadius, ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.WoodDark, 0.48f), new Vector2(2f, -2f));
-            CreateRounded(root, "WoodWarmLayer", canvasSize - new Vector2(24f, 24f), new Vector2(0f, 1f), ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.RiceMid, 0.26f), 38f, Color.clear, Vector2.zero);
-            CreateRounded(root, "WoodStripeLeft", new Vector2(10f, canvasSize.y - 56f), new Vector2(-canvasSize.x * 0.467f, 0f), ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.WoodDark, 0.34f), 5f, Color.clear, Vector2.zero);
-            CreateRounded(root, "WoodStripeRight", new Vector2(9f, canvasSize.y - 60f), new Vector2(canvasSize.x * 0.467f, 0f), ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.WoodDark, 0.26f), 4.5f, Color.clear, Vector2.zero);
-            CreateRounded(root, "RicePaperPanel", canvasSize - new Vector2(48f, 48f), new Vector2(0f, 5f), ElderCareMenuDesignTokens.RiceLight, 34f, ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.GoldStroke, 0.72f), new Vector2(1.5f, -1.5f));
-            CreateRounded(root, "RiceWarmEdge", canvasSize - new Vector2(74f, 74f), new Vector2(0f, 4f), ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.RiceMid, 0.28f), 28f, ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.GoldStroke, 0.16f), new Vector2(0.8f, -0.8f));
-            CreateRounded(root, "PaperGrainA", new Vector2(8f, 8f), new Vector2(-canvasSize.x * 0.33f, canvasSize.y * 0.315f), ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.GoldStroke, 0.16f), 4f, Color.clear, Vector2.zero);
-            CreateRounded(root, "PaperGrainB", new Vector2(6f, 6f), new Vector2(canvasSize.x * 0.287f, canvasSize.y * 0.236f), ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.GoldStroke, 0.13f), 3f, Color.clear, Vector2.zero);
-            CreateRounded(root, "PaperGrainC", new Vector2(7f, 7f), new Vector2(-canvasSize.x * 0.102f, -canvasSize.y * 0.264f), ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.GoldStroke, 0.12f), 3.5f, Color.clear, Vector2.zero);
+            CreateRounded(root, "Shadow", canvasSize - new Vector2(34f, 34f), new Vector2(0f, -8f), ElderCareMenuDesignTokens.WarmShadow, 42f, Color.clear, 0f);
+            CreateRounded(root, "WoodFrame", canvasSize - new Vector2(8f, 8f), Vector2.zero, ElderCareMenuDesignTokens.Wood, ElderCareMenuDesignTokens.PanelRadius, ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.WoodDark, 0.48f), 2f);
+            CreateRounded(root, "WoodWarmLayer", canvasSize - new Vector2(24f, 24f), new Vector2(0f, 1f), ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.RiceMid, 0.26f), 38f, Color.clear, 0f);
+            CreateRounded(root, "WoodStripeLeft", new Vector2(10f, canvasSize.y - 56f), new Vector2(-canvasSize.x * 0.467f, 0f), ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.WoodDark, 0.34f), 5f, Color.clear, 0f);
+            CreateRounded(root, "WoodStripeRight", new Vector2(9f, canvasSize.y - 60f), new Vector2(canvasSize.x * 0.467f, 0f), ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.WoodDark, 0.26f), 4.5f, Color.clear, 0f);
+            CreateRounded(root, "RicePaperPanel", canvasSize - new Vector2(48f, 48f), new Vector2(0f, 5f), ElderCareMenuDesignTokens.RiceLight, 34f, ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.GoldStroke, 0.72f), 1.5f);
+            CreateRounded(root, "RiceWarmEdge", canvasSize - new Vector2(74f, 74f), new Vector2(0f, 4f), ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.RiceMid, 0.28f), 28f, Color.clear, 0f);
+            CreateRounded(root, "PaperGrainA", new Vector2(8f, 8f), new Vector2(-canvasSize.x * 0.33f, canvasSize.y * 0.315f), ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.GoldStroke, 0.16f), 4f, Color.clear, 0f);
+            CreateRounded(root, "PaperGrainB", new Vector2(6f, 6f), new Vector2(canvasSize.x * 0.287f, canvasSize.y * 0.236f), ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.GoldStroke, 0.13f), 3f, Color.clear, 0f);
+            CreateRounded(root, "PaperGrainC", new Vector2(7f, 7f), new Vector2(-canvasSize.x * 0.102f, -canvasSize.y * 0.264f), ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.GoldStroke, 0.12f), 3.5f, Color.clear, 0f);
         }
 
         public static RectTransform BuildHeader(RectTransform panel, Vector2 canvasSize, TMP_FontAsset font, string title, string subtitle)
@@ -28,14 +28,14 @@ namespace PicoElderCare.UI
             var header = CreateRect("Header", panel, new Vector2(canvasSize.x - 100f, 104f), new Vector2(0f, canvasSize.y * 0.5f - 87f));
             CreateText(header, "Title", title, new Vector2(canvasSize.x - 110f, 54f), new Vector2(0f, 20f), 42f, FontStyles.Bold, ElderCareMenuDesignTokens.TextPrimary, font);
             CreateText(header, "Subtitle", subtitle, new Vector2(canvasSize.x - 140f, 32f), new Vector2(0f, -27f), 20f, FontStyles.Bold, ElderCareMenuDesignTokens.TextSecondary, font);
-            CreateRounded(header, "Divider", new Vector2(420f, 3f), new Vector2(0f, -51f), ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.GoldStroke, 0.58f), 1.5f, Color.clear, Vector2.zero);
+            CreateRounded(header, "Divider", new Vector2(420f, 3f), new Vector2(0f, -51f), ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.GoldStroke, 0.58f), 1.5f, Color.clear, 0f);
             return header;
         }
 
         public static Button BuildBottomDock(RectTransform panel, Vector2 canvasSize, TMP_FontAsset font, Sprite backIcon, string hint, string backLabel)
         {
             var dockSize = new Vector2(canvasSize.x - 76f, ElderCareMenuDesignTokens.SecondaryDockSize.y);
-            var dock = CreateRounded(panel, "BottomDock", dockSize, new Vector2(0f, -canvasSize.y * 0.5f + 50f), ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.RiceMid, 0.90f), 28f, ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.GoldStroke, 0.46f), new Vector2(1f, -1f));
+            var dock = CreateRounded(panel, "BottomDock", dockSize, new Vector2(0f, -canvasSize.y * 0.5f + 50f), ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.RiceMid, 0.90f), 28f, ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.GoldStroke, 0.46f), 1f);
             CreateText(dock.rectTransform, "Hint", hint, new Vector2(430f, 28f), new Vector2(118f, 0f), 16f, FontStyles.Bold, ElderCareMenuDesignTokens.TextSecondary, font);
 
             var backPosition = new Vector2(-dockSize.x * 0.5f + ElderCareMenuDesignTokens.SecondaryBackButtonSize.x * 0.5f + 15f, 0f);
@@ -45,9 +45,10 @@ namespace PicoElderCare.UI
             target.cornerSegments = 10;
             target.color = ElderCareMenuDesignTokens.Card;
             target.raycastTarget = true;
-            var outline = backRect.gameObject.AddComponent<Outline>();
-            outline.effectColor = ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.GoldStroke, 0.66f);
-            outline.effectDistance = new Vector2(1.2f, -1.2f);
+            ConfigureNativeStroke(
+                target,
+                ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.GoldStroke, 0.66f),
+                1.2f);
 
             var button = backRect.gameObject.AddComponent<Button>();
             button.targetGraphic = target;
@@ -99,7 +100,7 @@ namespace PicoElderCare.UI
             return rect;
         }
 
-        public static ElderCareRoundedPanel CreateRounded(Transform parent, string name, Vector2 size, Vector2 position, Color color, float radius, Color outlineColor, Vector2 outlineDistance)
+        public static ElderCareRoundedPanel CreateRounded(Transform parent, string name, Vector2 size, Vector2 position, Color color, float radius, Color strokeColor, float strokeWidth)
         {
             var rect = CreateRect(name, parent, size, position);
             var panel = rect.gameObject.AddComponent<ElderCareRoundedPanel>();
@@ -107,15 +108,19 @@ namespace PicoElderCare.UI
             panel.cornerSegments = 12;
             panel.color = color;
             panel.raycastTarget = false;
-            if (outlineColor.a > 0.001f)
-            {
-                var outline = rect.gameObject.AddComponent<Outline>();
-                outline.effectColor = outlineColor;
-                outline.effectDistance = outlineDistance;
-                outline.useGraphicAlpha = true;
-            }
+            ConfigureNativeStroke(panel, strokeColor, strokeWidth);
 
             return panel;
+        }
+
+        public static void ConfigureNativeStroke(ElderCareRoundedPanel panel, Color strokeColor, float strokeWidth)
+        {
+            if (panel == null) return;
+
+            var enabled = strokeWidth > 0f && strokeColor.a > 0f;
+            panel.DrawStroke = enabled;
+            panel.StrokeColor = enabled ? strokeColor : Color.clear;
+            panel.StrokeWidth = enabled ? strokeWidth : 0f;
         }
 
         public static TMP_Text CreateText(Transform parent, string name, string text, Vector2 size, Vector2 position, float fontSize, FontStyles style, Color color, TMP_FontAsset font)
