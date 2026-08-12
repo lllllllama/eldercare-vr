@@ -10,6 +10,7 @@ namespace PicoElderCare.Rehab.Tracking
         [SerializeField] private RehabPoseProviderBase primaryProvider;
         [SerializeField] private RehabPoseProviderBase fallbackProvider;
         [SerializeField] private bool allowAutomaticFallback = true;
+        [SerializeField] private RehabTrackingPreference preference = RehabTrackingPreference.Auto;
 
         private bool _isRunning;
         private RehabPoseProviderBase _currentProvider;
@@ -17,6 +18,7 @@ namespace PicoElderCare.Rehab.Tracking
         private string _statusMessage = NoProviderMessage;
 
         public event Action<RehabPoseProviderBase, RehabTrackingState> ProviderStatusChanged;
+        public event Action<RehabProviderChange> ProviderChanged;
 
         public RehabPoseProviderBase PrimaryProvider
         {
@@ -36,15 +38,41 @@ namespace PicoElderCare.Rehab.Tracking
             set { allowAutomaticFallback = value; }
         }
 
+        public RehabTrackingPreference Preference
+        {
+            get { return preference; }
+            set
+            {
+                if (preference == value) return;
+                preference = value;
+                if (_isRunning)
+                {
+                    EnsureProvidersForPreference();
+                }
+            }
+        }
+
         public RehabPoseProviderBase CurrentProvider
         {
             get { return _currentProvider; }
         }
 
+        public RehabTrackingMode CurrentTrackingMode { get; private set; }
+
         public override bool IsSupported
         {
             get
             {
+                if (preference == RehabTrackingPreference.ControllersOnly)
+                {
+                    return fallbackProvider != null && fallbackProvider.IsSupported;
+                }
+
+                if (preference == RehabTrackingPreference.WristTrackersOnly)
+                {
+                    return primaryProvider != null && primaryProvider.IsSupported;
+                }
+
                 return (primaryProvider != null && primaryProvider.IsSupported) ||
                        (allowAutomaticFallback && fallbackProvider != null && fallbackProvider.IsSupported);
             }
@@ -73,11 +101,7 @@ namespace PicoElderCare.Rehab.Tracking
             }
 
             _isRunning = true;
-            StartProvider(primaryProvider);
-            if (allowAutomaticFallback && fallbackProvider != primaryProvider)
-            {
-                StartProvider(fallbackProvider);
-            }
+            EnsureProvidersForPreference();
 
             ReportStatus(null, RehabTrackingState.Starting, NoProviderMessage);
         }
@@ -108,13 +132,15 @@ namespace PicoElderCare.Rehab.Tracking
                 return false;
             }
 
-            if (TryProvider(primaryProvider, target))
+            if (preference != RehabTrackingPreference.ControllersOnly &&
+                TryProvider(primaryProvider, target))
             {
                 ReportStatus(primaryProvider, target.trackingState, primaryProvider.StatusMessage);
                 return true;
             }
 
-            if (allowAutomaticFallback &&
+            if (preference != RehabTrackingPreference.WristTrackersOnly &&
+                (preference == RehabTrackingPreference.ControllersOnly || allowAutomaticFallback) &&
                 fallbackProvider != primaryProvider &&
                 TryProvider(fallbackProvider, target))
             {
@@ -123,11 +149,14 @@ namespace PicoElderCare.Rehab.Tracking
             }
 
             target.Clear();
-            var failedState = primaryProvider != null
-                ? primaryProvider.TrackingState
+            var expectedProvider = preference == RehabTrackingPreference.ControllersOnly
+                ? fallbackProvider
+                : primaryProvider;
+            var failedState = expectedProvider != null
+                ? expectedProvider.TrackingState
                 : RehabTrackingState.Unavailable;
-            var failedMessage = primaryProvider != null
-                ? primaryProvider.StatusMessage
+            var failedMessage = expectedProvider != null
+                ? expectedProvider.StatusMessage
                 : NoProviderMessage;
             target.trackingState = failedState;
             ReportStatus(null, failedState, failedMessage);
@@ -158,17 +187,45 @@ namespace PicoElderCare.Rehab.Tracking
             }
         }
 
+        private void EnsureProvidersForPreference()
+        {
+            if (preference != RehabTrackingPreference.ControllersOnly)
+            {
+                StartProvider(primaryProvider);
+            }
+
+            if (preference != RehabTrackingPreference.WristTrackersOnly &&
+                fallbackProvider != primaryProvider)
+            {
+                StartProvider(fallbackProvider);
+            }
+        }
+
         private void ReportStatus(
             RehabPoseProviderBase provider,
             RehabTrackingState state,
             string message)
         {
-            var changed = _currentProvider != provider || _trackingState != state;
+            var oldProvider = _currentProvider;
+            var oldMode = CurrentTrackingMode;
+            var newMode = GetMode(provider);
+            var providerChanged = oldProvider != provider || oldMode != newMode;
+            var statusChanged = providerChanged || _trackingState != state;
             _currentProvider = provider;
+            CurrentTrackingMode = newMode;
             _trackingState = state;
             _statusMessage = string.IsNullOrEmpty(message) ? NoProviderMessage : message;
 
-            if (changed)
+            if (providerChanged)
+            {
+                var providerChangedHandler = ProviderChanged;
+                if (providerChangedHandler != null)
+                {
+                    providerChangedHandler(new RehabProviderChange(oldProvider, provider, oldMode, newMode));
+                }
+            }
+
+            if (statusChanged)
             {
                 var handler = ProviderStatusChanged;
                 if (handler != null)
@@ -176,6 +233,14 @@ namespace PicoElderCare.Rehab.Tracking
                     handler(_currentProvider, _trackingState);
                 }
             }
+        }
+
+        private RehabTrackingMode GetMode(RehabPoseProviderBase provider)
+        {
+            if (provider == null) return RehabTrackingMode.Unavailable;
+            if (provider == primaryProvider) return RehabTrackingMode.WristTrackers;
+            if (provider == fallbackProvider) return RehabTrackingMode.Controllers;
+            return RehabTrackingMode.Unavailable;
         }
     }
 }

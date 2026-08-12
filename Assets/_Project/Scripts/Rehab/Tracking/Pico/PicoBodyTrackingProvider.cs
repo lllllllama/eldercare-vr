@@ -1,4 +1,5 @@
 using System;
+using PicoElderCare.Rehab.Tracking.Pico.ObjectTracking;
 using UnityEngine;
 
 namespace PicoElderCare.Rehab.Tracking.Pico
@@ -94,6 +95,17 @@ namespace PicoElderCare.Rehab.Tracking.Pico
         {
             if (_isRunning)
             {
+                return;
+            }
+
+            // The application-level wrist runtime owns the mutually exclusive
+            // Motion Tracker Object Tracking mode. Keep this legacy provider
+            // available for explicit A/B tests, but never auto-start it behind
+            // the new runtime.
+            if (WristTrackingRuntime.Instance != null)
+            {
+                autoStartOnEnable = false;
+                SetState(RehabTrackingState.Unavailable, "Object Tracking 模式已启用，Body Tracking 保持关闭。");
                 return;
             }
 

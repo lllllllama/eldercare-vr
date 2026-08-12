@@ -13,5 +13,6 @@ namespace PicoElderCare.Rehab.Tracking
         public Vector3 velocity;
         public Vector3 acceleration;
         public Vector3 angularVelocity;
+        public RehabTrackingSource source;
     }
 }

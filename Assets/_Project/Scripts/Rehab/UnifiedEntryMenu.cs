@@ -1,6 +1,8 @@
 using System.Collections;
 using UnityEngine;
 using UnityEngine.SceneManagement;
+using PicoElderCare.Rehab.Tracking.Pico.ObjectTracking;
+using UnityEngine.UI;
 
 namespace PicoElderCare.Rehab
 {
@@ -18,6 +20,7 @@ namespace PicoElderCare.Rehab
         public int recenterDelayFrames = 2;
 
         private Coroutine _recenterCoroutine;
+        private PicoWristTrackingStatusPanel _trackerSettingsPanel;
 
         private void OnEnable()
         {
@@ -30,6 +33,7 @@ namespace PicoElderCare.Rehab
         private void Start()
         {
             ApplyHtmlStyleMainPanelIfNeeded();
+            BindTrackerSettingsButton();
 
             if (recenterPanelsOnEnable)
             {
@@ -50,6 +54,22 @@ namespace PicoElderCare.Rehab
         public void LoadRehab()
         {
             SceneManager.LoadScene(rehabSceneName);
+        }
+
+        public void OpenTrackerSettings()
+        {
+            var canvas = htmlStyleMainCanvas != null
+                ? htmlStyleMainCanvas
+                : FindSceneTransform(htmlStyleCanvasName);
+            if (canvas == null) return;
+
+            _trackerSettingsPanel = PicoWristTrackingStatusPanel.Ensure(canvas, this);
+            if (_trackerSettingsPanel != null) _trackerSettingsPanel.Open();
+        }
+
+        public void CloseTrackerSettings()
+        {
+            if (_trackerSettingsPanel != null) _trackerSettingsPanel.Close();
         }
 
         public void RecenterPanels()
@@ -79,6 +99,40 @@ namespace PicoElderCare.Rehab
             if (!applyHtmlStyleMainPanel) return false;
             if (string.IsNullOrEmpty(htmlStyleMainSceneName)) return true;
 
+            var activeScene = SceneManager.GetActiveScene();
+            return activeScene.IsValid() && activeScene.name == htmlStyleMainSceneName;
+        }
+
+        private void BindTrackerSettingsButton()
+        {
+            if (!IsMainEntryScene()) return;
+            var canvas = htmlStyleMainCanvas != null
+                ? htmlStyleMainCanvas
+                : FindSceneTransform(htmlStyleCanvasName);
+            if (canvas == null) return;
+
+            _trackerSettingsPanel = PicoWristTrackingStatusPanel.Ensure(canvas, this);
+            var settings = FindChild(canvas, "Settings");
+            var button = settings != null ? settings.GetComponent<Button>() : null;
+            if (button == null) return;
+            button.interactable = true;
+            button.onClick.RemoveAllListeners();
+            button.onClick.AddListener(OpenTrackerSettings);
+
+            var group = settings.GetComponent<CanvasGroup>();
+            if (group != null)
+            {
+                group.interactable = true;
+                group.blocksRaycasts = true;
+            }
+
+            var motion = settings.GetComponent<TechModuleCardMotion>();
+            if (motion != null) motion.interactable = true;
+        }
+
+        private bool IsMainEntryScene()
+        {
+            if (string.IsNullOrEmpty(htmlStyleMainSceneName)) return true;
             var activeScene = SceneManager.GetActiveScene();
             return activeScene.IsValid() && activeScene.name == htmlStyleMainSceneName;
         }

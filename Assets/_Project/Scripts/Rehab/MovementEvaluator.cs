@@ -222,6 +222,32 @@ namespace PicoElderCare.Rehab
             return CreateSnapshot(stepEvaluation.poseValid, _currentStepTargetReached, false, message);
         }
 
+        /// <summary>
+        /// Clears only the temporal state of the current movement. This is
+        /// used when the physical input source changes, so a pose discontinuity
+        /// cannot inherit hold, velocity or smoothing history. Session results
+        /// and the current movement index are intentionally preserved.
+        /// </summary>
+        public void ResetCurrentMovementTransientState()
+        {
+            _currentHoldSeconds = 0f;
+            _stepElapsedSeconds = 0f;
+            _lastSymmetry = 1f;
+            _lastTempo = 1f;
+            _movementSymmetryTotal = 0f;
+            _movementTempoTotal = 0f;
+            _movementMetricCount = 0;
+            _currentMovementBestCompletion = 0f;
+            _currentStepTargetReached = false;
+            _currentMovementSkippedByTimeout = false;
+
+            var movement = CurrentMovement;
+            if (movement != null)
+            {
+                ResetEvaluatorForMovement(movement, default(RehabPoseSample));
+            }
+        }
+
         public static bool IsTwoHandsLiftHeavenPoseValid(
             RehabPoseSample sample,
             float handsAboveHeadMeters,

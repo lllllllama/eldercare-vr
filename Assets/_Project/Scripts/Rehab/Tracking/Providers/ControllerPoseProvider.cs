@@ -94,21 +94,28 @@ namespace PicoElderCare.Rehab.Tracking
             {
                 target.SetJoint(
                     RehabJoint.Head,
-                    CreateTrackedPose(headTransform.position, headTransform.rotation));
+                    CreateTrackedPose(
+                        headTransform.position,
+                        headTransform.rotation,
+                        RehabTrackingSource.HmdDirect));
             }
 
             if (leftControllerTransform != null)
             {
-                var leftPose = CreateTrackedPose(leftControllerTransform.position, leftControllerTransform.rotation);
+                var leftPose = CreateTrackedPose(
+                    leftControllerTransform.position,
+                    leftControllerTransform.rotation,
+                    RehabTrackingSource.ControllerDirect);
                 target.SetJoint(RehabJoint.LeftWrist, leftPose);
-                target.SetJoint(RehabJoint.LeftHand, leftPose);
             }
 
             if (rightControllerTransform != null)
             {
-                var rightPose = CreateTrackedPose(rightControllerTransform.position, rightControllerTransform.rotation);
+                var rightPose = CreateTrackedPose(
+                    rightControllerTransform.position,
+                    rightControllerTransform.rotation,
+                    RehabTrackingSource.ControllerDirect);
                 target.SetJoint(RehabJoint.RightWrist, rightPose);
-                target.SetJoint(RehabJoint.RightHand, rightPose);
             }
 
             UpdateTrackingStateFromSample(
@@ -120,7 +127,10 @@ namespace PicoElderCare.Rehab.Tracking
             return target.IsTrackingUsable;
         }
 
-        private static RehabJointPose CreateTrackedPose(Vector3 position, Quaternion rotation)
+        private static RehabJointPose CreateTrackedPose(
+            Vector3 position,
+            Quaternion rotation,
+            RehabTrackingSource source)
         {
             return new RehabJointPose
             {
@@ -130,7 +140,8 @@ namespace PicoElderCare.Rehab.Tracking
                 rotation = rotation,
                 velocity = Vector3.zero,
                 acceleration = Vector3.zero,
-                angularVelocity = Vector3.zero
+                angularVelocity = Vector3.zero,
+                source = source
             };
         }
 

@@ -51,6 +51,7 @@ namespace PicoElderCare.Rehab.Tracking.Pico
             pose.velocity = velocity;
             pose.acceleration = acceleration;
             pose.angularVelocity = angularVelocity;
+            pose.source = RehabTrackingSource.BodyTrackingEstimated;
             return true;
         }
     }

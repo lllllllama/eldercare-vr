@@ -107,11 +107,9 @@ public static class RehabTrackingSelfTests
             provider.TryGetSample(sample);
 
             RehabJointPose wrist;
-            RehabJointPose hand;
             AssertTrue(sample.TryGetJoint(RehabJoint.LeftWrist, out wrist), "The left controller should map to LeftWrist.");
-            AssertTrue(sample.TryGetJoint(RehabJoint.LeftHand, out hand), "The left controller should also map to LeftHand.");
             AssertTrue(Vector3.Distance(wrist.position, expected) < 0.0001f, "LeftWrist should use the left controller position.");
-            AssertTrue(Vector3.Distance(hand.position, expected) < 0.0001f, "LeftHand should use the left controller position.");
+            AssertTrue(wrist.source == RehabTrackingSource.ControllerDirect, "LeftWrist should identify controller input as direct observation.");
         }
         finally
         {
@@ -130,11 +128,9 @@ public static class RehabTrackingSelfTests
             provider.TryGetSample(sample);
 
             RehabJointPose wrist;
-            RehabJointPose hand;
             AssertTrue(sample.TryGetJoint(RehabJoint.RightWrist, out wrist), "The right controller should map to RightWrist.");
-            AssertTrue(sample.TryGetJoint(RehabJoint.RightHand, out hand), "The right controller should also map to RightHand.");
             AssertTrue(Vector3.Distance(wrist.position, expected) < 0.0001f, "RightWrist should use the right controller position.");
-            AssertTrue(Vector3.Distance(hand.position, expected) < 0.0001f, "RightHand should use the right controller position.");
+            AssertTrue(wrist.source == RehabTrackingSource.ControllerDirect, "RightWrist should identify controller input as direct observation.");
         }
         finally
         {
@@ -155,7 +151,9 @@ public static class RehabTrackingSelfTests
             provider.TryGetSample(sample);
 
             RehabJointPose pose;
-            AssertTrue(sample.validJointCount == 5, "Controller input should expose only Head, both wrists, and both hands.");
+            AssertTrue(sample.validJointCount == 3, "Controller input should expose only Head and both wrists.");
+            AssertTrue(!sample.TryGetJoint(RehabJoint.LeftHand, out pose), "Controller input must not duplicate LeftWrist into LeftHand.");
+            AssertTrue(!sample.TryGetJoint(RehabJoint.RightHand, out pose), "Controller input must not duplicate RightWrist into RightHand.");
             AssertTrue(!sample.TryGetJoint(RehabJoint.Chest, out pose), "Controller input must not invent a chest joint.");
             AssertTrue(!sample.TryGetJoint(RehabJoint.LeftElbow, out pose), "Controller input must not invent elbow joints.");
             AssertTrue(!sample.TryGetJoint(RehabJoint.Hips, out pose), "Controller input must not invent hip joints.");

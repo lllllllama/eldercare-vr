@@ -225,16 +225,33 @@ namespace PicoElderCare.Rehab
             ConfigureRect(bar, new Vector2(626f, 62f), new Vector2(0f, -172f));
             var background = CreatePanel(bar.transform, "Background", new Vector2(626f, 62f), Vector2.zero, ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.RiceMid, 0.92f), 28f, false);
             ConfigureNativeStroke(background, ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.GoldStroke, 0.46f), 1f);
-            CreateSafeButton(bar.transform, "Settings", ElderCareIconType.Gear, "设置", new Vector2(-218f, 0f));
-            CreateSafeButton(bar.transform, "Health", ElderCareIconType.User, "我的健康", Vector2.zero);
-            CreateSafeButton(bar.transform, "Rank", ElderCareIconType.Trophy, "排行榜", new Vector2(218f, 0f));
+            CreateSafeButton(bar.transform, "Settings", ElderCareIconType.Gear, "设置", new Vector2(-218f, 0f), true, OpenTrackerSettings);
+            CreateSafeButton(bar.transform, "Health", ElderCareIconType.User, "我的健康", Vector2.zero, false, null);
+            CreateSafeButton(bar.transform, "Rank", ElderCareIconType.Trophy, "排行榜", new Vector2(218f, 0f), false, null);
         }
 
-        private void CreateSafeButton(Transform parent, string name, ElderCareIconType iconType, string label, Vector2 position)
+        private void CreateSafeButton(
+            Transform parent,
+            string name,
+            ElderCareIconType iconType,
+            string label,
+            Vector2 position,
+            bool interactable,
+            UnityEngine.Events.UnityAction onClick)
         {
-            var button = CreateButton(parent, name, label, SafeButtonSize, position, false);
+            var button = CreateButton(parent, name, label, SafeButtonSize, position, interactable);
             CreateLineIcon(button.transform, name + "Icon", iconType, new Vector2(28f, 28f), new Vector2(-64f, 0f), ElderCareMenuDesignTokens.TextPrimary, 3f);
-            button.interactable = false;
+            button.interactable = interactable;
+            if (interactable && onClick != null)
+            {
+                button.onClick.AddListener(onClick);
+            }
+        }
+
+        private void OpenTrackerSettings()
+        {
+            ResolveReferences();
+            if (menu != null) menu.OpenTrackerSettings();
         }
 
         private void CreateWindowControls(Transform parent)

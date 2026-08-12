@@ -84,6 +84,8 @@ namespace PicoElderCare.Rehab
         private bool _currentMovementUsesVideoTimer;
         private RehabTrainingFlowState _trainingFlowState = RehabTrainingFlowState.Idle;
         private readonly RehabBodySample _providerBodySample = new RehabBodySample();
+        private RehabPoseProviderSelector _subscribedPoseProviderSelector;
+        public int TrackingSourceResetCount { get; private set; }
 
         public Vector3 TrainingCenter
         {
@@ -119,6 +121,7 @@ namespace PicoElderCare.Rehab
 
         private void OnDestroy()
         {
+            SubscribeToPoseProviderSelector(null);
             if (startFlowController != null)
             {
                 startFlowController.MovementReadyToStart -= HandleStartFlowMovementReadyToStart;
@@ -970,6 +973,7 @@ namespace PicoElderCare.Rehab
         {
             if (handPoseTracker == null) handPoseTracker = FindObjectOfType<HandPoseTracker>(true);
             if (poseProviderSelector == null) poseProviderSelector = FindObjectOfType<RehabPoseProviderSelector>(true);
+            SubscribeToPoseProviderSelector(poseProviderSelector);
             if (poseProviderSelector != null && !poseProviderSelector.IsRunning)
             {
                 poseProviderSelector.StartTracking();
@@ -1049,6 +1053,52 @@ namespace PicoElderCare.Rehab
             }
         }
 
+        private void SubscribeToPoseProviderSelector(RehabPoseProviderSelector selector)
+        {
+            if (_subscribedPoseProviderSelector == selector) return;
+            if (_subscribedPoseProviderSelector != null)
+            {
+                _subscribedPoseProviderSelector.ProviderChanged -= HandlePoseProviderChanged;
+            }
+
+            _subscribedPoseProviderSelector = selector;
+            if (_subscribedPoseProviderSelector != null)
+            {
+                _subscribedPoseProviderSelector.ProviderChanged += HandlePoseProviderChanged;
+            }
+        }
+
+        private void HandlePoseProviderChanged(RehabProviderChange change)
+        {
+            if (!_sessionActive || _sessionEnded || change.oldProvider == null)
+            {
+                return;
+            }
+
+            if (movementEvaluator != null)
+            {
+                movementEvaluator.ResetCurrentMovementTransientState();
+            }
+
+            TrackingSourceResetCount++;
+
+            _currentMovementTargetReached = false;
+            _currentMovementBestCompletion = 0f;
+            if (_trainingFlowState == RehabTrainingFlowState.TrainingActive ||
+                _trainingFlowState == RehabTrainingFlowState.TrainingPausedOutOfArea)
+            {
+                _trainingFlowState = RehabTrainingFlowState.WaitingForUserInTrainingArea;
+                if (videoGuideController != null)
+                {
+                    videoGuideController.Pause();
+                }
+
+                SetStatus(change.newProvider != null
+                    ? "追踪方式已切换，请保持站稳后继续"
+                    : "追踪信号暂时丢失，请保持站稳");
+            }
+        }
+
         private RehabPoseSample GetCurrentPoseSample()
         {
             RehabPoseSample legacySample;
@@ -1069,6 +1119,10 @@ namespace PicoElderCare.Rehab
 
                     return default(RehabPoseSample);
                 }
+
+                // The selector owns fallback policy. Falling through to the
+                // raw controller tracker here would violate WristTrackersOnly.
+                return default(RehabPoseSample);
             }
 
             if (handPoseTracker != null)
