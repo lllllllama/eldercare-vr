@@ -1,8 +1,10 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
+using UnityEngine.UI;
 
 public static class CurrentUiScreenshotExporter
 {
@@ -13,15 +15,39 @@ public static class CurrentUiScreenshotExporter
 
     private static readonly Vector3[] RectCorners = new Vector3[4];
 
+    [MenuItem("Tools/PICO ElderCare/Export Core Menu Design System Previews")]
+    public static void ExportCoreMenuPreviews()
+    {
+        Directory.CreateDirectory(OutputDirectory);
+        CaptureMainEntry();
+        EditorSceneManager.OpenScene("Assets/_Project/Scenes/02_HealthGameMenu.unity");
+        SetActiveIfFound("[Building Block] PICO Controller Tracking XR Origin (XR Rig)", false);
+        CaptureTargets("health-game-menu.png", "HealthGameMenuCanvas");
+        CaptureRehabPanel("rehab-selection.png", "RehabTrainingSelectPanel");
+        AssetDatabase.Refresh();
+        Debug.Log("CORE_MENU_PREVIEWS_EXPORTED: " + Path.GetFullPath(OutputDirectory));
+    }
+
     public static void ExportEntryAndRehab()
     {
         Directory.CreateDirectory(OutputDirectory);
         CaptureMainEntry();
-        CaptureRehabPanel("rehab-select.png", "RehabTrainingSelectPanel");
+        CaptureRehabPanel("rehab-selection.png", "RehabTrainingSelectPanel");
         CaptureRehabPanel("rehab-training.png", "RehabTrainingPanel");
         CaptureRehabPanel("rehab-result.png", "TrainingResultPanel");
         AssetDatabase.Refresh();
         Debug.Log("UI_SCREENSHOTS_EXPORTED: " + Path.GetFullPath(OutputDirectory));
+    }
+
+    [MenuItem("Tools/PICO ElderCare/Export Health Game Menu Preview")]
+    public static void ExportHealthGameMenu()
+    {
+        Directory.CreateDirectory(OutputDirectory);
+        EditorSceneManager.OpenScene("Assets/_Project/Scenes/02_HealthGameMenu.unity");
+        SetActiveIfFound("[Building Block] PICO Controller Tracking XR Origin (XR Rig)", false);
+        CaptureTargets("health-game-menu.png", "HealthGameMenuCanvas");
+        AssetDatabase.Refresh();
+        Debug.Log("HEALTH_GAME_MENU_SCREENSHOT_EXPORTED: " + Path.GetFullPath(Path.Combine(OutputDirectory, "health-game-menu.png")));
     }
 
     private static void CaptureMainEntry()
@@ -33,6 +59,7 @@ public static class CurrentUiScreenshotExporter
     private static void CaptureRehabPanel(string fileName, string activePanelName)
     {
         EditorSceneManager.OpenScene("Assets/_Project/Scenes/MR_Rehab_Main.unity");
+        SetActiveIfFound("[Building Block] PICO Controller Tracking XR Origin (XR Rig)", false);
         SetActiveIfFound("TrainingArea", false);
         SetActiveIfFound("RehabTrainingSelectPanel", activePanelName == "RehabTrainingSelectPanel");
         SetActiveIfFound("RehabTrainingPanel", activePanelName == "RehabTrainingPanel");
@@ -43,13 +70,68 @@ public static class CurrentUiScreenshotExporter
 
     private static void CaptureTargets(string fileName, params string[] rootNames)
     {
-        Canvas.ForceUpdateCanvases();
-        Bounds bounds = CalculateBounds(rootNames);
-        Camera camera = CreatePreviewCamera(bounds);
-        string outputPath = Path.Combine(OutputDirectory, fileName);
-        RenderCamera(camera, outputPath);
-        UnityEngine.Object.DestroyImmediate(camera.gameObject);
-        Debug.Log("UI_SCREENSHOT: " + Path.GetFullPath(outputPath));
+        List<Renderer> disabledRenderers = DisableNonCanvasRenderers();
+        Camera camera = null;
+        try
+        {
+            RebuildGraphics(rootNames);
+            Canvas.ForceUpdateCanvases();
+            Bounds bounds = CalculateBounds(rootNames);
+            camera = CreatePreviewCamera(bounds);
+            string outputPath = Path.Combine(OutputDirectory, fileName);
+            RenderCamera(camera, outputPath);
+            Debug.Log("UI_SCREENSHOT: " + Path.GetFullPath(outputPath));
+        }
+        finally
+        {
+            if (camera != null)
+            {
+                UnityEngine.Object.DestroyImmediate(camera.gameObject);
+            }
+
+            RestoreRenderers(disabledRenderers);
+        }
+    }
+
+    private static List<Renderer> DisableNonCanvasRenderers()
+    {
+        var disabledRenderers = new List<Renderer>();
+        foreach (Renderer renderer in UnityEngine.Object.FindObjectsOfType<Renderer>(true))
+        {
+            if (renderer != null && renderer.enabled && renderer.gameObject.scene.IsValid())
+            {
+                renderer.enabled = false;
+                disabledRenderers.Add(renderer);
+            }
+        }
+
+        return disabledRenderers;
+    }
+
+    private static void RestoreRenderers(List<Renderer> renderers)
+    {
+        if (renderers == null) return;
+        foreach (Renderer renderer in renderers)
+        {
+            if (renderer != null)
+            {
+                renderer.enabled = true;
+            }
+        }
+    }
+
+    private static void RebuildGraphics(params string[] rootNames)
+    {
+        foreach (string rootName in rootNames)
+        {
+            GameObject root = FindObjectIncludingInactive(rootName);
+            if (root == null) continue;
+            foreach (Graphic graphic in root.GetComponentsInChildren<Graphic>(false))
+            {
+                if (graphic == null || !graphic.gameObject.activeInHierarchy) continue;
+                graphic.SetAllDirty();
+            }
+        }
     }
 
     private static Camera CreatePreviewCamera(Bounds bounds)

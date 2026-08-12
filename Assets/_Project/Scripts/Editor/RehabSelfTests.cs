@@ -1,5 +1,7 @@
 using PicoElderCare.Rehab;
+using PicoElderCare.UI;
 using UnityEditor;
+using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -32,8 +34,11 @@ public static class RehabSelfTests
         TrainingAreaDragHandleIsDisabledByDefault();
         ManualTrainingAreaPlacementUpdatesSessionCenter();
         PromptPanelStaysOutsideTrainingCircle();
-        ComfortUiPlacementUsesCurrentHeadYaw();
-        ComfortUiStartupRecenterFollowsSettledHeadPose();
+        RunComfortPlacementTests();
+        RunPageLayoutTests();
+        RunVisualSkinScopeTests();
+        RunSceneBuilderSafetyTests();
+        RunP0UiFoundationTests();
         ComfortUiCreatesRayDragAndThumbstickHelpers();
         ComfortUiRayDragKeepsStableHeightWhenDraggedFar();
         HtmlStyleMainEntryPanelUsesVrReadableScale();
@@ -44,8 +49,299 @@ public static class RehabSelfTests
         VideoSpatialControlsStayHiddenUntilVideoGuideShows();
         VideoGuidePauseKeepsDisplayVisible();
         SpatialRayControlDragsVideoOnlyWhileTriggerHeld();
-        TrainingSelectPanelUsesComfortRayPlacement();
+        MainEntrySceneUsesSingleHmdRelativePlacementOwner();
         Debug.Log("Rehab self tests passed.");
+    }
+
+    public static void RunComfortPlacementTests()
+    {
+        ComfortUiUsesHmdRelativeHeight();
+        ComfortUiClampsMinimumHeight();
+        ComfortUiClampsMaximumHeight();
+        ComfortUiPlacementUsesCurrentHeadYaw();
+        ComfortUiStartupRecenterFollowsSettledHeadPose();
+        ComfortUiStopsFollowingAfterStartupWindow();
+        MainEntryComfortPlacementUsesHmdRelativeRootHeight();
+        TrainingSelectPanelRecenterUsesConfiguredComfortPlacement();
+        TrainingLayoutRecenterRemainsIndependentOfSelectionPlacement();
+        Debug.Log("Rehab comfort placement tests passed.");
+    }
+
+    public static void RunPageLayoutTests()
+    {
+        SelectionPageHidesTrainingContent();
+        StartingTrainingShowsTrainingContent();
+        ReturningToSelectionHidesTrainingContent();
+        ResultPageHidesTrainingContent();
+        TrainingEnvironmentRecenterPreservesSessionProgress();
+        TrainingEnvironmentRecenterUsesCurrentHmdPose();
+        TrainingRecenterButtonUsesUnifiedPlacement();
+        TrainingLayoutRecenterUsesYawOnly();
+        ResultPanelRecenterUsesCurrentHmdPose();
+        ResultPanelRecenterClampsMinimumHeight();
+        ResultPanelRecenterClampsMaximumHeight();
+        ResultPanelRecenterDoesNotMoveSelectionPanel();
+        Debug.Log("Rehab page layout tests passed.");
+    }
+
+    public static void RunVisualSkinScopeTests()
+    {
+        var root = new GameObject("RehabVisualSkinScopeFixture");
+        root.SetActive(false);
+
+        var selectionPanel = new GameObject("RehabTrainingSelectPanel", typeof(RectTransform));
+        var trainingPanel = new GameObject("RehabTrainingPanel", typeof(RectTransform));
+        var resultPanel = new GameObject("TrainingResultPanel", typeof(RectTransform));
+        var videoPanel = new GameObject("RehabVideoPanel");
+        selectionPanel.transform.SetParent(root.transform, false);
+        trainingPanel.transform.SetParent(root.transform, false);
+        resultPanel.transform.SetParent(root.transform, false);
+        videoPanel.transform.SetParent(root.transform, false);
+
+        var selectionPosition = new Vector3(-1f, 2f, 3f);
+        var videoPosition = new Vector3(4f, 5f, 6f);
+        selectionPanel.transform.localPosition = selectionPosition;
+        videoPanel.transform.localPosition = videoPosition;
+        var selectionChildCount = selectionPanel.transform.childCount;
+        var videoChildCount = videoPanel.transform.childCount;
+
+        try
+        {
+            var modeUi = root.AddComponent<RehabModeSelectUI>();
+            modeUi.applyHtmlStylePanels = false;
+            modeUi.applyTrainingAndResultVisualSkin = true;
+            modeUi.rehabTrainingSelectPanel = selectionPanel;
+            modeUi.rehabTrainingPanel = trainingPanel;
+            modeUi.trainingResultPanel = resultPanel;
+
+            HtmlStyleRehabVisualSkin.ApplyTrainingAndResultPanels(modeUi);
+
+            AssertTrue(trainingPanel.transform.Find("HtmlVisual_PanelRoot") != null, "Training-only skin should add the warm visual root to the original training panel.");
+            AssertTrue(resultPanel.transform.Find("HtmlVisual_PanelRoot") != null, "Training-only skin should add the warm visual root to the original result panel.");
+            AssertTrue(selectionPanel.transform.childCount == selectionChildCount, "Training/result-only skin must not add selection-page visuals.");
+            AssertTrue(videoPanel.transform.childCount == videoChildCount, "Training/result-only skin must not add video-panel visuals.");
+            AssertTrue(Vector3.Distance(selectionPanel.transform.localPosition, selectionPosition) < 0.0001f, "Training/result-only skin must not move the selection panel.");
+            AssertTrue(Vector3.Distance(videoPanel.transform.localPosition, videoPosition) < 0.0001f, "Training/result-only skin must not move the video panel.");
+            Debug.Log("Rehab visual skin scope tests passed.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(root);
+        }
+    }
+
+    public static void RunSceneBuilderSafetyTests()
+    {
+        AssertDestructiveBuilderIsDisabled("BuildMainEntrySceneFromScratchLegacy");
+        AssertDestructiveBuilderIsDisabled("BuildHealthGameMenuSceneFromScratchLegacy");
+        AssertDestructiveBuilderIsDisabled("BuildRehabSceneFromScratchLegacy");
+        Debug.Log("Rehab scene builder safety tests passed.");
+    }
+
+    public static void RunP0UiFoundationTests()
+    {
+        RoundedPanelNativeStrokeIsBackwardCompatible();
+        ChoiceCardUsesNativeStrokeWithoutRedundantOutlines();
+        RehabSelectionUsesSharedNativeStrokeBuilder();
+        RehabSelectionScaleCompensationUsesSharedWorldScaleTokens();
+        Debug.Log("P0 UI foundation tests passed.");
+    }
+
+    private static void RoundedPanelNativeStrokeIsBackwardCompatible()
+    {
+        var panelObject = new GameObject(
+            "RoundedPanelStrokeFixture",
+            typeof(RectTransform),
+            typeof(CanvasRenderer),
+            typeof(ElderCareRoundedPanel));
+        try
+        {
+            var rect = panelObject.GetComponent<RectTransform>();
+            rect.sizeDelta = new Vector2(240f, 120f);
+            var panel = panelObject.GetComponent<ElderCareRoundedPanel>();
+            panel.cornerRadius = 28f;
+            panel.cornerSegments = 8;
+            panel.color = ElderCareMenuDesignTokens.Card;
+
+            AssertTrue(!panel.DrawStroke, "Legacy rounded panels should not draw a stroke by default.");
+            AssertTrue(Mathf.Approximately(panel.StrokeWidth, 0f), "Legacy rounded panels should keep a zero default stroke width.");
+
+            var populateMesh = typeof(ElderCareRoundedPanel).GetMethod(
+                "OnPopulateMesh",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic,
+                null,
+                new[] { typeof(VertexHelper) },
+                null);
+            AssertTrue(populateMesh != null, "Rounded panel mesh generator should be available for the native-stroke test.");
+
+            var legacyMesh = new VertexHelper();
+            populateMesh.Invoke(panel, new object[] { legacyMesh });
+            var legacyVertexCount = legacyMesh.currentVertCount;
+            legacyMesh.Dispose();
+            AssertTrue(legacyVertexCount > 0, "Legacy fill-only rounded panels should still generate geometry.");
+
+            panel.StrokeWidth = -5f;
+            AssertTrue(panel.StrokeWidth >= 0f, "Rounded panel stroke width should clamp to a non-negative value.");
+            panel.DrawStroke = true;
+            panel.StrokeColor = ElderCareMenuDesignTokens.GoldStroke;
+            panel.StrokeWidth = 3f;
+
+            var strokeMesh = new VertexHelper();
+            populateMesh.Invoke(panel, new object[] { strokeMesh });
+            AssertTrue(strokeMesh.currentVertCount > legacyVertexCount, "Native stroke should add an inner/outer contour ring to the fill mesh.");
+            AssertTrue(strokeMesh.currentIndexCount > 0, "Native stroke mesh should contain triangles.");
+            strokeMesh.Dispose();
+        }
+        finally
+        {
+            Object.DestroyImmediate(panelObject);
+        }
+    }
+
+    private static void ChoiceCardUsesNativeStrokeWithoutRedundantOutlines()
+    {
+        var root = new GameObject("ChoiceCardStrokeFixture", typeof(RectTransform));
+        var iconTexture = new Texture2D(2, 2);
+        var iconSprite = Sprite.Create(iconTexture, new Rect(0f, 0f, 2f, 2f), new Vector2(0.5f, 0.5f));
+        try
+        {
+            var button = ElderCareChoiceCardBuilder.Build(
+                root.GetComponent<RectTransform>(),
+                null,
+                new ElderCareChoiceCardSpec
+                {
+                    Name = "P0ChoiceCard",
+                    Size = ElderCareMenuDesignTokens.SecondaryThreeCardSize,
+                    Title = "Test",
+                    Subtitle = "Test",
+                    Duration = "8 min",
+                    Intensity = "Light",
+                    ActionText = "Start",
+                    UseLineHero = true,
+                    LineHeroType = ElderCareIconType.Heart,
+                    ClockIcon = iconSprite,
+                    ActionIcon = iconSprite,
+                    Accent = ElderCareMenuDesignTokens.Jade,
+                    Recommended = true
+                });
+
+            var background = button.transform.Find("Content/Background");
+            var backgroundPanel = background != null ? background.GetComponent<ElderCareRoundedPanel>() : null;
+            AssertTrue(backgroundPanel != null && backgroundPanel.DrawStroke && backgroundPanel.StrokeWidth > 0f, "Shared Health/Rehab choice-card background should use the native rounded stroke.");
+            AssertTrue(background.GetComponent<Outline>() == null, "Choice-card background should not use Unity Outline.");
+            AssertTrue(button.GetComponent<Outline>() == null, "Choice-card button root should not carry a visual Outline.");
+
+            var noStrokePaths = new[]
+            {
+                "Content/InnerRice",
+                "Content/RecommendationRibbon",
+                "Content/Metadata/DurationPill",
+                "Content/Metadata/IntensityPill"
+            };
+            for (var i = 0; i < noStrokePaths.Length; i++)
+            {
+                var surface = button.transform.Find(noStrokePaths[i]);
+                var rounded = surface != null ? surface.GetComponent<ElderCareRoundedPanel>() : null;
+                AssertTrue(surface != null && surface.GetComponent<Outline>() == null, noStrokePaths[i] + " should not use Unity Outline.");
+                AssertTrue(rounded != null && !rounded.DrawStroke, noStrokePaths[i] + " should remain a fill-only layer.");
+            }
+        }
+        finally
+        {
+            Object.DestroyImmediate(root);
+            Object.DestroyImmediate(iconSprite);
+            Object.DestroyImmediate(iconTexture);
+        }
+    }
+
+    private static void RehabSelectionScaleCompensationUsesSharedWorldScaleTokens()
+    {
+        var expectedCompensation = ElderCareMenuDesignTokens.SecondaryCanvasWorldScale /
+                                   ElderCareMenuDesignTokens.RehabPromptCanvasWorldScale;
+        AssertTrue(
+            Mathf.Abs(ElderCareMenuDesignTokens.RehabSelectionWorldScaleCompensation - expectedCompensation) < 0.000001f,
+            "Rehab selection scale compensation should be derived from the shared world-scale tokens.");
+
+        var effectiveScale = ElderCareMenuDesignTokens.RehabPromptCanvasWorldScale *
+                             ElderCareMenuDesignTokens.RehabSelectionWorldScaleCompensation;
+        AssertTrue(
+            Mathf.Abs(effectiveScale - ElderCareMenuDesignTokens.SecondaryCanvasWorldScale) < 0.000001f,
+            "Rehab selection effective world scale should match the Health secondary-menu world scale.");
+
+        var canvas = new GameObject("RehabPromptCanvasScaleFixture", typeof(RectTransform));
+        var selection = new GameObject("SelectionPanelRoot", typeof(RectTransform));
+        var training = new GameObject("TrainingFunctionPanelRoot", typeof(RectTransform));
+        var result = new GameObject("ResultPanelRoot", typeof(RectTransform));
+        try
+        {
+            selection.transform.SetParent(canvas.transform, false);
+            training.transform.SetParent(canvas.transform, false);
+            result.transform.SetParent(canvas.transform, false);
+            canvas.transform.localScale = Vector3.one * ElderCareMenuDesignTokens.RehabPromptCanvasWorldScale;
+            training.transform.localScale = new Vector3(1.1f, 0.9f, 1f);
+            result.transform.localScale = new Vector3(0.95f, 1.05f, 1f);
+            var trainingScale = training.transform.localScale;
+            var resultScale = result.transform.localScale;
+
+            selection.transform.localScale = Vector3.one * ElderCareMenuDesignTokens.RehabSelectionWorldScaleCompensation;
+
+            AssertTrue(Vector3.Distance(training.transform.localScale, trainingScale) < 0.000001f, "Selection scale compensation must not change TrainingFunctionPanelRoot.");
+            AssertTrue(Vector3.Distance(result.transform.localScale, resultScale) < 0.000001f, "Selection scale compensation must not change ResultPanelRoot.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(canvas);
+        }
+    }
+
+    private static void RehabSelectionUsesSharedNativeStrokeBuilder()
+    {
+        var panel = new GameObject(
+            "RehabTrainingSelectPanel",
+            typeof(RectTransform),
+            typeof(CanvasRenderer),
+            typeof(ElderCareRoundedPanel));
+        var iconTexture = new Texture2D(2, 2);
+        var iconSprite = Sprite.Create(iconTexture, new Rect(0f, 0f, 2f, 2f), new Vector2(0.5f, 0.5f));
+        try
+        {
+            var legacyRootSurface = panel.GetComponent<ElderCareRoundedPanel>();
+            legacyRootSurface.color = new Color(0.0915f, 0.2466f, 0.2074f, 1f);
+            var elements = RehabSelectionVisualSkin.Build(
+                panel.transform,
+                null,
+                iconSprite,
+                iconSprite,
+                iconSprite);
+            var baduanjinSurface = panel.transform.Find("ChoiceCards/BaduanjinButton/Content/Background");
+            var taiChiSurface = panel.transform.Find("ChoiceCards/TaiChiButton/Content/Background");
+            var baduanjinRounded = baduanjinSurface != null ? baduanjinSurface.GetComponent<ElderCareRoundedPanel>() : null;
+            var taiChiRounded = taiChiSurface != null ? taiChiSurface.GetComponent<ElderCareRoundedPanel>() : null;
+
+            AssertTrue(elements.baduanjinButton != null && elements.taiChiButton != null && elements.backButton != null, "Rehab selection should preserve all three navigation Button references.");
+            AssertTrue(baduanjinRounded != null && baduanjinRounded.DrawStroke && baduanjinSurface.GetComponent<Outline>() == null, "Baduanjin card should use the shared native stroke.");
+            AssertTrue(taiChiRounded != null && taiChiRounded.DrawStroke && taiChiSurface.GetComponent<Outline>() == null, "TaiChi card should use the shared native stroke.");
+            AssertTrue(panel.GetComponentsInChildren<Outline>(true).Length == 0, "Generated Rehab selection should not contain Unity Outline components.");
+            AssertTrue(!legacyRootSurface.enabled && !legacyRootSurface.raycastTarget, "Rehab selection should suppress the obsolete teal root surface without changing the page Transform.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(panel);
+            Object.DestroyImmediate(iconSprite);
+            Object.DestroyImmediate(iconTexture);
+        }
+    }
+
+    private static void AssertDestructiveBuilderIsDisabled(string methodName)
+    {
+        var method = typeof(RehabSceneBuilder).GetMethod(
+            methodName,
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        AssertTrue(method != null, methodName + " should remain present as an explicitly disabled legacy path.");
+
+        var obsolete = method.GetCustomAttributes(typeof(System.ObsoleteAttribute), false);
+        AssertTrue(obsolete.Length == 1, methodName + " should be guarded by ObsoleteAttribute.");
+        AssertTrue(((System.ObsoleteAttribute)obsolete[0]).IsError, methodName + " must fail compilation if it is called again.");
     }
 
     private static void TwoHandsAboveHeadPoseAccumulatesHold()
@@ -508,6 +804,21 @@ public static class RehabSelfTests
         }
     }
 
+    private static void ComfortUiUsesHmdRelativeHeight()
+    {
+        AssertComfortUiHeight(1.65f, 1.55f, "Comfort UI should use HMD height plus the configured offset.");
+    }
+
+    private static void ComfortUiClampsMinimumHeight()
+    {
+        AssertComfortUiHeight(1.2f, 1.25f, "Comfort UI should clamp low HMD-relative placement to the minimum world height.");
+    }
+
+    private static void ComfortUiClampsMaximumHeight()
+    {
+        AssertComfortUiHeight(1.95f, 1.75f, "Comfort UI should clamp high HMD-relative placement to the maximum world height.");
+    }
+
     private static void ComfortUiPlacementUsesCurrentHeadYaw()
     {
         var headObject = new GameObject("Head");
@@ -515,7 +826,7 @@ public static class RehabSelfTests
         try
         {
             headObject.transform.position = new Vector3(1f, 1.6f, 2f);
-            headObject.transform.rotation = Quaternion.Euler(0f, 90f, 0f);
+            headObject.transform.rotation = Quaternion.Euler(-30f, 45f, 0f);
 
             var placer = uiObject.AddComponent<ComfortWorldSpaceUIPlacer>();
             placer.headTransform = headObject.transform;
@@ -524,9 +835,13 @@ public static class RehabSelfTests
             placer.hmdHeightOffsetMeters = -0.1f;
             placer.PlaceInFrontOfUser();
 
-            AssertTrue(Mathf.Abs(uiObject.transform.position.x - 3f) < 0.001f, "Comfort UI should use the current head yaw for initial X placement.");
-            AssertTrue(Mathf.Abs(uiObject.transform.position.z - 2f) < 0.001f, "Comfort UI should stay on the head yaw plane instead of the old world-forward direction.");
-            AssertTrue(Quaternion.Angle(uiObject.transform.rotation, Quaternion.LookRotation(Vector3.right, Vector3.up)) < 0.1f, "Comfort UI should rotate to face the current head yaw.");
+            var expectedForward = Quaternion.Euler(0f, 45f, 0f) * Vector3.forward;
+            var expectedPosition = headObject.transform.position + expectedForward * 2f;
+            expectedPosition.y = placer.preferredWorldHeight;
+
+            AssertTrue(Vector3.Distance(uiObject.transform.position, expectedPosition) < 0.001f, "Comfort UI should place from yaw only even when the HMD has pitch.");
+            AssertTrue(Quaternion.Angle(uiObject.transform.rotation, Quaternion.LookRotation(expectedForward, Vector3.up)) < 0.1f, "Comfort UI rotation should preserve yaw without HMD pitch or roll.");
+            AssertTrue(Vector3.Dot(uiObject.transform.up, Vector3.up) > 0.999f, "Comfort UI should remain upright when the user looks up or down.");
         }
         finally
         {
@@ -549,16 +864,447 @@ public static class RehabSelfTests
             placer.uiRoot = uiObject.transform;
             placer.distanceMeters = 2f;
             placer.hmdHeightOffsetMeters = -0.1f;
+            placer.usePreferredHeightInsteadOfHeadHeight = false;
             placer.startupRecenterSeconds = 0f;
             placer.startupRecenterFrames = 1;
             placer.PlaceInFrontOfUser();
 
+            headObject.transform.position = new Vector3(0.25f, 1.7f, 0.1f);
             headObject.transform.rotation = Quaternion.Euler(0f, -90f, 0f);
             placer.BeginStartupRecenterWindow();
             placer.RefreshStartupPlacementIfNeeded();
 
-            AssertTrue(uiObject.transform.position.x < -1.99f, "Startup recenter should update the UI after the XR head pose settles.");
-            AssertTrue(Mathf.Abs(uiObject.transform.position.z) < 0.001f, "Startup recenter should no longer leave the UI at the stale world-forward position.");
+            var expectedPosition = new Vector3(-1.75f, 1.6f, 0.1f);
+            AssertTrue(Vector3.Distance(uiObject.transform.position, expectedPosition) < 0.001f, "Startup recenter should update position and yaw after the XR head pose settles.");
+            AssertTrue(Quaternion.Angle(uiObject.transform.rotation, Quaternion.LookRotation(Vector3.left, Vector3.up)) < 0.1f, "Startup recenter should refresh the horizontal menu rotation.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(uiObject);
+            Object.DestroyImmediate(headObject);
+        }
+    }
+
+    private static void ComfortUiStopsFollowingAfterStartupWindow()
+    {
+        var headObject = new GameObject("Head");
+        var uiObject = new GameObject("ComfortUiStartupFreeze");
+        try
+        {
+            headObject.transform.position = new Vector3(0f, 1.65f, 0f);
+            headObject.transform.rotation = Quaternion.identity;
+
+            var placer = uiObject.AddComponent<ComfortWorldSpaceUIPlacer>();
+            placer.headTransform = headObject.transform;
+            placer.uiRoot = uiObject.transform;
+            placer.distanceMeters = 2f;
+            placer.hmdHeightOffsetMeters = -0.1f;
+            placer.usePreferredHeightInsteadOfHeadHeight = false;
+            placer.comfortFollowEnabled = false;
+            placer.startupRecenterSeconds = 0f;
+            placer.startupRecenterFrames = 1;
+
+            placer.BeginStartupRecenterWindow();
+            placer.RefreshStartupPlacementIfNeeded();
+            var frozenPosition = uiObject.transform.position;
+            var frozenRotation = uiObject.transform.rotation;
+
+            headObject.transform.position = new Vector3(1f, 1.8f, -0.5f);
+            headObject.transform.rotation = Quaternion.Euler(0f, 90f, 0f);
+            placer.RefreshStartupPlacementIfNeeded();
+
+            AssertTrue(Vector3.Distance(uiObject.transform.position, frozenPosition) < 0.001f, "Comfort UI should stop following position after the startup window ends.");
+            AssertTrue(Quaternion.Angle(uiObject.transform.rotation, frozenRotation) < 0.1f, "Comfort UI should stop following yaw after the startup window ends.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(uiObject);
+            Object.DestroyImmediate(headObject);
+        }
+    }
+
+    private static void MainEntryComfortPlacementUsesHmdRelativeRootHeight()
+    {
+        var headObject = new GameObject("MainEntryHead");
+        var rootObject = new GameObject("MainEntryUiRoot");
+        try
+        {
+            headObject.transform.position = new Vector3(0.2f, 1.30f, -0.1f);
+            headObject.transform.rotation = Quaternion.Euler(-25f, 30f, 8f);
+
+            var placer = rootObject.AddComponent<ComfortWorldSpaceUIPlacer>();
+            placer.headTransform = headObject.transform;
+            placer.uiRoot = rootObject.transform;
+            placer.distanceMeters = 1.35f;
+            placer.hmdHeightOffsetMeters = -0.15f;
+            placer.usePreferredHeightInsteadOfHeadHeight = false;
+            placer.clampWorldHeight = true;
+            placer.minWorldHeight = 1.10f;
+            placer.maxWorldHeight = 1.55f;
+            placer.PlaceInFrontOfUser();
+
+            var forward = Quaternion.Euler(0f, 30f, 0f) * Vector3.forward;
+            var expected = headObject.transform.position + forward * 1.35f;
+            expected.y = 1.15f;
+            AssertTrue(Vector3.Distance(rootObject.transform.position, expected) < 0.001f, "Main entry root should sit 0.15 metres below the current HMD height.");
+            AssertTrue(Quaternion.Angle(rootObject.transform.rotation, Quaternion.LookRotation(forward, Vector3.up)) < 0.1f, "Main entry should use HMD yaw without pitch or roll.");
+
+            headObject.transform.position = new Vector3(0f, 1.10f, 0f);
+            placer.PlaceInFrontOfUser();
+            AssertTrue(Mathf.Abs(rootObject.transform.position.y - 1.10f) < 0.001f, "Main entry should clamp low seated placement to 1.10 metres.");
+
+            headObject.transform.position = new Vector3(0f, 1.90f, 0f);
+            placer.PlaceInFrontOfUser();
+            AssertTrue(Mathf.Abs(rootObject.transform.position.y - 1.55f) < 0.001f, "Main entry should clamp high placement to 1.55 metres.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(rootObject);
+            Object.DestroyImmediate(headObject);
+        }
+    }
+
+    private static void MainEntrySceneUsesSingleHmdRelativePlacementOwner()
+    {
+        const string scenePath = "Assets/_Project/Scenes/00_MainEntry.unity";
+        EditorSceneManager.OpenScene(scenePath, OpenSceneMode.Single);
+
+        var menu = Object.FindObjectOfType<UnifiedEntryMenu>(true);
+        var placement = Object.FindObjectOfType<RehabPanelPlacementController>(true);
+        var placer = Object.FindObjectOfType<ComfortWorldSpaceUIPlacer>(true);
+        var canvasObject = GameObject.Find("MainEntryCanvas");
+        var uiRoot = canvasObject != null ? canvasObject.transform.parent : null;
+        var panel = canvasObject != null ? canvasObject.transform.Find("Panel") as RectTransform : null;
+        var canvasRect = canvasObject != null ? canvasObject.GetComponent<RectTransform>() : null;
+
+        AssertTrue(menu != null && !menu.recenterPanelsOnEnable, "Main entry should not run the legacy delayed panel recenter.");
+        AssertTrue(placement != null && !placement.placeOnStart, "Main entry should not let RehabPanelPlacementController compete during startup.");
+        AssertTrue(placer != null && placer.enabled && placer.placeOnStart && placer.recenterDuringStartup, "Main entry should use ComfortWorldSpaceUIPlacer as its only startup placement owner.");
+        AssertTrue(placer != null && uiRoot != null && placer.uiRoot == uiRoot, "Main entry placer should move only the existing UIRoot.");
+        AssertTrue(!placer.usePreferredHeightInsteadOfHeadHeight && Mathf.Approximately(placer.hmdHeightOffsetMeters, -0.15f), "Main entry should derive root height from the current HMD.");
+        AssertTrue(placer.clampWorldHeight && Mathf.Approximately(placer.minWorldHeight, 1.10f) && Mathf.Approximately(placer.maxWorldHeight, 1.55f), "Main entry should clamp HMD-relative height to its comfort range.");
+        AssertTrue(Mathf.Approximately(placer.distanceMeters, 1.35f), "Main entry should preserve its current 1.35 metre viewing distance.");
+        AssertTrue(Mathf.Approximately(placer.startupRecenterSeconds, 1.25f) && placer.startupRecenterFrames == 18, "Main entry should follow settling XR pose for 1.25 seconds and at least 18 frames.");
+        AssertTrue(!placer.comfortFollowEnabled && !placer.enableRayDrag && !placer.enableThumbstickNavigation, "Main entry should freeze after startup without introducing unrelated drag/navigation helpers.");
+        AssertTrue(canvasRect != null && Vector2.Distance(canvasRect.sizeDelta, new Vector2(1120f, 680f)) < 0.01f, "Main entry canvas visual size should remain unchanged.");
+        AssertTrue(panel != null && Vector2.Distance(panel.sizeDelta, new Vector2(1040f, 468f)) < 0.01f, "Main entry panel visual size should remain unchanged.");
+    }
+
+    private static void TrainingLayoutRecenterRemainsIndependentOfSelectionPlacement()
+    {
+        var existingMainCamera = Camera.main;
+        var cameraObject = existingMainCamera == null ? new GameObject("Main Camera", typeof(Camera)) : null;
+        var viewTransform = existingMainCamera != null ? existingMainCamera.transform : cameraObject.transform;
+        var originalPosition = viewTransform.position;
+        var originalRotation = viewTransform.rotation;
+        var anchorObject = new GameObject("TrainingLayoutAnchorTest");
+        var functionPanelObject = new GameObject("TrainingFunctionPanel");
+        var videoPanelObject = new GameObject("VideoPanel");
+        var selectionPanelObject = new GameObject("SelectionPanel");
+        var controllerObject = new GameObject("RehabPanelPlacementControllerTest");
+        try
+        {
+            if (cameraObject != null)
+            {
+                cameraObject.tag = "MainCamera";
+            }
+
+            viewTransform.position = new Vector3(1f, 1.7f, 2f);
+            viewTransform.rotation = Quaternion.Euler(-20f, 90f, 0f);
+            functionPanelObject.transform.SetParent(anchorObject.transform, false);
+            videoPanelObject.transform.SetParent(anchorObject.transform, false);
+            functionPanelObject.transform.localPosition = new Vector3(-0.4f, 0.1f, 0f);
+            videoPanelObject.transform.localPosition = new Vector3(0.5f, 0.2f, 0.15f);
+            selectionPanelObject.transform.position = new Vector3(-3f, 1.4f, -2f);
+
+            var originalFunctionLocalPosition = functionPanelObject.transform.localPosition;
+            var originalVideoLocalPosition = videoPanelObject.transform.localPosition;
+            var originalSelectionPosition = selectionPanelObject.transform.position;
+            var videoLayout = videoPanelObject.AddComponent<RehabVideoPanelLayoutController>();
+            videoLayout.panelRoot = videoPanelObject.transform;
+
+            var controller = controllerObject.AddComponent<RehabPanelPlacementController>();
+            controller.headTransform = viewTransform;
+            controller.viewTransform = viewTransform;
+            controller.selectionPanelRoot = selectionPanelObject.transform;
+            controller.trainingLayoutAnchor = anchorObject.transform;
+            controller.trainingFunctionPanelRoot = functionPanelObject.transform;
+            controller.videoPanelRoot = videoPanelObject.transform;
+            controller.videoLayoutController = videoLayout;
+            controller.trainingLayoutDistance = 1.8f;
+            controller.trainingLayoutHeightOffset = -0.1f;
+
+            controller.RecenterTrainingLayout();
+
+            var expectedAnchorPosition = new Vector3(2.8f, 1.6f, 2f);
+            AssertTrue(Vector3.Distance(anchorObject.transform.position, expectedAnchorPosition) < 0.001f, "Training layout recenter should continue to update TrainingLayoutAnchor from the HMD yaw.");
+            AssertTrue(Quaternion.Angle(anchorObject.transform.rotation, Quaternion.LookRotation(Vector3.right, Vector3.up)) < 0.1f, "Training layout should remain upright and face the HMD yaw.");
+            AssertTrue(Vector3.Distance(functionPanelObject.transform.localPosition, originalFunctionLocalPosition) < 0.001f, "Training function panel should keep its authored offset under TrainingLayoutAnchor.");
+            AssertTrue(Vector3.Distance(videoPanelObject.transform.localPosition, originalVideoLocalPosition) < 0.001f, "Video panel should keep its authored offset under TrainingLayoutAnchor.");
+            AssertTrue(Vector3.Distance(selectionPanelObject.transform.position, originalSelectionPosition) < 0.001f, "Training layout recenter should not move the selection menu.");
+        }
+        finally
+        {
+            viewTransform.position = originalPosition;
+            viewTransform.rotation = originalRotation;
+            Object.DestroyImmediate(controllerObject);
+            Object.DestroyImmediate(selectionPanelObject);
+            Object.DestroyImmediate(videoPanelObject);
+            Object.DestroyImmediate(functionPanelObject);
+            Object.DestroyImmediate(anchorObject);
+            if (cameraObject != null)
+            {
+                Object.DestroyImmediate(cameraObject);
+            }
+        }
+    }
+
+    private static void SelectionPageHidesTrainingContent()
+    {
+        var fixture = new RehabPageLayoutFixture();
+        try
+        {
+            fixture.modeUi.ShowTrainingSelectPanel();
+
+            AssertTrue(fixture.selectionRoot.activeSelf, "Selection page should show SelectionPanelRoot.");
+            AssertTrue(!fixture.trainingArea.activeSelf, "Selection page should hide the training area.");
+            AssertTrue(!fixture.trainingRoot.activeSelf, "Selection page should hide the training function panel.");
+            AssertTrue(!fixture.videoPanel.activeSelf, "Selection page should hide the rehab video panel.");
+            AssertTrue(!fixture.resultRoot.activeSelf, "Selection page should hide ResultPanelRoot.");
+            AssertTrue(!fixture.coachRoot.activeSelf, "Selection page should hide the virtual coach.");
+        }
+        finally
+        {
+            fixture.Destroy();
+        }
+    }
+
+    private static void StartingTrainingShowsTrainingContent()
+    {
+        var fixture = new RehabPageLayoutFixture();
+        try
+        {
+            fixture.modeUi.StartBaduanjinTraining();
+
+            AssertTrue(fixture.session.IsSessionActive, "Starting a rehab mode should begin the session.");
+            AssertTrue(fixture.trainingArea.activeSelf, "Starting training should show the training area.");
+            AssertTrue(fixture.trainingRoot.activeSelf, "Starting training should show the training function panel.");
+            AssertTrue(fixture.videoPanel.activeSelf, "Starting training should show the rehab video panel shell.");
+            AssertTrue(fixture.coachRoot.activeSelf, "Starting training should show the virtual coach.");
+            AssertTrue(!fixture.selectionRoot.activeSelf && !fixture.resultRoot.activeSelf, "Training should hide selection and result pages.");
+        }
+        finally
+        {
+            fixture.Destroy();
+        }
+    }
+
+    private static void ReturningToSelectionHidesTrainingContent()
+    {
+        var fixture = new RehabPageLayoutFixture();
+        try
+        {
+            fixture.modeUi.StartBaduanjinTraining();
+            fixture.modeUi.ShowTrainingSelectPanel();
+
+            AssertTrue(!fixture.session.IsSessionActive, "Returning to selection should cancel the active session.");
+            AssertTrue(!fixture.trainingArea.activeSelf, "Returning to selection should hide the training area.");
+            AssertTrue(!fixture.trainingRoot.activeSelf && !fixture.videoPanel.activeSelf, "Returning to selection should hide training UI and video.");
+            AssertTrue(!fixture.coachRoot.activeSelf, "Returning to selection should hide the virtual coach.");
+        }
+        finally
+        {
+            fixture.Destroy();
+        }
+    }
+
+    private static void ResultPageHidesTrainingContent()
+    {
+        var fixture = new RehabPageLayoutFixture();
+        try
+        {
+            fixture.modeUi.StartBaduanjinTraining();
+            fixture.modeUi.ShowTrainingResultPanel();
+
+            AssertTrue(fixture.resultRoot.activeSelf, "Result page should show ResultPanelRoot.");
+            AssertTrue(!fixture.trainingArea.activeSelf, "Result page should hide the training area.");
+            AssertTrue(!fixture.trainingRoot.activeSelf && !fixture.videoPanel.activeSelf, "Result page should hide training UI and video.");
+            AssertTrue(!fixture.coachRoot.activeSelf, "Result page should hide the virtual coach.");
+        }
+        finally
+        {
+            fixture.Destroy();
+        }
+    }
+
+    private static void TrainingEnvironmentRecenterPreservesSessionProgress()
+    {
+        var fixture = new RehabPageLayoutFixture();
+        try
+        {
+            fixture.session.StartTraining(RehabTrainingType.Baduanjin);
+            var sample = CreateSample(1.6f, 1.9f, 1.9f);
+            var before = fixture.evaluator.Evaluate(sample, 0.5f, false, 0.5f);
+            var movementBefore = fixture.evaluator.CurrentMovement;
+
+            fixture.modeUi.RecenterTrainingEnvironment();
+            var after = fixture.evaluator.Evaluate(sample, 0f, false, 0.5f);
+
+            AssertTrue(fixture.session.IsSessionActive, "Recenter should not stop or restart the current session.");
+            AssertTrue(fixture.evaluator.CurrentMovement == movementBefore, "Recenter should preserve the current movement.");
+            AssertTrue(after.currentHoldSeconds >= before.currentHoldSeconds - 0.001f, "Recenter should preserve movement evaluation progress.");
+        }
+        finally
+        {
+            fixture.Destroy();
+        }
+    }
+
+    private static void TrainingEnvironmentRecenterUsesCurrentHmdPose()
+    {
+        var fixture = new RehabPageLayoutFixture();
+        try
+        {
+            fixture.head.position = new Vector3(1f, 1.7f, -2f);
+            fixture.head.rotation = Quaternion.Euler(-25f, 90f, 0f);
+            fixture.modeUi.RecenterTrainingEnvironment();
+
+            AssertTrue(Vector3.Distance(fixture.trainingArea.transform.position, new Vector3(1f, 0f, -2f)) < 0.001f, "Training recenter should move the training center below the current HMD position.");
+            AssertTrue(Vector3.Distance(fixture.trainingLayoutAnchor.position, new Vector3(2.8f, 1.6f, -2f)) < 0.001f, "Training recenter should move TrainingLayoutAnchor from the current HMD yaw.");
+            AssertTrue(Mathf.Abs(fixture.coachRoot.transform.position.x - 3f) < 0.001f, "Training recenter should move the coach in front of the current HMD yaw.");
+        }
+        finally
+        {
+            fixture.Destroy();
+        }
+    }
+
+    private static void TrainingLayoutRecenterUsesYawOnly()
+    {
+        var fixture = new RehabPageLayoutFixture();
+        try
+        {
+            fixture.head.rotation = Quaternion.Euler(-30f, 45f, 18f);
+            fixture.panelPlacement.RecenterTrainingLayout();
+
+            var expectedForward = Quaternion.Euler(0f, 45f, 0f) * Vector3.forward;
+            AssertTrue(Quaternion.Angle(fixture.trainingLayoutAnchor.rotation, Quaternion.LookRotation(expectedForward, Vector3.up)) < 0.1f, "Training layout rotation should use HMD yaw only.");
+            AssertTrue(Vector3.Dot(fixture.trainingLayoutAnchor.up, Vector3.up) > 0.999f, "Training layout should remain upright when HMD pitch or roll changes.");
+        }
+        finally
+        {
+            fixture.Destroy();
+        }
+    }
+
+    private static void TrainingRecenterButtonUsesUnifiedPlacement()
+    {
+        var fixture = new RehabPageLayoutFixture();
+        try
+        {
+            fixture.modeUi.StartBaduanjinTraining();
+            fixture.head.position = new Vector3(-1f, 1.7f, 2f);
+            fixture.head.rotation = Quaternion.Euler(20f, -90f, 0f);
+
+            AssertTrue(fixture.modeUi.trainingRecenterButton != null, "Training page should expose the RecenterButton route.");
+            fixture.modeUi.trainingRecenterButton.onClick.Invoke();
+
+            AssertTrue(Vector3.Distance(fixture.trainingArea.transform.position, new Vector3(-1f, 0f, 2f)) < 0.001f, "RecenterButton should update the training center.");
+            AssertTrue(Vector3.Distance(fixture.trainingLayoutAnchor.position, new Vector3(-2.8f, 1.6f, 2f)) < 0.001f, "RecenterButton should update TrainingLayoutAnchor.");
+            AssertTrue(Mathf.Abs(fixture.coachRoot.transform.position.x + 3f) < 0.001f, "RecenterButton should update the virtual coach through the unified route.");
+        }
+        finally
+        {
+            fixture.Destroy();
+        }
+    }
+
+    private static void ResultPanelRecenterUsesCurrentHmdPose()
+    {
+        var fixture = new RehabPageLayoutFixture();
+        try
+        {
+            fixture.head.position = new Vector3(0.5f, 1.65f, -0.25f);
+            fixture.head.rotation = Quaternion.Euler(-30f, 45f, 12f);
+            fixture.panelPlacement.RecenterResultPanel();
+
+            var forward = Quaternion.Euler(0f, 45f, 0f) * Vector3.forward;
+            var expected = fixture.head.position + forward * 2f;
+            expected.y = 1.55f;
+            AssertTrue(Vector3.Distance(fixture.resultRoot.transform.position, expected) < 0.001f, "Result panel should use current HMD position, yaw, distance and height offset.");
+            AssertTrue(Quaternion.Angle(fixture.resultRoot.transform.rotation, Quaternion.LookRotation(forward, Vector3.up)) < 0.1f, "Result panel should remain upright and use HMD yaw only.");
+        }
+        finally
+        {
+            fixture.Destroy();
+        }
+    }
+
+    private static void ResultPanelRecenterClampsMinimumHeight()
+    {
+        AssertResultPanelHeight(1.2f, 1.25f, "Result panel should clamp low HMD-relative height.");
+    }
+
+    private static void ResultPanelRecenterClampsMaximumHeight()
+    {
+        AssertResultPanelHeight(1.95f, 1.75f, "Result panel should clamp high HMD-relative height.");
+    }
+
+    private static void ResultPanelRecenterDoesNotMoveSelectionPanel()
+    {
+        var fixture = new RehabPageLayoutFixture();
+        try
+        {
+            fixture.selectionRoot.transform.position = new Vector3(-3f, 1.4f, -2f);
+            var selectionPosition = fixture.selectionRoot.transform.position;
+            fixture.head.position = new Vector3(0.5f, 1.65f, 0.25f);
+            fixture.modeUi.ShowTrainingResultPanel();
+
+            AssertTrue(Vector3.Distance(fixture.selectionRoot.transform.position, selectionPosition) < 0.001f, "Result recenter should not move SelectionPanelRoot.");
+            AssertTrue(Vector3.Distance(fixture.resultRoot.transform.position, new Vector3(0.5f, 1.55f, 2.25f)) < 0.001f, "Showing results should recenter ResultPanelRoot from the current HMD pose.");
+        }
+        finally
+        {
+            fixture.Destroy();
+        }
+    }
+
+    private static void AssertResultPanelHeight(float headHeight, float expectedHeight, string message)
+    {
+        var fixture = new RehabPageLayoutFixture();
+        try
+        {
+            fixture.head.position = new Vector3(0f, headHeight, 0f);
+            fixture.panelPlacement.RecenterResultPanel();
+            AssertTrue(Mathf.Abs(fixture.resultRoot.transform.position.y - expectedHeight) < 0.001f, message);
+        }
+        finally
+        {
+            fixture.Destroy();
+        }
+    }
+
+    private static void AssertComfortUiHeight(float headHeight, float expectedHeight, string message)
+    {
+        var headObject = new GameObject("Head");
+        var uiObject = new GameObject("ComfortUiHeight");
+        try
+        {
+            headObject.transform.position = new Vector3(0f, headHeight, 0f);
+            headObject.transform.rotation = Quaternion.identity;
+
+            var placer = uiObject.AddComponent<ComfortWorldSpaceUIPlacer>();
+            placer.headTransform = headObject.transform;
+            placer.uiRoot = uiObject.transform;
+            placer.distanceMeters = 2f;
+            placer.hmdHeightOffsetMeters = -0.1f;
+            placer.usePreferredHeightInsteadOfHeadHeight = false;
+            placer.clampWorldHeight = true;
+            placer.minWorldHeight = 1.25f;
+            placer.maxWorldHeight = 1.75f;
+            placer.PlaceInFrontOfUser();
+
+            AssertTrue(Mathf.Abs(uiObject.transform.position.y - expectedHeight) < 0.001f, message);
         }
         finally
         {
@@ -651,8 +1397,10 @@ public static class RehabSelfTests
             var travelCard = canvasObject.transform.Find("Panel/Module_Travel");
             var memoryCard = canvasObject.transform.Find("Panel/Module_Memory");
             var healthGroup = healthCard != null ? healthCard.GetComponent<CanvasGroup>() : null;
-            var healthIcon = healthCard != null ? healthCard.Find("Icon")?.GetComponent<Image>() : null;
+            var healthIcon = healthCard != null ? healthCard.Find("HeroIcon")?.GetComponent<Image>() : null;
+            var healthSurface = healthCard != null ? healthCard.Find("Surface")?.GetComponent<ElderCareRoundedPanel>() : null;
             var greetingText = canvasObject.transform.Find("Panel/Greeting")?.GetComponent<TMPro.TMP_Text>();
+            var outlines = canvasObject.GetComponentsInChildren<Outline>(true);
 
             AssertTrue(panel != null, "HTML-style main entry panel should be created.");
             AssertTrue(rect != null && Mathf.Abs(rect.sizeDelta.x - 1120f) < 0.01f, "Main entry panel should use the wide HTML-style canvas pixel size.");
@@ -664,6 +1412,8 @@ public static class RehabSelfTests
             AssertTrue(greetingText.font != null && greetingText.font.name == "RehabChineseTMP", "Main entry text should bind to the project Chinese TMP font instead of the default missing-glyph font.");
             AssertTrue(healthIcon != null && healthIcon.sprite != null, "Main entry runtime GUI should use the provided SVG-derived table tennis icon sprite.");
             AssertTrue(healthGroup == null || healthGroup.alpha > 0.99f, "Main entry cards should be visible immediately instead of waiting on entrance animation.");
+            AssertTrue(healthSurface != null && healthSurface.DrawStroke && healthSurface.GetComponent<Outline>() == null, "Main-entry module surfaces should use the native rounded stroke instead of Unity Outline.");
+            AssertTrue(outlines.Length == 1 && outlines[0].name == "Window", "MainEntry should retain only the explicit room-window decor shadow Outline.");
         }
         finally
         {
@@ -859,6 +1609,7 @@ public static class RehabSelfTests
             control.videoLayoutController = layout;
             control.hmdTransform = headObject.transform;
             control.maxRayDistanceMeters = 5f;
+            control.createVisibleVideoControls = true;
             control.EnsureControlCanvas();
             control.EnsureVideoRayTarget();
             control.SetControlCanvasVisible(true);
@@ -974,7 +1725,7 @@ public static class RehabSelfTests
         }
     }
 
-    private static void TrainingSelectPanelUsesComfortRayPlacement()
+    private static void TrainingSelectPanelRecenterUsesConfiguredComfortPlacement()
     {
         var headObject = new GameObject("Head");
         var uiObject = new GameObject("RehabModeSelectCanvas", typeof(RectTransform));
@@ -993,12 +1744,17 @@ public static class RehabSelfTests
             var placer = uiObject.AddComponent<ComfortWorldSpaceUIPlacer>();
             placer.headTransform = headObject.transform;
             placer.uiRoot = rect;
-            placer.distanceMeters = 1.7f;
-            placer.hmdHeightOffsetMeters = -0.12f;
+            placer.distanceMeters = 2f;
+            placer.hmdHeightOffsetMeters = -0.1f;
+            placer.usePreferredHeightInsteadOfHeadHeight = false;
+            placer.clampWorldHeight = true;
+            placer.minWorldHeight = 1.25f;
+            placer.maxWorldHeight = 1.75f;
             placer.enableRayDrag = true;
             placer.enableThumbstickNavigation = true;
 
             var modeUi = uiObject.AddComponent<RehabModeSelectUI>();
+            modeUi.applyTrainingAndResultVisualSkin = false;
             modeUi.uiPlacer = placer;
             modeUi.rehabTrainingSelectPanel = selectPanel;
             modeUi.placeUiOnTrainingSelectOpen = true;
@@ -1007,8 +1763,10 @@ public static class RehabSelfTests
 
             modeUi.ShowTrainingSelectPanel();
 
-            AssertTrue(uiObject.transform.position.z > 2.4f, "Training selection panel should open farther from the user.");
-            AssertTrue(uiObject.transform.position.y > 1.67f, "Training selection panel should open higher than the old low placement.");
+            AssertTrue(Mathf.Abs(uiObject.transform.position.z - 2f) < 0.001f, "Training selection panel recenter should keep the configured rehab distance.");
+            AssertTrue(Mathf.Abs(uiObject.transform.position.y - 1.5f) < 0.001f, "Training selection panel recenter should use HMD-relative height.");
+            AssertTrue(Mathf.Abs(placer.distanceMeters - 2f) < 0.001f, "Opening the selection page should not replace the startup distance configuration.");
+            AssertTrue(Mathf.Abs(placer.hmdHeightOffsetMeters + 0.1f) < 0.001f, "Opening the selection page should not replace the HMD height offset.");
             AssertTrue(rect.Find("RayDragHandle") != null, "Training selection panel should expose a ray-drag handle.");
         }
         finally
@@ -1017,6 +1775,125 @@ public static class RehabSelfTests
             Object.DestroyImmediate(uiObject);
             Object.DestroyImmediate(headObject);
             Object.DestroyImmediate(unrelatedPlacementObject);
+        }
+    }
+
+    private sealed class RehabPageLayoutFixture
+    {
+        public readonly GameObject root;
+        public readonly Transform head;
+        public readonly GameObject trainingArea;
+        public readonly GameObject selectionRoot;
+        public readonly GameObject trainingRoot;
+        public readonly GameObject resultRoot;
+        public readonly GameObject videoPanel;
+        public readonly GameObject coachRoot;
+        public readonly Transform trainingLayoutAnchor;
+        public readonly MovementEvaluator evaluator;
+        public readonly RehabSessionManager session;
+        public readonly RehabPanelPlacementController panelPlacement;
+        public readonly RehabModeSelectUI modeUi;
+
+        public RehabPageLayoutFixture()
+        {
+            root = new GameObject("RehabPageLayoutFixture");
+            var headObject = new GameObject("RehabPageLayoutHead");
+            head = headObject.transform;
+            head.position = new Vector3(0f, 1.6f, 0f);
+            head.rotation = Quaternion.identity;
+
+            trainingArea = CreateChild(root.transform, "TrainingArea");
+            selectionRoot = CreateChild(root.transform, "SelectionPanelRoot");
+            var selectionPanel = CreateChild(selectionRoot.transform, "RehabTrainingSelectPanel");
+            trainingLayoutAnchor = CreateChild(root.transform, "TrainingLayoutAnchor").transform;
+            trainingRoot = CreateChild(trainingLayoutAnchor, "TrainingFunctionPanelRoot");
+            var trainingPanel = CreateChild(trainingRoot.transform, "RehabTrainingPanel");
+            videoPanel = CreateChild(trainingLayoutAnchor, "RehabVideoPanel");
+            resultRoot = CreateChild(root.transform, "ResultPanelRoot");
+            var resultPanel = CreateChild(resultRoot.transform, "TrainingResultPanel");
+
+            coachRoot = CreateChild(root.transform, "VirtualCoach");
+            var coach = coachRoot.AddComponent<VirtualCoachController>();
+            coach.userHeadTransform = head;
+            coach.coachRoot = coachRoot.transform;
+            coach.preferredDistanceMeters = 2f;
+            coach.minDistanceMeters = 1.8f;
+            coach.maxDistanceMeters = 2.2f;
+            coach.floorY = 0f;
+            coach.keepInFrontOfUser = false;
+            coach.placeInFrontOnStart = false;
+
+            var circleAnchor = root.AddComponent<TrainingCircleAnchor>();
+            circleAnchor.headTransform = head;
+            circleAnchor.trainingAreaRoot = trainingArea.transform;
+            circleAnchor.fallbackFloorY = 0f;
+            circleAnchor.useRaycastFloorHeight = false;
+
+            panelPlacement = root.AddComponent<RehabPanelPlacementController>();
+            panelPlacement.headTransform = head;
+            panelPlacement.viewTransform = head;
+            panelPlacement.selectionPanelRoot = selectionRoot.transform;
+            panelPlacement.trainingLayoutAnchor = trainingLayoutAnchor;
+            panelPlacement.trainingFunctionPanelRoot = trainingRoot.transform;
+            panelPlacement.resultPanelRoot = resultRoot.transform;
+            panelPlacement.videoPanelRoot = videoPanel.transform;
+            panelPlacement.trainingLayoutDistance = 1.8f;
+            panelPlacement.trainingLayoutHeightOffset = -0.1f;
+            panelPlacement.resultPanelDistance = 2f;
+            panelPlacement.resultPanelHeightOffset = -0.1f;
+            panelPlacement.clampResultPanelHeight = true;
+            panelPlacement.minResultPanelHeight = 1.25f;
+            panelPlacement.maxResultPanelHeight = 1.75f;
+
+            var safety = root.AddComponent<SafetyMonitor>();
+            safety.hmdTransform = head;
+            evaluator = root.AddComponent<MovementEvaluator>();
+            evaluator.baduanjinEvaluator = root.AddComponent<BaduanjinEvaluator>();
+            evaluator.taiChiEvaluator = root.AddComponent<TaiChiEvaluator>();
+            var recorder = root.AddComponent<TrainingResultRecorder>();
+
+            session = root.AddComponent<RehabSessionManager>();
+            session.safetyMonitor = safety;
+            session.movementEvaluator = evaluator;
+            session.resultRecorder = recorder;
+            session.virtualCoachController = coach;
+            session.trainingCircleAnchor = circleAnchor;
+            session.panelPlacementController = panelPlacement;
+            session.trainingAreaRoot = trainingArea.transform;
+            session.autoCreateVirtualCoach = false;
+            session.autoStartSession = false;
+            session.placeTrainingAreaOnStart = false;
+
+            modeUi = root.AddComponent<RehabModeSelectUI>();
+            modeUi.rehabTrainingSelectPanel = selectionPanel;
+            modeUi.rehabTrainingPanel = trainingPanel;
+            modeUi.trainingResultPanel = resultPanel;
+            modeUi.panelPlacementController = panelPlacement;
+            modeUi.sessionManager = session;
+            modeUi.placeUiOnTrainingSelectOpen = false;
+            modeUi.applyHtmlStylePanels = false;
+            modeUi.applyTrainingAndResultVisualSkin = false;
+            session.modeSelectUI = modeUi;
+        }
+
+        public void Destroy()
+        {
+            if (root != null)
+            {
+                Object.DestroyImmediate(root);
+            }
+
+            if (head != null)
+            {
+                Object.DestroyImmediate(head.gameObject);
+            }
+        }
+
+        private static GameObject CreateChild(Transform parent, string name)
+        {
+            var child = new GameObject(name);
+            child.transform.SetParent(parent, false);
+            return child;
         }
     }
 

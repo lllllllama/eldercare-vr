@@ -375,7 +375,7 @@ namespace PicoElderCare.Rehab
             rect.anchorMin = new Vector2(0.5f, 0.5f);
             rect.anchorMax = new Vector2(0.5f, 0.5f);
             rect.pivot = new Vector2(0.5f, 0.5f);
-            rect.anchoredPosition = new Vector2(-232f, -174f);
+            rect.anchoredPosition = new Vector2(0f, -174f);
             rect.sizeDelta = new Vector2(186f, 64f);
 
             var image = go.GetComponent<Image>();

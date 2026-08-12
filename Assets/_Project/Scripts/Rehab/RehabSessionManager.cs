@@ -128,11 +128,8 @@ namespace PicoElderCare.Rehab
         private void Start()
         {
             ResolveReferences();
-
-            if (placeTrainingAreaOnStart)
-            {
-                TryPlaceTrainingArea();
-            }
+            SetTrainingAreaVisible(false);
+            SetVirtualCoachVisible(false);
 
             if (autoStartSession)
             {
@@ -261,6 +258,9 @@ namespace PicoElderCare.Rehab
                 return;
             }
 
+            SetTrainingAreaVisible(true);
+            SetVirtualCoachVisible(true);
+
             movementEvaluator.ResetEvaluation();
             safetyMonitor.ResetMonitor();
             _elapsedTrainingSeconds = 0f;
@@ -384,10 +384,30 @@ namespace PicoElderCare.Rehab
 
             if (virtualCoachController != null)
             {
-                virtualCoachController.SetIdle();
+                SetVirtualCoachVisible(false);
             }
 
+            SetTrainingAreaVisible(false);
             StopVideoGuide();
+        }
+
+        public void SetTrainingAreaVisible(bool visible)
+        {
+            if (trainingAreaRoot == null)
+            {
+                var anchor = trainingCircleAnchor != null
+                    ? trainingCircleAnchor
+                    : GetComponent<TrainingCircleAnchor>();
+                if (anchor != null)
+                {
+                    trainingAreaRoot = anchor.trainingAreaRoot;
+                }
+            }
+
+            if (trainingAreaRoot != null && trainingAreaRoot.gameObject != gameObject)
+            {
+                trainingAreaRoot.gameObject.SetActive(visible);
+            }
         }
 
         public void RecenterTrainingArea()
@@ -410,7 +430,6 @@ namespace PicoElderCare.Rehab
                 TryPlaceTrainingArea();
             }
 
-            RecenterPanels();
         }
 
         public void RecenterPanels()
@@ -496,9 +515,10 @@ namespace PicoElderCare.Rehab
             RefreshTimer();
             if (virtualCoachController != null)
             {
-                virtualCoachController.SetIdle();
+                SetVirtualCoachVisible(false);
             }
 
+            SetTrainingAreaVisible(false);
             StopVideoGuide();
 
             if (modeSelectUI != null)
@@ -1086,6 +1106,24 @@ namespace PicoElderCare.Rehab
             controller.followRotationSlerpSpeed = 4f;
             controller.autoCreatePlaceholderCue = false;
             return controller;
+        }
+
+        public void SetVirtualCoachVisible(bool visible)
+        {
+            if (virtualCoachController == null) return;
+
+            var coachObject = virtualCoachController.coachRoot != null
+                ? virtualCoachController.coachRoot.gameObject
+                : virtualCoachController.gameObject;
+
+            if (visible)
+            {
+                coachObject.SetActive(true);
+                return;
+            }
+
+            virtualCoachController.SetIdle();
+            coachObject.SetActive(false);
         }
 
         private void NotifyCoachForCurrentMovement(bool force)

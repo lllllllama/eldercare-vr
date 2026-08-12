@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using PicoElderCare.UI;
 using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -17,19 +18,19 @@ namespace PicoElderCare.Rehab
         private const string LegacyVideoVisualRootName = "HtmlVisual_VideoPanelRoot";
         private const string IconResourceRoot = "HtmlSvgIcons/";
 
-        private static readonly Color WoodMid = new Color32(0xD9, 0xC7, 0xA3, 0xFF);
-        private static readonly Color WoodDark = new Color32(0xC6, 0xB0, 0x85, 0xFF);
-        private static readonly Color RiceLight = new Color32(0xFB, 0xF5, 0xE6, 0xFF);
-        private static readonly Color RiceMid = new Color32(0xF1, 0xE6, 0xCC, 0xFF);
-        private static readonly Color CardHighlight = new Color32(0xFF, 0xF8, 0xE4, 0xFF);
-        private static readonly Color CardNormal = new Color32(0xF7, 0xEF, 0xD9, 0xFF);
-        private static readonly Color GoldStroke = new Color32(0xC9, 0xA9, 0x6A, 0xFF);
-        private static readonly Color GoldDeep = new Color32(0xB5, 0x73, 0x27, 0xFF);
-        private static readonly Color Amber = new Color32(0xD4, 0x8F, 0x3A, 0xFF);
-        private static readonly Color AmberLight = new Color32(0xE8, 0xB2, 0x69, 0xFF);
-        private static readonly Color Jade = new Color32(0x5F, 0x85, 0x60, 0xFF);
-        private static readonly Color TextPrimary = new Color32(0x3E, 0x2E, 0x1F, 0xFF);
-        private static readonly Color TextSecondary = new Color32(0x7A, 0x69, 0x52, 0xFF);
+        private static readonly Color WoodMid = ElderCareMenuDesignTokens.Wood;
+        private static readonly Color WoodDark = ElderCareMenuDesignTokens.WoodDark;
+        private static readonly Color RiceLight = ElderCareMenuDesignTokens.RiceLight;
+        private static readonly Color RiceMid = ElderCareMenuDesignTokens.RiceMid;
+        private static readonly Color CardHighlight = ElderCareMenuDesignTokens.CardHighlight;
+        private static readonly Color CardNormal = ElderCareMenuDesignTokens.Card;
+        private static readonly Color GoldStroke = ElderCareMenuDesignTokens.GoldStroke;
+        private static readonly Color GoldDeep = ElderCareMenuDesignTokens.GoldDeep;
+        private static readonly Color Amber = ElderCareMenuDesignTokens.Amber;
+        private static readonly Color AmberLight = ElderCareMenuDesignTokens.AmberLight;
+        private static readonly Color Jade = ElderCareMenuDesignTokens.Jade;
+        private static readonly Color TextPrimary = ElderCareMenuDesignTokens.TextPrimary;
+        private static readonly Color TextSecondary = ElderCareMenuDesignTokens.TextSecondary;
         private static readonly Color TrainingTextSecondary = new Color32(0x5A, 0x46, 0x30, 0xFF);
         private static readonly Color TextMuted = new Color32(0x9A, 0x85, 0x60, 0xFF);
         private static readonly Color WarmShadow = new Color(0.25f, 0.16f, 0.06f, 0.24f);
@@ -73,6 +74,35 @@ namespace PicoElderCare.Rehab
             Debug.Log("[HtmlStyleRehabVisualSkin] Apply finished");
         }
 
+        /// <summary>
+        /// Applies the warm ElderCare visual language only to the existing training and result panels.
+        /// Selection-page visuals and spatial video objects are intentionally outside this repair path.
+        /// </summary>
+        public static void ApplyTrainingAndResultPanels(RehabModeSelectUI ui)
+        {
+            if (ui == null)
+            {
+                Debug.LogWarning("[HtmlStyleRehabVisualSkin] RehabModeSelectUI is null, skip training/result styling");
+                return;
+            }
+
+            LogIconResourceAvailability();
+
+            var previousFont = _activeUiFont;
+            _activeUiFont = ResolveUiFont(ui);
+            try
+            {
+                StyleTrainingPanel(ui);
+                StyleResultPanel(ui);
+            }
+            finally
+            {
+                _activeUiFont = previousFont;
+            }
+
+            Debug.Log("[HtmlStyleRehabVisualSkin] Training/result-only apply finished");
+        }
+
         private static void StyleMainMenuPanel(RehabModeSelectUI ui)
         {
             StylePanelFrame(ui.mainMenuPanel, "MainMenu", "\u5eb7\u590d\u8fd0\u52a8", "\u67d4\u548c\u8bad\u7ec3 - \u7a33\u6b65\u6062\u590d");
@@ -81,41 +111,22 @@ namespace PicoElderCare.Rehab
 
         private static void StyleTrainingSelectPanel(RehabModeSelectUI ui)
         {
-            StylePanelFrame(
-                ui.rehabTrainingSelectPanel,
-                "TrainingSelection",
-                "\u8bf7\u9009\u62e9\u5eb7\u590d\u8bad\u7ec3\u7c7b\u578b",
-                "\u8ddf\u7740\u865a\u62df\u6559\u7ec3\u6162\u6162\u6765\uff0c\u968f\u65f6\u53ef\u4ee5\u6682\u505c\u4f11\u606f");
+            if (RehabSelectionVisualSkin.IsBuilt(ui.rehabTrainingSelectPanel))
+            {
+                Debug.Log("[HtmlStyleRehabVisualSkin] Training selection is already editor-baked; runtime repair left it unchanged.");
+                return;
+            }
 
-            StyleSelectionCardButton(
-                ui.baduanjinButton,
-                "BaduanjinButton",
-                "\u516b\u6bb5\u9526",
-                "\u8212\u5c55\u7b4b\u9aa8 - \u7ecf\u5178\u517b\u751f",
-                "\u4eca\u65e5\u63a8\u8350",
-                "\u7ea6 10 \u5206\u949f",
-                "\u5f3a\u5ea6\u8f7b",
-                "\u7f13\u6162\u547c\u5438 - \u5faa\u5e8f\u6e10\u8fdb",
-                "lotus",
-                Amber,
-                true);
-
-            StyleSelectionCardButton(
-                ui.taiChiButton,
-                "TaiChiButton",
-                "\u592a\u6781",
-                "\u67d4\u548c\u7f13\u6162 - \u5e73\u8861\u8eab\u5fc3",
-                null,
-                "\u7ea6 12 \u5206\u949f",
-                "\u5f3a\u5ea6\u4e2d",
-                "\u4ee5\u67d4\u514b\u521a - \u5185\u5916\u517c\u4fee",
-                "cyclone",
-                Jade,
-                false);
-
-            StyleBackButton(ui.backButton, "BackButton", "\u8fd4\u56de\u4e0a\u4e00\u9875");
-            StyleBottomDock(ui.rehabTrainingSelectPanel);
-            Debug.Log("[HtmlStyleRehabVisualSkin] Styled training select panel");
+            var elements = RehabSelectionVisualSkin.Build(
+                ui.rehabTrainingSelectPanel.transform,
+                _activeUiFont,
+                Resources.Load<Sprite>("UiIcons/Tabler/UnityWarm/GeneratedSprites/arrow-left"),
+                Resources.Load<Sprite>("UiIcons/Tabler/UnityWarm/GeneratedSprites/clock"),
+                Resources.Load<Sprite>("UiIcons/Tabler/UnityWarm/GeneratedSprites/player-play"));
+            ui.baduanjinButton = elements.baduanjinButton;
+            ui.taiChiButton = elements.taiChiButton;
+            ui.backButton = elements.backButton;
+            Debug.Log("[HtmlStyleRehabVisualSkin] Repaired legacy training selection with the shared choice-card builder.");
         }
 
         private static void StyleTrainingPanel(RehabModeSelectUI ui)
@@ -128,9 +139,11 @@ namespace PicoElderCare.Rehab
             StyleTrainingStats(ui.rehabTrainingPanel);
             StyleTrainingDebugText(ui.rehabTrainingPanel);
             var startButton = FindButton(ui.rehabTrainingPanel, "StartButton");
-            ConfigureTrainingFooterButton(startButton, new Vector2(-232f, -174f));
+            ConfigureTrainingFooterButton(startButton, new Vector2(0f, -174f));
+            ConfigureTrainingFooterButton(ui.trainingRecenterButton, new Vector2(-232f, -174f));
             ConfigureTrainingFooterButton(ui.trainingBackButton, new Vector2(232f, -174f));
             StyleTrainingActionButton(startButton, "StartButton", Amber, true);
+            StyleTrainingActionButton(ui.trainingRecenterButton, "RecenterButton", Jade, false);
             StyleTrainingActionButton(ui.trainingBackButton, "TrainingBackButton", GoldStroke, false);
             HideBottomHint(ui.rehabTrainingPanel);
             StyleBottomDock(ui.rehabTrainingPanel);
@@ -263,70 +276,6 @@ namespace PicoElderCare.Rehab
             }
 
             DisableRaycastForVisualTree(root.gameObject);
-        }
-
-        private static void StyleSelectionCardButton(
-            Button button,
-            string logName,
-            string title,
-            string subtitle,
-            string ribbon,
-            string duration,
-            string intensity,
-            string footer,
-            string iconResourceName,
-            Color accent,
-            bool highlighted)
-        {
-            var rect = GetButtonRect(button, logName);
-            if (rect == null) return;
-
-            EnsureButtonTargetGraphicPresent(button);
-            FadeButtonTargetGraphic(button, 0.055f);
-
-            var root = EnsureVisualRoot(button.transform);
-            ConfigureStretch(root);
-            MoveToBack(root);
-
-            var size = GetUsableSize(rect);
-            var background = highlighted ? CardHighlight : CardNormal;
-            var surfaceColor = WithAlpha(background, 0.99f);
-            var hoverGlow = EnsureRoundedDecor(root, "HtmlVisual_HoverGlow", size + new Vector2(24f, 22f), new Vector2(0f, -1f), WithAlpha(accent, 0.06f), 28f, Color.clear, Vector2.zero);
-            if (hoverGlow != null) hoverGlow.transform.SetSiblingIndex(0);
-            EnsureRoundedDecor(root, "HtmlVisual_Shadow", size + new Vector2(20f, 18f), new Vector2(0f, -7f), new Color(0.28f, 0.18f, 0.06f, 0.25f), 25f, Color.clear, Vector2.zero);
-            var cardSurface = EnsureRoundedDecor(root, "HtmlVisual_Background", size - new Vector2(2f, 2f), Vector2.zero, surfaceColor, 24f, WithAlpha(highlighted ? Amber : GoldStroke, 0.76f), new Vector2(1.8f, -1.8f));
-            EnsureRoundedDecor(root, "HtmlVisual_InnerRice", size - new Vector2(18f, 18f), Vector2.zero, WithAlpha(RiceLight, highlighted ? 0.35f : 0.25f), 19f, WithAlpha(GoldStroke, 0.14f), new Vector2(0.8f, -0.8f));
-            SetVisualDecorTransparent(root, "HtmlVisual_TopGlow");
-            EnsureRoundedDecor(root, "HtmlVisual_SideAccent", new Vector2(5f, size.y - 48f), new Vector2(-size.x * 0.44f, 0f), WithAlpha(accent, 0.62f), 2.5f, Color.clear, Vector2.zero);
-            var iconPosition = new Vector2(-size.x * 0.35f, 2f);
-            EnsureRoundedDecor(root, "HtmlVisual_IconHaloOuter", new Vector2(70f, 70f), iconPosition, WithAlpha(accent, highlighted ? 0.22f : 0.18f), 35f, Color.clear, Vector2.zero);
-            EnsureRoundedDecor(root, "HtmlVisual_IconHalo", new Vector2(54f, 54f), iconPosition, WithAlpha(RiceLight, 0.94f), 27f, WithAlpha(accent, 0.48f), new Vector2(1f, -1f));
-            EnsureIconOrFallback(root, "HtmlVisual_Icon_" + logName, iconResourceName, ElderCareIconType.User, new Vector2(38f, 38f), iconPosition, highlighted ? GoldDeep : Jade);
-            ClearVisualText(root, "HtmlVisual_Icon");
-            EnsureText(root, "HtmlVisual_Subtitle", subtitle, new Vector2(180f, 24f), new Vector2(38f, -7f), 16f, FontStyles.Bold, TrainingTextSecondary, TextAlignmentOptions.Center);
-            EnsurePill(root, "HtmlVisual_DurationPill", duration, new Vector2(108f, 28f), new Vector2(-29f, -43f), highlighted ? CardHighlight : CardNormal, GoldStroke, TextPrimary);
-            EnsurePill(root, "HtmlVisual_IntensityPill", intensity, new Vector2(96f, 28f), new Vector2(82f, -43f), highlighted ? CardHighlight : CardNormal, highlighted ? Jade : Amber, TextPrimary);
-            ClearVisualText(root, "HtmlVisual_Footer");
-            SetVisualDecorTransparent(root, "HtmlVisual_AccentLine");
-
-            if (!string.IsNullOrEmpty(ribbon))
-            {
-                EnsureRoundedDecor(root, "HtmlVisual_Ribbon", new Vector2(90f, 24f), new Vector2(-95f, 55f), WithAlpha(Amber, 0.98f), 12f, WithAlpha(GoldDeep, 0.50f), new Vector2(1.1f, -1.1f));
-                SetVisualDecorTransparent(root, "HtmlVisual_RibbonDot");
-                EnsureText(root, "HtmlVisual_RibbonText", ribbon, new Vector2(82f, 22f), new Vector2(-95f, 55f), 13f, FontStyles.Bold, new Color32(0xFF, 0xF8, 0xE4, 0xFF), TextAlignmentOptions.Center);
-            }
-            else
-            {
-                ClearVisualText(root, "HtmlVisual_RibbonText");
-                SetVisualDecorTransparent(root, "HtmlVisual_Ribbon");
-                SetVisualDecorTransparent(root, "HtmlVisual_RibbonDot");
-            }
-
-            StyleButtonLabel(button, title, 30f, TextPrimary, FontStyles.Bold, TextAlignmentOptions.Center, Vector4.zero);
-            ConfigureButtonLabelLayout(button, new Vector2(172f, 36f), new Vector2(43f, 30f));
-            ConfigureHoverFeedback(button, root, cardSurface, hoverGlow, surfaceColor, accent, 1.045f, 5f);
-            DisableRaycastForVisualTree(root.gameObject);
-            LogStyledButton(logName, button, root);
         }
 
         private static void StyleSoftButton(Button button, string logName, string title, string subtitle, Color accent)
@@ -1072,22 +1021,34 @@ namespace PicoElderCare.Rehab
             FontStyles fontStyle,
             Color color)
         {
-            var transform = EnsureTransformChild(parent, name);
-            if (transform == null) return null;
+            if (parent == null || string.IsNullOrEmpty(name)) return null;
 
-            transform.localPosition = localPosition;
-            transform.localRotation = Quaternion.identity;
-            transform.localScale = Vector3.one;
-
-            var label = transform.GetComponent<TextMeshPro>();
-            if (label == null)
+            var existing = parent.Find(name);
+            var go = existing != null
+                ? existing.gameObject
+                : new GameObject(name, typeof(RectTransform));
+            if (existing == null)
             {
-                label = transform.gameObject.AddComponent<TextMeshPro>();
+                go.transform.SetParent(parent, false);
             }
 
-            label.text = SanitizeAndLog(text, transform.name);
-            if (_activeUiFont != null)
+            var label = go.GetComponent<TextMeshPro>();
+            if (label == null)
             {
+                label = go.AddComponent<TextMeshPro>();
+            }
+
+            var rect = label.rectTransform;
+            rect.localPosition = localPosition;
+            rect.localRotation = Quaternion.identity;
+            rect.localScale = Vector3.one;
+
+            label.text = SanitizeAndLog(text, go.name);
+            if (_activeUiFont != null && _activeUiFont.material != null)
+            {
+                // TextMeshPro (3D) dereferences its shared material while loading a font.
+                // Seed it explicitly so editor-time scene baking is safe for multi-atlas fonts.
+                label.fontSharedMaterial = _activeUiFont.material;
                 label.font = _activeUiFont;
             }
             label.fontSize = fontSize;

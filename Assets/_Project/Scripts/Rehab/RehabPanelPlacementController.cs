@@ -9,6 +9,7 @@ namespace PicoElderCare.Rehab
         public Transform selectionPanelRoot;
         public Transform trainingLayoutAnchor;
         public Transform trainingFunctionPanelRoot;
+        public Transform resultPanelRoot;
         public Transform promptPanelRoot;
         public Transform videoPanelRoot;
         public RehabVideoPanelLayoutController videoLayoutController;
@@ -18,6 +19,11 @@ namespace PicoElderCare.Rehab
         public float selectionPanelHeight = 1.35f;
         public float trainingLayoutDistance = 1.8f;
         public float trainingLayoutHeightOffset = -0.1f;
+        public float resultPanelDistance = 2f;
+        public float resultPanelHeightOffset = -0.1f;
+        public bool clampResultPanelHeight = true;
+        public float minResultPanelHeight = 1.25f;
+        public float maxResultPanelHeight = 1.75f;
         public float promptPanelDistance = 1.8f;
         public float videoPanelDistance = 2.2f;
         public float videoPanelYawOffsetDegrees = 40f;
@@ -26,6 +32,12 @@ namespace PicoElderCare.Rehab
         public float minPanelSeparationMeters = 0.25f;
 
         private bool _hasPlacedPanels;
+        private Transform _capturedTrainingLayoutAnchor;
+        private Vector3 _trainingFunctionLocalPosition;
+        private Quaternion _trainingFunctionLocalRotation;
+        private Vector3 _videoLocalPosition;
+        private Quaternion _videoLocalRotation;
+        private bool _hasCapturedTrainingLayoutOffsets;
 
         public bool HasPlacedPanels
         {
@@ -108,6 +120,8 @@ namespace PicoElderCare.Rehab
             ResolveReferences();
             if (viewTransform == null || trainingLayoutAnchor == null) return;
 
+            CaptureExternalTrainingLayoutOffsetsIfNeeded();
+
             var viewPosition = viewTransform.position;
             var forward = GetViewYawForward();
             var position = viewPosition + forward * Mathf.Max(0.1f, trainingLayoutDistance);
@@ -115,17 +129,39 @@ namespace PicoElderCare.Rehab
 
             trainingLayoutAnchor.position = position;
             trainingLayoutAnchor.rotation = CreatePanelRotation(position, viewPosition, forward);
+            ApplyExternalTrainingLayoutOffsets();
+            _hasPlacedPanels = true;
+        }
+
+        public void RecenterResultPanel()
+        {
+            ResolveReferences();
+            if (viewTransform == null || resultPanelRoot == null) return;
+
+            var viewPosition = viewTransform.position;
+            var forward = GetViewYawForward();
+            var position = viewPosition + forward * Mathf.Max(0.1f, resultPanelDistance);
+            position.y = viewPosition.y + resultPanelHeightOffset;
+            if (clampResultPanelHeight)
+            {
+                var minimum = Mathf.Min(minResultPanelHeight, maxResultPanelHeight);
+                var maximum = Mathf.Max(minResultPanelHeight, maxResultPanelHeight);
+                position.y = Mathf.Clamp(position.y, minimum, maximum);
+            }
+
+            resultPanelRoot.position = position;
+            resultPanelRoot.rotation = CreatePanelRotation(position, viewPosition, forward);
             _hasPlacedPanels = true;
         }
 
         public void ResolveReferences()
         {
-            var mainCamera = Camera.main;
-            if (mainCamera != null)
+            if (viewTransform == null && headTransform != null)
             {
-                viewTransform = mainCamera.transform;
+                viewTransform = headTransform;
             }
-            else if (viewTransform == null)
+
+            if (viewTransform == null)
             {
                 var tracker = FindObjectOfType<HandPoseTracker>(true);
                 if (tracker != null)
@@ -134,9 +170,9 @@ namespace PicoElderCare.Rehab
                 }
             }
 
-            if (viewTransform == null && headTransform != null)
+            if (viewTransform == null && Camera.main != null)
             {
-                viewTransform = headTransform;
+                viewTransform = Camera.main.transform;
             }
 
             if (headTransform == null)
@@ -159,6 +195,15 @@ namespace PicoElderCare.Rehab
                 if (modeSelectUi != null && modeSelectUi.TrainingFunctionPanelRoot != null)
                 {
                     trainingFunctionPanelRoot = modeSelectUi.TrainingFunctionPanelRoot.transform;
+                }
+            }
+
+            if (resultPanelRoot == null)
+            {
+                var modeSelectUi = FindObjectOfType<RehabModeSelectUI>(true);
+                if (modeSelectUi != null && modeSelectUi.ResultPanelRoot != null)
+                {
+                    resultPanelRoot = modeSelectUi.ResultPanelRoot.transform;
                 }
             }
 
@@ -219,6 +264,15 @@ namespace PicoElderCare.Rehab
                 }
             }
 
+            if (trainingLayoutAnchor == null && useSceneAuthoredTrainingLayout && trainingFunctionPanelRoot != null)
+            {
+                var anchorObject = new GameObject("TrainingLayoutAnchor");
+                trainingLayoutAnchor = anchorObject.transform;
+                var authoredRoot = videoPanelRoot != null ? videoPanelRoot : trainingFunctionPanelRoot;
+                trainingLayoutAnchor.position = authoredRoot.position;
+                trainingLayoutAnchor.rotation = authoredRoot.rotation;
+            }
+
             if (videoLayoutController != null)
             {
                 videoLayoutController.headTransform = viewTransform;
@@ -240,6 +294,52 @@ namespace PicoElderCare.Rehab
             position.y = selectionPanelHeight;
             target.position = position;
             target.rotation = CreatePanelRotation(position, headPosition, forward);
+        }
+
+        private void CaptureExternalTrainingLayoutOffsetsIfNeeded()
+        {
+            if (trainingLayoutAnchor == null) return;
+            if (_hasCapturedTrainingLayoutOffsets && _capturedTrainingLayoutAnchor == trainingLayoutAnchor) return;
+
+            if (trainingFunctionPanelRoot != null && !trainingFunctionPanelRoot.IsChildOf(trainingLayoutAnchor))
+            {
+                _trainingFunctionLocalPosition = trainingLayoutAnchor.InverseTransformPoint(trainingFunctionPanelRoot.position);
+                _trainingFunctionLocalRotation = Quaternion.Inverse(trainingLayoutAnchor.rotation) * trainingFunctionPanelRoot.rotation;
+            }
+
+            if (videoPanelRoot != null && !videoPanelRoot.IsChildOf(trainingLayoutAnchor))
+            {
+                _videoLocalPosition = trainingLayoutAnchor.InverseTransformPoint(videoPanelRoot.position);
+                _videoLocalRotation = Quaternion.Inverse(trainingLayoutAnchor.rotation) * videoPanelRoot.rotation;
+            }
+
+            _capturedTrainingLayoutAnchor = trainingLayoutAnchor;
+            _hasCapturedTrainingLayoutOffsets = true;
+        }
+
+        private void ApplyExternalTrainingLayoutOffsets()
+        {
+            if (!_hasCapturedTrainingLayoutOffsets || trainingLayoutAnchor == null) return;
+
+            if (trainingFunctionPanelRoot != null && !trainingFunctionPanelRoot.IsChildOf(trainingLayoutAnchor))
+            {
+                trainingFunctionPanelRoot.position = trainingLayoutAnchor.TransformPoint(_trainingFunctionLocalPosition);
+                trainingFunctionPanelRoot.rotation = trainingLayoutAnchor.rotation * _trainingFunctionLocalRotation;
+            }
+
+            if (videoPanelRoot == null || videoPanelRoot.IsChildOf(trainingLayoutAnchor)) return;
+
+            var videoPosition = trainingLayoutAnchor.TransformPoint(_videoLocalPosition);
+            var videoRotation = trainingLayoutAnchor.rotation * _videoLocalRotation;
+            if (videoLayoutController != null)
+            {
+                videoLayoutController.ApplyExternalPanelPose(videoPosition, videoRotation, true);
+            }
+            else
+            {
+                videoPanelRoot.position = videoPosition;
+                videoPanelRoot.rotation = videoRotation;
+            }
         }
 
         private Vector3 GetViewYawForward()

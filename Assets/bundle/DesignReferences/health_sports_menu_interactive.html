@@ -1,0 +1,474 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>健康运动 · VR 选择页</title>
+<style>
+  :root{
+    --bg-1:#19130f;
+    --bg-2:#2a2520;
+    --bg-3:#12171a;
+    --panel-top:rgba(52,41,31,.96);
+    --panel-bottom:rgba(36,27,21,.94);
+    --text:#fff0d7;
+    --muted:#e9ceaa;
+    --gold:#ffd69b;
+    --gold-2:#ffbe69;
+    --cyan:#7deffc;
+    --red:#ff9a90;
+    --card-top:rgba(255,255,255,.18);
+    --card-bottom:rgba(255,255,255,.10);
+    --radius:30px;
+  }
+
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{
+    overflow:hidden;
+    font-family:"Noto Sans CJK SC","Microsoft YaHei","PingFang SC",system-ui,sans-serif;
+    background:
+      radial-gradient(circle at 20% 12%,rgba(255,209,138,.22),transparent 37%),
+      linear-gradient(135deg,var(--bg-1),var(--bg-2) 50%,var(--bg-3));
+    color:var(--text);
+    user-select:none;
+  }
+
+  .stage{
+    width:min(1120px,100vw);
+    height:min(680px,100vh);
+    aspect-ratio:1120/680;
+    position:absolute;
+    inset:50% auto auto 50%;
+    transform:translate(-50%,-50%);
+    padding:38px 40px;
+  }
+
+  .ambient-window{
+    position:absolute;right:138px;top:54px;width:170px;height:120px;
+    border-radius:12px;background:rgba(255,240,201,.055);
+    pointer-events:none;
+  }
+  .ambient-window:before,.ambient-window:after{
+    content:"";position:absolute;background:rgba(36,26,20,.36)
+  }
+  .ambient-window:before{left:81px;top:0;width:8px;height:100%}
+  .ambient-window:after{left:0;top:56px;width:100%;height:8px}
+
+  .panel{
+    width:100%;height:100%;position:relative;
+    border-radius:42px;
+    padding:42px 44px 30px;
+    background:linear-gradient(var(--panel-top),var(--panel-bottom));
+    border:1.5px solid rgba(255,217,168,.30);
+    box-shadow:0 18px 42px rgba(0,0,0,.46), inset 0 0 0 21px rgba(255,221,170,.025);
+    overflow:hidden;
+  }
+
+  header{
+    height:96px;
+    display:flex;align-items:flex-start;justify-content:space-between;
+    border-bottom:1px solid rgba(255,217,168,.16);
+  }
+  .brand{display:flex;gap:15px;align-items:flex-start}
+  .brand-icon{
+    width:52px;height:52px;border-radius:50%;
+    display:grid;place-items:center;
+    background:rgba(255,206,138,.16);
+    font-size:27px;
+    box-shadow:inset 0 0 0 1px rgba(255,214,155,.16)
+  }
+  h1{margin:0;font-size:42px;line-height:1.1;letter-spacing:.5px}
+  .subtitle{margin-top:9px;color:var(--muted);font-size:20px}
+  .count{
+    margin-top:5px;height:42px;padding:0 20px;
+    border-radius:21px;
+    display:flex;align-items:center;gap:11px;
+    background:rgba(255,255,255,.08);
+    border:1px solid rgba(255,217,168,.18);
+    color:#d9c2a4;font-size:15px;font-weight:600
+  }
+  .dot{width:10px;height:10px;background:#b4f1d2;border-radius:50%;box-shadow:0 0 16px rgba(180,241,210,.45)}
+
+  .cards{
+    display:grid;
+    grid-template-columns:repeat(3,1fr);
+    gap:32px;
+    margin-top:31px;
+  }
+
+  .sport-card{
+    --accent:var(--gold);
+    --accent-rgb:255,214,155;
+    height:326px;
+    border-radius:var(--radius);
+    padding:23px 22px 16px;
+    cursor:pointer;
+    outline:none;
+    text-align:center;
+    position:relative;
+    background:linear-gradient(var(--card-top),var(--card-bottom));
+    border:1.3px solid rgba(var(--accent-rgb),.25);
+    box-shadow:0 10px 14px rgba(0,0,0,.26);
+    transition:transform .17s ease, border-color .17s ease, box-shadow .17s ease, background .17s ease;
+  }
+  .sport-card:before{
+    content:"";position:absolute;inset:14px;border-radius:23px;
+    background:rgba(var(--accent-rgb),.018);pointer-events:none
+  }
+  .sport-card:hover,.sport-card:focus-visible{
+    transform:translateY(-8px) scale(1.045);
+    border-color:rgba(var(--accent-rgb),.62);
+    background:linear-gradient(rgba(255,255,255,.23),rgba(255,255,255,.13));
+    box-shadow:0 19px 32px rgba(0,0,0,.34),0 0 34px rgba(var(--accent-rgb),.13);
+    z-index:2;
+  }
+  .sport-card:active{transform:translateY(-3px) scale(.98)}
+  .sport-card[data-sport="pingpong"]{--accent:#7deffc;--accent-rgb:125,239,252}
+  .sport-card[data-sport="archery"]{--accent:#ffd69b;--accent-rgb:255,214,155}
+  .sport-card[data-sport="darts"]{--accent:#ff9a90;--accent-rgb:255,154,144}
+
+  .halo{
+    width:106px;height:106px;margin:0 auto 16px;
+    display:grid;place-items:center;
+    border-radius:50%;
+    background:rgba(var(--accent-rgb),.12);
+    border:1px solid rgba(var(--accent-rgb),.20);
+    box-shadow:0 0 35px rgba(var(--accent-rgb),.14);
+    transition:box-shadow .17s ease,background .17s ease;
+  }
+  .sport-card:hover .halo,.sport-card:focus-visible .halo{
+    background:rgba(var(--accent-rgb),.18);
+    box-shadow:0 0 42px rgba(var(--accent-rgb),.26);
+  }
+  .icon{width:70px;height:70px}
+  .icon *{vector-effect:non-scaling-stroke}
+  .card-title{font-size:30px;font-weight:800;line-height:1.05}
+  .desc{margin-top:10px;font-size:17px;color:#e5cfb4}
+  .meta{margin:17px auto 13px;display:flex;justify-content:center;gap:8px}
+  .pill{
+    height:30px;padding:0 13px;border-radius:15px;
+    display:inline-flex;align-items:center;gap:8px;
+    font-size:14px;font-weight:700;color:#f0dbc1;
+    background:rgba(255,255,255,.065)
+  }
+  .pill.accent{background:rgba(var(--accent-rgb),.105);color:rgb(var(--accent-rgb))}
+  .mini-dot{width:8px;height:8px;background:currentColor;border-radius:50%}
+
+  .start-btn{
+    width:202px;height:42px;border:0;border-radius:21px;
+    color:#fff0d7;font-size:18px;font-weight:800;
+    background:linear-gradient(rgba(255,255,255,.12),rgba(255,255,255,.07));
+    box-shadow:inset 0 0 0 1px rgba(var(--accent-rgb),.24);
+    cursor:pointer;
+    transition:transform .15s ease,filter .15s ease;
+  }
+  .sport-card[data-sport="pingpong"] .start-btn{
+    color:#2a2018;
+    background:linear-gradient(90deg,#ffd69b,#ffbe69);
+    box-shadow:none
+  }
+  .start-btn:hover{filter:brightness(1.08)}
+  .start-btn:active{transform:scale(.96)}
+
+  footer{
+    position:absolute;left:44px;right:44px;bottom:29px;
+    display:grid;grid-template-columns:182px 1fr 134px;align-items:center;gap:20px
+  }
+  .footer-btn{
+    height:52px;border-radius:26px;border:1px solid rgba(255,217,168,.18);
+    color:#fff0d7;background:rgba(255,255,255,.07);
+    font-size:18px;font-weight:800;cursor:pointer;
+    transition:background .15s ease,transform .15s ease,border-color .15s ease
+  }
+  .footer-btn:hover{background:rgba(255,255,255,.12);border-color:rgba(255,217,168,.34);transform:translateY(-2px)}
+  .footer-btn:active{transform:scale(.97)}
+  .hint{text-align:center;color:rgba(217,194,164,.68);font-size:15px}
+
+  .modal-backdrop{
+    position:absolute;inset:0;
+    display:none;place-items:center;
+    background:rgba(8,7,6,.58);
+    backdrop-filter:blur(5px);
+    z-index:20;
+  }
+  .modal-backdrop.open{display:grid}
+  .modal{
+    width:520px;border-radius:32px;padding:30px;
+    background:linear-gradient(180deg,rgba(54,43,33,.98),rgba(31,24,19,.98));
+    border:1.5px solid rgba(255,217,168,.32);
+    box-shadow:0 25px 70px rgba(0,0,0,.5);
+    animation:pop .18s ease-out
+  }
+  @keyframes pop{from{transform:scale(.94);opacity:0}to{transform:scale(1);opacity:1}}
+  .modal-top{display:flex;align-items:center;gap:18px}
+  .modal-icon{
+    width:66px;height:66px;border-radius:50%;display:grid;place-items:center;
+    font-size:34px;background:rgba(var(--modal-rgb,255,214,155),.13)
+  }
+  .modal h2{margin:0;font-size:31px}
+  .modal p{margin:7px 0 0;color:#e5cfb4;font-size:17px}
+  .details{
+    margin:24px 0;display:grid;grid-template-columns:1fr 1fr;gap:12px
+  }
+  .detail{
+    padding:13px 15px;border-radius:18px;background:rgba(255,255,255,.065);
+    color:#e9ceaa;font-size:15px
+  }
+  .detail b{display:block;color:#fff0d7;font-size:18px;margin-top:3px}
+  .actions{display:flex;justify-content:flex-end;gap:12px}
+  .action{
+    min-width:128px;height:48px;border-radius:24px;
+    border:1px solid rgba(255,217,168,.20);
+    background:rgba(255,255,255,.07);color:#fff0d7;
+    font-size:17px;font-weight:800;cursor:pointer
+  }
+  .action.primary{border:0;background:linear-gradient(90deg,#ffd69b,#ffbe69);color:#2a2018}
+  .action:hover{filter:brightness(1.08)}
+  .action:active{transform:scale(.97)}
+
+  .settings-panel{
+    position:absolute;right:-360px;top:0;width:340px;height:100%;
+    padding:34px 26px;
+    background:rgba(31,24,19,.98);
+    border-left:1px solid rgba(255,217,168,.22);
+    box-shadow:-18px 0 45px rgba(0,0,0,.25);
+    z-index:25;transition:right .22s ease
+  }
+  .settings-panel.open{right:0}
+  .settings-head{display:flex;justify-content:space-between;align-items:center}
+  .settings-head h3{margin:0;font-size:28px}
+  .close-x{border:0;background:transparent;color:#fff0d7;font-size:28px;cursor:pointer}
+  .setting-row{
+    display:flex;justify-content:space-between;align-items:center;
+    margin-top:24px;padding:16px 0;border-bottom:1px solid rgba(255,217,168,.12)
+  }
+  .setting-row span{font-size:17px}
+  .switch{width:54px;height:30px;border-radius:15px;background:rgba(255,255,255,.12);padding:3px;cursor:pointer}
+  .switch i{display:block;width:24px;height:24px;border-radius:50%;background:#cbbba5;transition:.18s}
+  .switch.on{background:rgba(255,206,138,.28)}
+  .switch.on i{transform:translateX(24px);background:#ffd69b}
+
+  .toast{
+    position:absolute;left:50%;bottom:22px;transform:translate(-50%,14px);
+    padding:12px 20px;border-radius:22px;
+    background:rgba(17,14,12,.94);border:1px solid rgba(255,217,168,.25);
+    color:#fff0d7;font-size:15px;opacity:0;pointer-events:none;
+    transition:.2s;z-index:40
+  }
+  .toast.show{opacity:1;transform:translate(-50%,0)}
+  body.large-text .card-title{font-size:34px}
+  body.large-text .desc{font-size:19px}
+  body.large-text .start-btn{font-size:20px}
+
+  @media (max-aspect-ratio:1120/680){
+    .stage{width:100vw;height:auto}
+  }
+  @media (min-aspect-ratio:1120/680){
+    .stage{height:100vh;width:auto}
+  }
+</style>
+</head>
+
+<body>
+<div class="ambient-window"></div>
+
+<main class="stage" aria-label="健康运动选择">
+  <section class="panel">
+    <header>
+      <div class="brand">
+        <div class="brand-icon">♡</div>
+        <div>
+          <h1>健康运动</h1>
+          <div class="subtitle">选择喜欢的运动，活动身体、轻松锻炼</div>
+        </div>
+      </div>
+      <div class="count"><span class="dot"></span>3 项运动</div>
+    </header>
+
+    <section class="cards">
+      <article class="sport-card" data-sport="pingpong" tabindex="0" aria-label="乒乓球">
+        <div class="halo">
+          <svg class="icon" viewBox="0 0 80 80" aria-hidden="true">
+            <g transform="translate(37 38) rotate(-20)">
+              <circle cx="-6" cy="-8" r="24" fill="#7DEFFC"/>
+              <circle cx="-6" cy="-8" r="17" fill="#152128" opacity=".18"/>
+              <rect x="-1" y="14" width="12" height="34" rx="6" fill="#FFD69B"/>
+              <circle cx="34" cy="-18" r="8" fill="#FFF9F1"/>
+            </g>
+          </svg>
+        </div>
+        <div class="card-title">乒乓球</div>
+        <div class="desc">灵活反应 · 活动身体</div>
+        <div class="meta">
+          <span class="pill accent"><span class="mini-dot"></span>轻松</span>
+          <span class="pill">◷ 约 8 分钟</span>
+        </div>
+        <button class="start-btn" data-start="pingpong">开始运动　›</button>
+      </article>
+
+      <article class="sport-card" data-sport="archery" tabindex="0" aria-label="射箭">
+        <div class="halo">
+          <svg class="icon" viewBox="0 0 80 80" aria-hidden="true">
+            <g transform="translate(40 40)">
+              <path d="M-23-31 Q4 0-23 31" fill="none" stroke="#FFD69B" stroke-width="5" stroke-linecap="round"/>
+              <path d="M-23-31 L-23 31" stroke="#FFF1D7" stroke-width="2.2"/>
+              <path d="M-33 1 H33" stroke="#FFF1D7" stroke-width="4" stroke-linecap="round"/>
+              <path d="M33 1l-12-8v16z" fill="#FFF1D7"/>
+            </g>
+          </svg>
+        </div>
+        <div class="card-title">射箭</div>
+        <div class="desc">稳定瞄准 · 锻炼协调</div>
+        <div class="meta">
+          <span class="pill accent"><span class="mini-dot"></span>适中</span>
+          <span class="pill">◷ 约 10 分钟</span>
+        </div>
+        <button class="start-btn" data-start="archery">开始运动　›</button>
+      </article>
+
+      <article class="sport-card" data-sport="darts" tabindex="0" aria-label="飞镖">
+        <div class="halo">
+          <svg class="icon" viewBox="0 0 80 80" aria-hidden="true">
+            <g transform="translate(40 40)">
+              <circle r="29" fill="none" stroke="#FFE9E6" stroke-width="4"/>
+              <circle r="19" fill="none" stroke="#FFAAA2" stroke-width="4"/>
+              <circle r="7" fill="#FF8B80"/>
+              <path d="M0-28V28M-28 0H28M-20-20L20 20M20-20L-20 20" stroke="#FFE9E6" stroke-width="1.5" opacity=".72"/>
+              <path d="M35-29L8-2" stroke="#FFD69B" stroke-width="4" stroke-linecap="round"/>
+              <path d="M35-30l12-5-5 12z" fill="#FFD69B"/>
+            </g>
+          </svg>
+        </div>
+        <div class="card-title">飞镖</div>
+        <div class="desc">专注投掷 · 轻松挑战</div>
+        <div class="meta">
+          <span class="pill accent"><span class="mini-dot"></span>轻松</span>
+          <span class="pill">◷ 约 8 分钟</span>
+        </div>
+        <button class="start-btn" data-start="darts">开始运动　›</button>
+      </article>
+    </section>
+
+    <footer>
+      <button class="footer-btn" id="backBtn">←　返回首页</button>
+      <div class="hint">将鼠标停留在运动卡片上，模拟 VR 射线 Hover</div>
+      <button class="footer-btn" id="settingsBtn">⚙　设置</button>
+    </footer>
+
+    <div class="modal-backdrop" id="modalBackdrop" role="dialog" aria-modal="true">
+      <div class="modal" id="modal">
+        <div class="modal-top">
+          <div class="modal-icon" id="modalIcon">🏓</div>
+          <div>
+            <h2 id="modalTitle">乒乓球</h2>
+            <p id="modalDesc">灵活反应 · 活动身体</p>
+          </div>
+        </div>
+        <div class="details">
+          <div class="detail">运动强度<b id="modalLevel">轻松</b></div>
+          <div class="detail">建议时长<b id="modalTime">约 8 分钟</b></div>
+        </div>
+        <div class="actions">
+          <button class="action" id="cancelBtn">取消</button>
+          <button class="action primary" id="enterBtn">进入运动</button>
+        </div>
+      </div>
+    </div>
+
+    <aside class="settings-panel" id="settingsPanel">
+      <div class="settings-head">
+        <h3>设置</h3>
+        <button class="close-x" id="closeSettings">×</button>
+      </div>
+      <div class="setting-row"><span>交互提示音</span><div class="switch on" data-setting="sound"><i></i></div></div>
+      <div class="setting-row"><span>大字号模式</span><div class="switch" data-setting="large"><i></i></div></div>
+      <div class="setting-row"><span>增强 Hover 光效</span><div class="switch on" data-setting="glow"><i></i></div></div>
+    </aside>
+  </section>
+</main>
+
+<div class="toast" id="toast">演示提示</div>
+
+<script>
+const sports = {
+  pingpong: {name:'乒乓球', icon:'🏓', desc:'灵活反应 · 活动身体', level:'轻松', time:'约 8 分钟', rgb:'125,239,252'},
+  archery:  {name:'射箭', icon:'🏹', desc:'稳定瞄准 · 锻炼协调', level:'适中', time:'约 10 分钟', rgb:'255,214,155'},
+  darts:    {name:'飞镖', icon:'🎯', desc:'专注投掷 · 轻松挑战', level:'轻松', time:'约 8 分钟', rgb:'255,154,144'}
+};
+
+let selected = 'pingpong';
+const backdrop = document.getElementById('modalBackdrop');
+const toast = document.getElementById('toast');
+let toastTimer;
+
+function showToast(text){
+  toast.textContent = text;
+  toast.classList.add('show');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(()=>toast.classList.remove('show'), 1800);
+}
+function openSport(key){
+  selected = key;
+  const s = sports[key];
+  document.getElementById('modalIcon').textContent = s.icon;
+  document.getElementById('modalTitle').textContent = s.name;
+  document.getElementById('modalDesc').textContent = s.desc;
+  document.getElementById('modalLevel').textContent = s.level;
+  document.getElementById('modalTime').textContent = s.time;
+  document.getElementById('modal').style.setProperty('--modal-rgb', s.rgb);
+  backdrop.classList.add('open');
+}
+function closeSport(){backdrop.classList.remove('open')}
+
+document.querySelectorAll('.sport-card').forEach(card=>{
+  const key = card.dataset.sport;
+  card.addEventListener('click', e=>{
+    if(e.target.closest('.start-btn')) return;
+    openSport(key);
+  });
+  card.addEventListener('keydown', e=>{
+    if(e.key === 'Enter' || e.key === ' '){ e.preventDefault(); openSport(key); }
+  });
+});
+document.querySelectorAll('[data-start]').forEach(btn=>{
+  btn.addEventListener('click', e=>{
+    e.stopPropagation();
+    openSport(btn.dataset.start);
+  });
+});
+
+document.getElementById('cancelBtn').onclick = closeSport;
+backdrop.addEventListener('click', e=>{if(e.target===backdrop) closeSport()});
+document.addEventListener('keydown', e=>{
+  if(e.key==='Escape'){
+    closeSport();
+    document.getElementById('settingsPanel').classList.remove('open');
+  }
+});
+document.getElementById('enterBtn').onclick = ()=>{
+  const s = sports[selected];
+  closeSport();
+  showToast('正在进入「' + s.name + '」运动场景（HTML 演示）');
+};
+
+document.getElementById('backBtn').onclick = ()=>showToast('返回首页（HTML 演示）');
+document.getElementById('settingsBtn').onclick = ()=>document.getElementById('settingsPanel').classList.add('open');
+document.getElementById('closeSettings').onclick = ()=>document.getElementById('settingsPanel').classList.remove('open');
+
+document.querySelectorAll('.switch').forEach(sw=>{
+  sw.addEventListener('click', ()=>{
+    sw.classList.toggle('on');
+    const key = sw.dataset.setting;
+    if(key==='large') document.body.classList.toggle('large-text', sw.classList.contains('on'));
+    if(key==='glow'){
+      document.querySelectorAll('.sport-card').forEach(card=>{
+        card.style.setProperty('--glow-on', sw.classList.contains('on') ? '1' : '0');
+      });
+    }
+    showToast(sw.parentElement.querySelector('span').textContent + (sw.classList.contains('on')?'：已开启':'：已关闭'));
+  });
+});
+</script>
+</body>
+</html>

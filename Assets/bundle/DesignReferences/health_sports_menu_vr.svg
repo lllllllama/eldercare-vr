@@ -1,0 +1,224 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="680" viewBox="0 0 1120 680" role="img" aria-labelledby="title desc">
+  <title id="title">健康运动选择页</title>
+  <desc id="desc">eldercare-vr 暖色玻璃风格的健康运动选择页面，包含乒乓球、射箭和飞镖三项运动。</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#19130F"/>
+      <stop offset="0.48" stop-color="#2A2520"/>
+      <stop offset="1" stop-color="#12171A"/>
+    </linearGradient>
+    <radialGradient id="warmGlow" cx="0.22" cy="0.14" r="0.82">
+      <stop offset="0" stop-color="#FFD18A" stop-opacity="0.24"/>
+      <stop offset="0.45" stop-color="#E9A44E" stop-opacity="0.08"/>
+      <stop offset="1" stop-color="#000000" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="panel" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#34291F" stop-opacity="0.96"/>
+      <stop offset="1" stop-color="#241B15" stop-opacity="0.94"/>
+    </linearGradient>
+    <linearGradient id="card" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.18"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0.10"/>
+    </linearGradient>
+    <linearGradient id="cardHover" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.23"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0.13"/>
+    </linearGradient>
+    <linearGradient id="goldButton" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#FFD69B"/>
+      <stop offset="1" stop-color="#FFBE69"/>
+    </linearGradient>
+    <linearGradient id="softButton" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#FFFFFF" stop-opacity="0.14"/>
+      <stop offset="1" stop-color="#FFFFFF" stop-opacity="0.08"/>
+    </linearGradient>
+    <filter id="panelShadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="18" stdDeviation="24" flood-color="#000000" flood-opacity="0.46"/>
+    </filter>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="10" stdDeviation="14" flood-color="#000000" flood-opacity="0.28"/>
+    </filter>
+    <filter id="cyanGlow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="14"/>
+    </filter>
+    <filter id="goldGlow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="14"/>
+    </filter>
+    <filter id="redGlow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="14"/>
+    </filter>
+    <style>
+      .ui { font-family: "Noto Sans CJK SC","Microsoft YaHei","PingFang SC",sans-serif; }
+      .title { font-size: 42px; font-weight: 700; fill: #FFF0D7; }
+      .subtitle { font-size: 20px; font-weight: 400; fill: #E9CEAA; }
+      .card-title { font-size: 30px; font-weight: 700; fill: #FFF9F1; }
+      .card-desc { font-size: 17px; font-weight: 400; fill: #E5CFB4; }
+      .pill { font-size: 14px; font-weight: 600; }
+      .button { font-size: 18px; font-weight: 700; }
+      .small { font-size: 15px; font-weight: 500; fill: #D9C2A4; }
+    </style>
+  </defs>
+
+  <!-- Ambient room background -->
+  <rect width="1120" height="680" fill="url(#bg)"/>
+  <rect width="1120" height="680" fill="url(#warmGlow)"/>
+  <ellipse cx="167" cy="590" rx="280" ry="92" fill="#A67743" opacity="0.12"/>
+  <rect x="810" y="55" width="170" height="120" rx="12" fill="#FFF0C9" opacity="0.07"/>
+  <path d="M895 55V175M810 115H980" stroke="#241A14" stroke-width="8" opacity="0.36"/>
+  <path d="M100 620 Q165 520 215 620" fill="#31492D" opacity="0.42"/>
+  <path d="M164 620 Q225 500 275 620" fill="#3A5734" opacity="0.36"/>
+
+  <!-- Main floating panel -->
+  <g filter="url(#panelShadow)">
+    <rect x="40" y="38" width="1040" height="604" rx="42" fill="url(#panel)" stroke="#FFD9A8" stroke-opacity="0.30" stroke-width="1.5"/>
+    <rect x="62" y="60" width="996" height="560" rx="32" fill="#FFDDAA" opacity="0.025"/>
+  </g>
+
+  <!-- Header -->
+  <g class="ui">
+    <g transform="translate(84 86)">
+      <circle cx="26" cy="26" r="26" fill="#FFCE8A" opacity="0.16"/>
+      <path d="M12 29c8-16 19-20 31-18-2 12-9 22-23 28" fill="none" stroke="#FFD69B" stroke-width="4" stroke-linecap="round"/>
+      <path d="M19 24c3 10 10 17 22 20" fill="none" stroke="#FFD69B" stroke-width="4" stroke-linecap="round"/>
+    </g>
+    <text x="151" y="110" class="title">健康运动</text>
+    <text x="151" y="143" class="subtitle">选择喜欢的运动，活动身体、轻松锻炼</text>
+
+    <g transform="translate(902 91)">
+      <rect width="124" height="42" rx="21" fill="#FFFFFF" fill-opacity="0.08" stroke="#FFD9A8" stroke-opacity="0.18"/>
+      <circle cx="22" cy="21" r="5" fill="#B4F1D2"/>
+      <text x="39" y="27" class="small">3 项运动</text>
+    </g>
+  </g>
+
+  <line x1="84" y1="174" x2="1036" y2="174" stroke="#FFD9A8" stroke-opacity="0.16"/>
+
+  <!-- Card 1 Ping Pong -->
+  <g class="ui" filter="url(#softShadow)">
+    <g transform="translate(84 206)">
+      <rect x="0" y="0" width="296" height="326" rx="30" fill="url(#cardHover)" stroke="#8DEFFF" stroke-opacity="0.42" stroke-width="1.5"/>
+      <rect x="14" y="14" width="268" height="298" rx="23" fill="#8DEFFF" opacity="0.025"/>
+      <ellipse cx="148" cy="100" rx="67" ry="45" fill="#63E7F6" opacity="0.17" filter="url(#cyanGlow)"/>
+      <circle cx="148" cy="98" r="53" fill="#63E7F6" opacity="0.13" stroke="#A5F6FF" stroke-opacity="0.22"/>
+      <!-- paddle icon -->
+      <g transform="translate(148 96) rotate(-21)">
+        <circle cx="-5" cy="-8" r="26" fill="#7DEFFC" opacity="0.96"/>
+        <circle cx="-5" cy="-8" r="19" fill="#152128" opacity="0.18"/>
+        <rect x="-1" y="15" width="12" height="35" rx="6" fill="#FFD69B"/>
+        <circle cx="35" cy="-18" r="9" fill="#FFF9F1"/>
+      </g>
+      <text x="148" y="183" text-anchor="middle" class="card-title">乒乓球</text>
+      <text x="148" y="214" text-anchor="middle" class="card-desc">灵活反应 · 活动身体</text>
+      <g transform="translate(67 235)">
+        <rect width="78" height="30" rx="15" fill="#63E7F6" opacity="0.12"/>
+        <circle cx="16" cy="15" r="4" fill="#7DEFFC"/>
+        <text x="29" y="20" class="pill" fill="#C8F9FF">轻松</text>
+      </g>
+      <g transform="translate(153 235)">
+        <rect width="78" height="30" rx="15" fill="#FFFFFF" opacity="0.07"/>
+        <path d="M16 9v7l5 3" stroke="#E5CFB4" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <circle cx="16" cy="15" r="7" stroke="#E5CFB4" stroke-width="1.8" fill="none"/>
+        <text x="29" y="20" class="pill" fill="#E5CFB4">约 8 分钟</text>
+      </g>
+      <g transform="translate(47 278)">
+        <rect width="202" height="42" rx="21" fill="url(#goldButton)"/>
+        <text x="92" y="27" text-anchor="middle" class="button" fill="#2A2018">开始运动</text>
+        <path d="M166 16l8 5-8 5" fill="none" stroke="#2A2018" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      </g>
+    </g>
+  </g>
+
+  <!-- Card 2 Archery -->
+  <g class="ui" filter="url(#softShadow)">
+    <g transform="translate(412 206)">
+      <rect x="0" y="0" width="296" height="326" rx="30" fill="url(#card)" stroke="#FFD69B" stroke-opacity="0.24" stroke-width="1.3"/>
+      <rect x="14" y="14" width="268" height="298" rx="23" fill="#FFCE8A" opacity="0.018"/>
+      <ellipse cx="148" cy="100" rx="67" ry="45" fill="#FFCE8A" opacity="0.14" filter="url(#goldGlow)"/>
+      <circle cx="148" cy="98" r="53" fill="#FFCE8A" opacity="0.11" stroke="#FFE3B8" stroke-opacity="0.18"/>
+      <!-- bow icon -->
+      <g transform="translate(148 98)">
+        <path d="M-25-35 Q2-2-25 35" fill="none" stroke="#FFD69B" stroke-width="5" stroke-linecap="round"/>
+        <path d="M-25-35 L-25 35" stroke="#FFF1D7" stroke-width="2.4" opacity="0.82"/>
+        <path d="M-34 2 H34" stroke="#FFF1D7" stroke-width="4" stroke-linecap="round"/>
+        <path d="M34 2l-12-8v16z" fill="#FFF1D7"/>
+        <path d="M-12-5l-9 7 9 7" fill="none" stroke="#FFCE8A" stroke-width="3" stroke-linejoin="round"/>
+      </g>
+      <text x="148" y="183" text-anchor="middle" class="card-title">射箭</text>
+      <text x="148" y="214" text-anchor="middle" class="card-desc">稳定瞄准 · 锻炼协调</text>
+      <g transform="translate(67 235)">
+        <rect width="78" height="30" rx="15" fill="#FFCE8A" opacity="0.10"/>
+        <circle cx="16" cy="15" r="4" fill="#FFCE8A"/>
+        <text x="29" y="20" class="pill" fill="#FFE4BE">适中</text>
+      </g>
+      <g transform="translate(153 235)">
+        <rect width="78" height="30" rx="15" fill="#FFFFFF" opacity="0.07"/>
+        <path d="M16 9v7l5 3" stroke="#E5CFB4" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <circle cx="16" cy="15" r="7" stroke="#E5CFB4" stroke-width="1.8" fill="none"/>
+        <text x="29" y="20" class="pill" fill="#E5CFB4">约 10 分钟</text>
+      </g>
+      <g transform="translate(47 278)">
+        <rect width="202" height="42" rx="21" fill="url(#softButton)" stroke="#FFD69B" stroke-opacity="0.24"/>
+        <text x="92" y="27" text-anchor="middle" class="button" fill="#FFF0D7">开始运动</text>
+        <path d="M166 16l8 5-8 5" fill="none" stroke="#FFF0D7" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      </g>
+    </g>
+  </g>
+
+  <!-- Card 3 Darts -->
+  <g class="ui" filter="url(#softShadow)">
+    <g transform="translate(740 206)">
+      <rect x="0" y="0" width="296" height="326" rx="30" fill="url(#card)" stroke="#FF9A90" stroke-opacity="0.22" stroke-width="1.3"/>
+      <rect x="14" y="14" width="268" height="298" rx="23" fill="#FF8B80" opacity="0.016"/>
+      <ellipse cx="148" cy="100" rx="67" ry="45" fill="#FF8B80" opacity="0.13" filter="url(#redGlow)"/>
+      <circle cx="148" cy="98" r="53" fill="#FF8B80" opacity="0.095" stroke="#FFC4BE" stroke-opacity="0.18"/>
+      <!-- dartboard icon -->
+      <g transform="translate(148 98)">
+        <circle r="32" fill="none" stroke="#FFE9E6" stroke-width="4"/>
+        <circle r="21" fill="none" stroke="#FFAAA2" stroke-width="4"/>
+        <circle r="8" fill="#FF8B80"/>
+        <path d="M0-31V31M-31 0H31M-22-22L22 22M22-22L-22 22" stroke="#FFE9E6" stroke-width="1.6" opacity="0.72"/>
+        <path d="M39-32L9-2" stroke="#FFD69B" stroke-width="4" stroke-linecap="round"/>
+        <path d="M38-33l13-5-5 13z" fill="#FFD69B"/>
+      </g>
+      <text x="148" y="183" text-anchor="middle" class="card-title">飞镖</text>
+      <text x="148" y="214" text-anchor="middle" class="card-desc">专注投掷 · 轻松挑战</text>
+      <g transform="translate(67 235)">
+        <rect width="78" height="30" rx="15" fill="#FF8B80" opacity="0.10"/>
+        <circle cx="16" cy="15" r="4" fill="#FF9A90"/>
+        <text x="29" y="20" class="pill" fill="#FFD2CE">轻松</text>
+      </g>
+      <g transform="translate(153 235)">
+        <rect width="78" height="30" rx="15" fill="#FFFFFF" opacity="0.07"/>
+        <path d="M16 9v7l5 3" stroke="#E5CFB4" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <circle cx="16" cy="15" r="7" stroke="#E5CFB4" stroke-width="1.8" fill="none"/>
+        <text x="29" y="20" class="pill" fill="#E5CFB4">约 8 分钟</text>
+      </g>
+      <g transform="translate(47 278)">
+        <rect width="202" height="42" rx="21" fill="url(#softButton)" stroke="#FF9A90" stroke-opacity="0.20"/>
+        <text x="92" y="27" text-anchor="middle" class="button" fill="#FFF0D7">开始运动</text>
+        <path d="M166 16l8 5-8 5" fill="none" stroke="#FFF0D7" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+      </g>
+    </g>
+  </g>
+
+  <!-- Bottom navigation -->
+  <g class="ui">
+    <g transform="translate(84 560)">
+      <rect width="182" height="52" rx="26" fill="#FFFFFF" fill-opacity="0.07" stroke="#FFD9A8" stroke-opacity="0.17"/>
+      <path d="M31 26h16M31 26l7-7M31 26l7 7" stroke="#FFF0D7" stroke-width="2.3" fill="none" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="107" y="33" text-anchor="middle" class="button" fill="#FFF0D7">返回首页</text>
+    </g>
+
+    <text x="560" y="594" text-anchor="middle" class="small" opacity="0.68">将射线停留在运动卡片上即可查看并开始</text>
+
+    <g transform="translate(902 560)">
+      <rect width="134" height="52" rx="26" fill="#FFFFFF" fill-opacity="0.07" stroke="#FFD9A8" stroke-opacity="0.17"/>
+      <g transform="translate(29 26)" fill="none" stroke="#FFF0D7" stroke-width="2">
+        <circle r="8"/>
+        <circle r="3"/>
+        <path d="M0-14v4M0 10v4M-14 0h4M10 0h4M-10-10l3 3M7 7l3 3M10-10l-3 3M-7 7l-3 3" stroke-linecap="round"/>
+      </g>
+      <text x="84" y="33" text-anchor="middle" class="button" fill="#FFF0D7">设置</text>
+    </g>
+  </g>
+</svg>

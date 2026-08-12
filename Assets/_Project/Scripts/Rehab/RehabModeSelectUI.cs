@@ -24,6 +24,7 @@ namespace PicoElderCare.Rehab
         public Button taiChiButton;
         public Button backButton;
         public Button trainingBackButton;
+        public Button trainingRecenterButton;
         public Button resultBackButton;
         public ModuleHomeMenu homeMenu;
         public ComfortWorldSpaceUIPlacer uiPlacer;
@@ -35,16 +36,25 @@ namespace PicoElderCare.Rehab
         public bool placeUiOnStart = true;
         public bool placeUiOnMainMenuOpen = true;
         public bool placeUiOnTrainingSelectOpen = true;
+        // Retained for serialized-scene and public API compatibility. Startup recentering is owned by ComfortWorldSpaceUIPlacer.
+        [HideInInspector]
         public int startRecenterDelayFrames = 2;
+        [HideInInspector]
         public float startRecenterSeconds = 1.25f;
+        [HideInInspector]
         public int startRecenterFrames = 18;
+        [HideInInspector]
         public float trainingSelectDistanceMeters = 2.45f;
+        [HideInInspector]
         public float trainingSelectHeightOffsetMeters = 0.08f;
+        // New scenes bake the complete visual skin in the editor. Enable only as an explicit legacy-scene repair path.
         public bool applyHtmlStylePanels = false;
+        [Tooltip("Apply the warm visual skin only to the existing training and result panels. Does not style selection or video panels.")]
+        public bool applyTrainingAndResultVisualSkin = true;
 
-        private Coroutine _startRecenterCoroutine;
         private Coroutine _routeRebindCoroutine;
         private Coroutine _trainingLayoutRecenterCoroutine;
+        private bool _isApplyingInitialPanelState;
 
         public GameObject SelectionPanelRoot => selectionPanelRoot;
         public GameObject TrainingFunctionPanelRoot => trainingFunctionPanelRoot;
@@ -64,19 +74,27 @@ namespace PicoElderCare.Rehab
 
         private void Start()
         {
-            if (showTrainingSelectOnStart)
+            _isApplyingInitialPanelState = true;
+            try
             {
-                ShowTrainingSelectPanel();
+                if (showTrainingSelectOnStart)
+                {
+                    ShowTrainingSelectPanel();
+                }
+                else
+                {
+                    ShowMainMenuPanel();
+                }
             }
-            else
+            finally
             {
-                ShowMainMenuPanel();
+                _isApplyingInitialPanelState = false;
             }
 
-            if (placeUiOnStart)
+            ResolveReferences();
+            if (placeUiOnStart && uiPlacer == null)
             {
-                RecenterNavigationPanels();
-                ScheduleStartRecenterNavigationPanels();
+                RecenterSelectionPanel();
             }
 
             RefreshHtmlUIAndButtonBindings("Start");
@@ -86,12 +104,6 @@ namespace PicoElderCare.Rehab
         private void OnDisable()
         {
             CancelTrainingLayoutRecenter();
-
-            if (_startRecenterCoroutine != null)
-            {
-                StopCoroutine(_startRecenterCoroutine);
-                _startRecenterCoroutine = null;
-            }
 
             if (_routeRebindCoroutine != null)
             {
@@ -113,9 +125,9 @@ namespace PicoElderCare.Rehab
 
             RefreshHtmlUIAndButtonBindings("ShowMainMenuPanel");
 
-            if (placeUiOnMainMenuOpen)
+            if (!_isApplyingInitialPanelState && placeUiOnMainMenuOpen)
             {
-                RecenterNavigationPanels();
+                RecenterSelectionPanel();
             }
         }
 
@@ -132,14 +144,9 @@ namespace PicoElderCare.Rehab
 
             RefreshHtmlUIAndButtonBindings("ShowTrainingSelectPanel");
 
-            ResolveReferences();
-            if (panelPlacementController != null)
+            if (!_isApplyingInitialPanelState && placeUiOnTrainingSelectOpen)
             {
-                panelPlacementController.RecenterSelectionPanel();
-            }
-            else if (placeUiOnTrainingSelectOpen)
-            {
-                RecenterNavigationPanels();
+                RecenterSelectionPanel();
             }
         }
 
@@ -158,6 +165,12 @@ namespace PicoElderCare.Rehab
         public void ShowTrainingResultPanel()
         {
             CancelTrainingLayoutRecenter();
+            ResolveReferences();
+            if (sessionManager != null)
+            {
+                sessionManager.SetTrainingAreaVisible(false);
+                sessionManager.SetVirtualCoachVisible(false);
+            }
             StopVideoGuideOnly();
 
             SetPanelActive(mainMenuPanel, false);
@@ -167,7 +180,7 @@ namespace PicoElderCare.Rehab
             SetPanelActive(videoPanelRoot, false);
 
             RefreshHtmlUIAndButtonBindings("ShowTrainingResultPanel");
-            RecenterNavigationPanels();
+            RecenterResultPanel();
         }
 
         public void ReturnToMainEntry()
@@ -187,7 +200,52 @@ namespace PicoElderCare.Rehab
 
         public void ResetUiPosition()
         {
-            RecenterNavigationPanels();
+            ResolveReferences();
+            if (IsPageActive(trainingFunctionPanelRoot, rehabTrainingPanel))
+            {
+                RecenterTrainingEnvironment();
+                return;
+            }
+
+            if (IsPageActive(resultPanelRoot, trainingResultPanel))
+            {
+                RecenterResultPanel();
+                return;
+            }
+
+            RecenterSelectionPanel();
+        }
+
+        public void RecenterTrainingEnvironment()
+        {
+            ResolveReferences();
+
+            if (sessionManager != null)
+            {
+                sessionManager.RecenterTrainingArea();
+            }
+
+            if (panelPlacementController != null)
+            {
+                panelPlacementController.RecenterTrainingLayout();
+            }
+
+            var coach = sessionManager != null
+                ? sessionManager.virtualCoachController
+                : FindObjectOfType<VirtualCoachController>(true);
+            if (coach != null)
+            {
+                coach.RecenterToUser();
+            }
+        }
+
+        public void RecenterResultPanel()
+        {
+            ResolveReferences();
+            if (panelPlacementController != null)
+            {
+                panelPlacementController.RecenterResultPanel();
+            }
         }
 
         private void StartTraining(RehabTrainingType trainingType)
@@ -230,10 +288,7 @@ namespace PicoElderCare.Rehab
             yield return null;
 
             ResolveReferences();
-            if (panelPlacementController != null)
-            {
-                panelPlacementController.RecenterTrainingLayout();
-            }
+            RecenterTrainingEnvironment();
 
             _trainingLayoutRecenterCoroutine = null;
         }
@@ -251,7 +306,7 @@ namespace PicoElderCare.Rehab
             ResolvePanelReferences();
             ResolveNonPanelReferences();
 
-            Debug.Log($"[RehabModeSelectUI] RefreshHtmlUIAndButtonBindings reason={reason}, applyHtmlStylePanels={applyHtmlStylePanels}, object={name}, scene={gameObject.scene.name}");
+            Debug.Log($"[RehabModeSelectUI] RefreshHtmlUIAndButtonBindings reason={reason}, applyHtmlStylePanels={applyHtmlStylePanels}, applyTrainingAndResultVisualSkin={applyTrainingAndResultVisualSkin}, object={name}, scene={gameObject.scene.name}");
 
             if (applyHtmlStylePanels)
             {
@@ -264,9 +319,20 @@ namespace PicoElderCare.Rehab
                     Debug.LogError($"[RehabModeSelectUI] HtmlStyleRehabVisualSkin failed during {reason}: {ex}");
                 }
             }
+            else if (applyTrainingAndResultVisualSkin)
+            {
+                try
+                {
+                    HtmlStyleRehabVisualSkin.ApplyTrainingAndResultPanels(this);
+                }
+                catch (System.Exception ex)
+                {
+                    Debug.LogError($"[RehabModeSelectUI] Training/result visual skin failed during {reason}: {ex}");
+                }
+            }
             else
             {
-                Debug.Log($"[RehabModeSelectUI] HTML visual skin skipped during {reason} because applyHtmlStylePanels=false, object={name}, scene={gameObject.scene.name}");
+                Debug.Log($"[RehabModeSelectUI] HTML visual skin skipped during {reason} because both visual-skin switches are false, object={name}, scene={gameObject.scene.name}");
             }
 
             ResolveNavigationButtons();
@@ -319,6 +385,11 @@ namespace PicoElderCare.Rehab
                 panelPlacementController = FindObjectOfType<RehabPanelPlacementController>(true);
             }
 
+            if (videoPanelRoot == null && panelPlacementController != null && panelPlacementController.videoPanelRoot != null)
+            {
+                videoPanelRoot = panelPlacementController.videoPanelRoot.gameObject;
+            }
+
             if (panelPlacementController != null && panelPlacementController.selectionPanelRoot == null && selectionPanelRoot != null)
             {
                 panelPlacementController.selectionPanelRoot = selectionPanelRoot.transform;
@@ -327,6 +398,11 @@ namespace PicoElderCare.Rehab
             if (panelPlacementController != null && panelPlacementController.trainingFunctionPanelRoot == null && trainingFunctionPanelRoot != null)
             {
                 panelPlacementController.trainingFunctionPanelRoot = trainingFunctionPanelRoot.transform;
+            }
+
+            if (panelPlacementController != null && panelPlacementController.resultPanelRoot == null && resultPanelRoot != null)
+            {
+                panelPlacementController.resultPanelRoot = resultPanelRoot.transform;
             }
 
             if (panelPlacementController != null && panelPlacementController.promptPanelRoot == null && selectionPanelRoot != null)
@@ -389,6 +465,11 @@ namespace PicoElderCare.Rehab
             if (rehabTrainingPanel != null)
             {
                 trainingBackButton = ResolveButtonReference(trainingBackButton, rehabTrainingPanel, "HomeButton", "BackButton", "\u8fd4\u56de");
+                trainingRecenterButton = ResolveButtonReference(trainingRecenterButton, rehabTrainingPanel, "RecenterButton", "\u91cd\u65b0\u5bf9\u51c6");
+                if (trainingRecenterButton == null)
+                {
+                    trainingRecenterButton = CreateRuntimeRecenterButton(rehabTrainingPanel.transform);
+                }
             }
 
             if (trainingResultPanel != null)
@@ -397,9 +478,16 @@ namespace PicoElderCare.Rehab
             }
         }
 
-        private void RecenterNavigationPanels()
+        public void RecenterSelectionPanel()
         {
             ResolveReferences();
+
+            if (uiPlacer != null)
+            {
+                uiPlacer.EnsureWorldSpaceInteractionHelpers();
+                uiPlacer.PlaceOnOpen();
+                return;
+            }
 
             if (panelPlacementController != null)
             {
@@ -414,69 +502,6 @@ namespace PicoElderCare.Rehab
 
                 return;
             }
-
-            if (uiPlacer != null)
-            {
-                ApplyTrainingSelectPlacementDefaults();
-                uiPlacer.EnsureWorldSpaceInteractionHelpers();
-                uiPlacer.PlaceInFrontOfUser();
-            }
-        }
-
-        private void ScheduleStartRecenterNavigationPanels()
-        {
-            if (!isActiveAndEnabled) return;
-
-            if (_startRecenterCoroutine != null)
-            {
-                StopCoroutine(_startRecenterCoroutine);
-            }
-
-            _startRecenterCoroutine = StartCoroutine(RecenterNavigationPanelsAfterStartDelay());
-        }
-
-        private IEnumerator RecenterNavigationPanelsAfterStartDelay()
-        {
-            var delayFrames = Mathf.Max(0, startRecenterDelayFrames);
-            for (var i = 0; i < delayFrames; i++)
-            {
-                yield return null;
-            }
-
-            var recenterUntilTime = Time.unscaledTime + Mathf.Max(0f, startRecenterSeconds);
-            var recenterFramesRemaining = Mathf.Max(1, startRecenterFrames);
-            while (isActiveAndEnabled)
-            {
-                RecenterNavigationPanels();
-                recenterFramesRemaining--;
-
-                var stillWithinTime = Time.unscaledTime <= recenterUntilTime;
-                var stillWithinFrames = recenterFramesRemaining > 0;
-                if (!stillWithinTime && !stillWithinFrames)
-                {
-                    break;
-                }
-
-                yield return null;
-            }
-
-            _startRecenterCoroutine = null;
-        }
-
-        private void ApplyTrainingSelectPlacementDefaults()
-        {
-            if (uiPlacer == null) return;
-
-            uiPlacer.distanceMeters = Mathf.Max(uiPlacer.distanceMeters, trainingSelectDistanceMeters);
-            uiPlacer.hmdHeightOffsetMeters = Mathf.Max(uiPlacer.hmdHeightOffsetMeters, trainingSelectHeightOffsetMeters);
-            if (uiPlacer.usePreferredHeightInsteadOfHeadHeight && uiPlacer.headTransform != null)
-            {
-                var desiredHeight = uiPlacer.headTransform.position.y + trainingSelectHeightOffsetMeters;
-                uiPlacer.preferredWorldHeight = Mathf.Max(uiPlacer.preferredWorldHeight, desiredHeight);
-            }
-
-            uiPlacer.enableRayDrag = true;
-            uiPlacer.enableThumbstickNavigation = true;
         }
 
         private void BindButtonEvents()
@@ -486,6 +511,7 @@ namespace PicoElderCare.Rehab
             ReplaceButtonRoute(taiChiButton, StartTaiChiTraining);
             ReplaceButtonRoute(backButton, ReturnToMainEntry, ShowMainMenuPanel);
             ReplaceButtonRoute(trainingBackButton, ShowTrainingSelectPanel);
+            ReplaceButtonRoute(trainingRecenterButton, RecenterTrainingEnvironment);
             ReplaceButtonRoute(resultBackButton, ShowTrainingSelectPanel);
         }
 
@@ -536,6 +562,67 @@ namespace PicoElderCare.Rehab
             }
         }
 
+        private static bool IsPageActive(GameObject pageRoot, GameObject pagePanel)
+        {
+            if (pageRoot != null) return pageRoot.activeSelf;
+            return pagePanel != null && pagePanel.activeSelf;
+        }
+
+        private static Button CreateRuntimeRecenterButton(Transform parent)
+        {
+            if (parent == null) return null;
+
+            var buttonObject = new GameObject(
+                "RecenterButton",
+                typeof(RectTransform),
+                typeof(CanvasRenderer),
+                typeof(Image),
+                typeof(Button));
+            buttonObject.transform.SetParent(parent, false);
+
+            var rect = buttonObject.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(0.5f, 0.5f);
+            rect.anchorMax = new Vector2(0.5f, 0.5f);
+            rect.pivot = new Vector2(0.5f, 0.5f);
+            rect.anchoredPosition = new Vector2(-232f, -174f);
+            rect.sizeDelta = new Vector2(186f, 82f);
+
+            var image = buttonObject.GetComponent<Image>();
+            image.color = new Color(0.37f, 0.52f, 0.38f, 0.95f);
+            image.raycastTarget = true;
+
+            var button = buttonObject.GetComponent<Button>();
+            button.targetGraphic = image;
+
+            var labelObject = new GameObject(
+                "Label",
+                typeof(RectTransform),
+                typeof(CanvasRenderer),
+                typeof(TextMeshProUGUI));
+            labelObject.transform.SetParent(buttonObject.transform, false);
+            var labelRect = labelObject.GetComponent<RectTransform>();
+            labelRect.anchorMin = Vector2.zero;
+            labelRect.anchorMax = Vector2.one;
+            labelRect.offsetMin = new Vector2(8f, 4f);
+            labelRect.offsetMax = new Vector2(-8f, -4f);
+
+            var label = labelObject.GetComponent<TextMeshProUGUI>();
+            label.text = "\u91cd\u65b0\u5bf9\u51c6";
+            label.fontSize = 28f;
+            label.fontStyle = FontStyles.Bold;
+            label.alignment = TextAlignmentOptions.Center;
+            label.color = Color.white;
+            label.raycastTarget = false;
+
+            var referenceLabel = parent.GetComponentInChildren<TMP_Text>(true);
+            if (referenceLabel != null && referenceLabel.font != null)
+            {
+                label.font = referenceLabel.font;
+            }
+
+            return button;
+        }
+
         private void ScheduleRouteRebind(string reason)
         {
             if (!isActiveAndEnabled) return;
@@ -564,6 +651,7 @@ namespace PicoElderCare.Rehab
             AddButton(forcedInteractableButtons, taiChiButton);
             AddButton(forcedInteractableButtons, backButton);
             AddButton(forcedInteractableButtons, trainingBackButton);
+            AddButton(forcedInteractableButtons, trainingRecenterButton);
             AddButton(forcedInteractableButtons, resultBackButton);
 
             NormalizeButtonRaycasts(mainMenuPanel, forcedInteractableButtons);
@@ -707,6 +795,7 @@ namespace PicoElderCare.Rehab
                 DescribeButton("taiChiButton", taiChiButton) + "\n" +
                 DescribeButton("backButton", backButton) + "\n" +
                 DescribeButton("trainingBackButton", trainingBackButton) + "\n" +
+                DescribeButton("trainingRecenterButton", trainingRecenterButton) + "\n" +
                 DescribeButton("resultBackButton", resultBackButton));
         }
 
