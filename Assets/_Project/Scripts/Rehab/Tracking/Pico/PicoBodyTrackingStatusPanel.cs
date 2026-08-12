@@ -10,15 +10,23 @@ namespace PicoElderCare.Rehab.Tracking.Pico
         private const string CanvasObjectName = "PicoBodyTrackingStatusCanvas";
         private const string TextObjectName = "DiagnosticsText";
         private const int TextCapacity = 1024;
+        private const float LegacyFontSize = 72f;
+        private static readonly Vector2 LegacyPanelSize = new Vector2(900f, 420f);
+        private static readonly Vector3 LegacyPanelScale = Vector3.one * 0.0015f;
 
         [SerializeField] private bool statusPanelEnabled = true;
         [SerializeField] private PicoBodyTrackingProvider provider;
         [SerializeField] private Camera targetCamera;
         [SerializeField] private float statusDistance = 1.2f;
         [SerializeField] private float statusVerticalOffset = -0.18f;
-        [SerializeField] private float statusFontSize = 72f;
-        [SerializeField] private Vector2 statusPanelSize = new Vector2(900f, 420f);
-        [SerializeField] private Vector3 statusPanelScale = new Vector3(0.0015f, 0.0015f, 0.0015f);
+        // These pixel dimensions are intentionally larger than the original
+        // 900 x 420 / 72 px layout. The original values produced roughly
+        // 10.8 cm high glyphs in world space and could not fit nine diagnostic
+        // rows once the Chinese TMP font was assigned.
+        [SerializeField] private float statusFontSize = 44f;
+        [SerializeField] private TMP_FontAsset statusFontAsset;
+        [SerializeField] private Vector2 statusPanelSize = new Vector2(1200f, 720f);
+        [SerializeField] private Vector3 statusPanelScale = new Vector3(0.001f, 0.001f, 0.001f);
         [SerializeField] private Color backgroundColor = new Color(0f, 0f, 0f, 0.8f);
         [SerializeField] private Color textColor = Color.white;
 
@@ -91,6 +99,16 @@ namespace PicoElderCare.Rehab.Tracking.Pico
             }
         }
 
+        public TMP_FontAsset StatusFontAsset
+        {
+            get { return statusFontAsset; }
+            set
+            {
+                statusFontAsset = value;
+                ApplyVisualSettings();
+            }
+        }
+
         public Vector2 StatusPanelSize
         {
             get { return statusPanelSize; }
@@ -143,6 +161,7 @@ namespace PicoElderCare.Rehab.Tracking.Pico
 
         private void OnEnable()
         {
+            UpgradeLegacyLayoutIfNeeded();
             _cameraLookupAttempted = targetCamera != null;
             if (Application.isPlaying && statusPanelEnabled)
             {
@@ -168,6 +187,7 @@ namespace PicoElderCare.Rehab.Tracking.Pico
 
         private void OnValidate()
         {
+            UpgradeLegacyLayoutIfNeeded();
             statusFontSize = Mathf.Max(1f, statusFontSize);
             statusPanelSize.x = Mathf.Max(1f, statusPanelSize.x);
             statusPanelSize.y = Mathf.Max(1f, statusPanelSize.y);
@@ -183,6 +203,7 @@ namespace PicoElderCare.Rehab.Tracking.Pico
 
         public void RefreshNow()
         {
+            UpgradeLegacyLayoutIfNeeded();
             if (!statusPanelEnabled)
             {
                 ApplyVisibility();
@@ -196,6 +217,20 @@ namespace PicoElderCare.Rehab.Tracking.Pico
 
             ApplyVisibility();
             UpdateStatusText();
+        }
+
+        private void UpgradeLegacyLayoutIfNeeded()
+        {
+            if (!Mathf.Approximately(statusFontSize, LegacyFontSize) ||
+                Vector2.Distance(statusPanelSize, LegacyPanelSize) > 0.001f ||
+                Vector3.Distance(statusPanelScale, LegacyPanelScale) > 0.00001f)
+            {
+                return;
+            }
+
+            statusFontSize = 44f;
+            statusPanelSize = new Vector2(1200f, 720f);
+            statusPanelScale = Vector3.one * 0.001f;
         }
 
         private bool EnsureInitialized()
@@ -281,10 +316,13 @@ namespace PicoElderCare.Rehab.Tracking.Pico
             _statusText.overflowMode = TextOverflowModes.Overflow;
             _statusText.richText = false;
             _statusText.raycastTarget = false;
-            _statusText.lineSpacing = -55f;
-            _statusText.margin = new Vector4(28f, 20f, 28f, 20f);
+            // Negative line spacing made the Chinese font rows overlap on the
+            // headset. Keep natural TMP line metrics and leave enough room for
+            // Last Error to wrap onto a second line when necessary.
+            _statusText.lineSpacing = 0f;
+            _statusText.margin = new Vector4(36f, 30f, 36f, 30f);
             _statusText.outlineColor = Color.black;
-            _statusText.outlineWidth = 0.2f;
+            _statusText.outlineWidth = 0.1f;
 
             _initialized = true;
             ApplyCanvasLayout();
@@ -356,11 +394,16 @@ namespace PicoElderCare.Rehab.Tracking.Pico
 
             if (_statusText != null)
             {
+                if (statusFontAsset != null && _statusText.font != statusFontAsset)
+                {
+                    _statusText.font = statusFontAsset;
+                }
+
                 _statusText.fontSize = statusFontSize;
                 _statusText.enableAutoSizing = false;
                 _statusText.color = textColor;
                 _statusText.outlineColor = Color.black;
-                _statusText.outlineWidth = 0.2f;
+                _statusText.outlineWidth = 0.1f;
             }
         }
 

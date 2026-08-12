@@ -1,9 +1,12 @@
 #if UNITY_EDITOR
+using System.Runtime.InteropServices;
+using IntPtr = System.IntPtr;
 using PicoElderCare.Rehab;
 using PicoElderCare.Rehab.Tracking;
 using PicoElderCare.Rehab.Tracking.Pico;
 using TMPro;
 using Unity.XR.PXR;
+using UnityEditor;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -21,6 +24,7 @@ public static class PicoBodyTrackingSelfTests
         PicoProvider_ReportsLimitedState();
         PicoProvider_ClearsSampleWhenTrackingLost();
         PicoProvider_HandlesGetDataFailure();
+        PicoProvider_PreservesDataExceptionDetails();
         PicoProvider_StopsOnlyAfterStarting();
         PicoJointMapper_MapsRequiredUpperBodyJoints();
         PicoJointMapper_MapsRequiredLowerBodyJoints();
@@ -29,8 +33,11 @@ public static class PicoBodyTrackingSelfTests
         PicoProvider_DoesNotLeakSdkTypesIntoBodySample();
         PicoProvider_ConvertsLocalPoseToWorldSpace();
         PicoApi_ConvertsNativeCoordinatesWithoutWritingPastMotionVectors();
+        PicoApi_ParsesReusableUnmanagedRoleData();
+        PicoApi_DoesNotMarshalManagedRoleArraysPerFrame();
         ProviderSelector_DoesNotFallbackFromLimitedPicoSample();
         PicoStatusPanel_CreatesHeadLockedWorldCanvas();
+        PicoStatusPanel_UpgradesUnreadableLegacyLayout();
         PicoStatusPanel_ReusesUiObjects();
         PicoDebugRenderer_DoesNotOwnStatusUi();
         Debug.Log("PICO body tracking self tests passed.");
@@ -256,6 +263,26 @@ public static class PicoBodyTrackingSelfTests
         }
     }
 
+    private static void PicoProvider_PreservesDataExceptionDetails()
+    {
+        var root = new GameObject("PicoProviderDataExceptionTest");
+        try
+        {
+            var fake = CreateValidFake();
+            fake.dataExceptionMessage = "Fake native parser failure";
+            var provider = CreateProvider(root, fake);
+            provider.StartTracking();
+
+            AssertTrue(!provider.TryGetSample(new RehabBodySample()), "Data parser exceptions must reject the current sample.");
+            AssertTrue(provider.Diagnostics.dataResult == -1, "Data parser exceptions should use the managed failure result.");
+            AssertTrue(provider.Diagnostics.lastError == fake.dataExceptionMessage, "Data parser exception details must not be overwritten by a generic error.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(root);
+        }
+    }
+
     private static void PicoProvider_StopsOnlyAfterStarting()
     {
         var unsupportedRoot = new GameObject("PicoProviderNoStopTest");
@@ -416,6 +443,107 @@ public static class PicoBodyTrackingSelfTests
             "Motion-vector conversion should read and negate valid Z index 2 without writing index 3.");
     }
 
+    private static void PicoApi_ParsesReusableUnmanagedRoleData()
+    {
+        var stride = Marshal.SizeOf(typeof(BodyTrackingRoleData));
+        var allocation = Marshal.AllocHGlobal(stride + 16);
+        var roleAddress = IntPtr.Add(allocation, 8);
+        var api = new PicoBodyTrackingApi();
+        try
+        {
+            Marshal.WriteInt64(allocation, 0, unchecked((long)0x1122334455667788));
+            Marshal.WriteInt64(roleAddress, stride, unchecked((long)0x8877665544332211));
+            Marshal.WriteInt32(
+                roleAddress,
+                Marshal.OffsetOf(typeof(BodyTrackingRoleData), "role").ToInt32(),
+                (int)BodyTrackerRole.HEAD);
+
+            var localPoseOffset = Marshal.OffsetOf(typeof(BodyTrackingRoleData), "localPose").ToInt32();
+            WriteInt64(roleAddress, localPoseOffset, typeof(BodyTrackerTransPose), "TimeStamp", 123456789L);
+            WriteDouble(roleAddress, localPoseOffset, typeof(BodyTrackerTransPose), "PosX", 1d);
+            WriteDouble(roleAddress, localPoseOffset, typeof(BodyTrackerTransPose), "PosY", 2d);
+            WriteDouble(roleAddress, localPoseOffset, typeof(BodyTrackerTransPose), "PosZ", 3d);
+            WriteDouble(roleAddress, localPoseOffset, typeof(BodyTrackerTransPose), "RotQx", 0.1d);
+            WriteDouble(roleAddress, localPoseOffset, typeof(BodyTrackerTransPose), "RotQy", 0.2d);
+            WriteDouble(roleAddress, localPoseOffset, typeof(BodyTrackerTransPose), "RotQz", 0.3d);
+            WriteDouble(roleAddress, localPoseOffset, typeof(BodyTrackerTransPose), "RotQw", 0.4d);
+            WriteVector(roleAddress, typeof(BodyTrackingRoleData), "velo", 4d, 5d, 6d);
+            WriteVector(roleAddress, typeof(BodyTrackingRoleData), "acce", 7d, 8d, 9d);
+            WriteVector(roleAddress, typeof(BodyTrackingRoleData), "wvelo", 10d, 11d, 12d);
+
+            PicoBodyJointData joint;
+            AssertTrue(api.TryReadNativeJoint(roleAddress, out joint), "Reusable unmanaged role data should parse a recognized joint.");
+            AssertTrue(joint.role == BodyTrackerRole.HEAD && joint.timestamp == 123456789L, "Native joint role and timestamp should be preserved.");
+            AssertVectorApproximately(joint.position, new Vector3(1f, 2f, -3f), "Native buffer position should use Unity handedness.");
+            AssertQuaternionApproximately(joint.rotation, new Quaternion(0.1f, 0.2f, -0.3f, -0.4f), "Native buffer rotation should use Unity handedness.");
+            AssertVectorApproximately(joint.velocity, new Vector3(4f, 5f, -6f), "Native buffer velocity should read exactly three doubles.");
+            AssertVectorApproximately(joint.acceleration, new Vector3(7f, 8f, -9f), "Native buffer acceleration should read exactly three doubles.");
+            AssertVectorApproximately(joint.angularVelocity, new Vector3(10f, 11f, -12f), "Native buffer angular velocity should read exactly three doubles.");
+            AssertTrue(Marshal.ReadInt64(allocation, 0) == unchecked((long)0x1122334455667788), "Native parsing must not write before the role buffer.");
+            AssertTrue(Marshal.ReadInt64(roleAddress, stride) == unchecked((long)0x8877665544332211), "Native parsing must not write after the role buffer.");
+        }
+        finally
+        {
+            api.Dispose();
+            Marshal.FreeHGlobal(allocation);
+        }
+    }
+
+    private static void PicoApi_DoesNotMarshalManagedRoleArraysPerFrame()
+    {
+        AssertTrue((int)BodyTrackerRole.ROLE_NUM == (int)BodyTrackerRole.NONE_ROLE, "PICO role count must match the native inline-array length.");
+
+        var fields = typeof(PicoBodyTrackingApi).GetFields(
+            System.Reflection.BindingFlags.Instance |
+            System.Reflection.BindingFlags.NonPublic |
+            System.Reflection.BindingFlags.Public);
+        for (var i = 0; i < fields.Length; i++)
+        {
+            AssertTrue(fields[i].FieldType != typeof(BodyTrackingData), "Runtime API must not marshal BodyTrackingData's ByValArray every frame.");
+            AssertTrue(!fields[i].FieldType.IsArray, "Runtime API frame storage must remain unmanaged and reusable.");
+            AssertTrue(fields[i].FieldType != typeof(GCHandle), "Runtime API must not pin an array that IL2CPP replaces during marshal-back.");
+        }
+    }
+
+    private static void WriteInt64(
+        IntPtr address,
+        int parentOffset,
+        System.Type declaringType,
+        string fieldName,
+        long value)
+    {
+        var fieldOffset = Marshal.OffsetOf(declaringType, fieldName).ToInt32();
+        Marshal.WriteInt64(address, parentOffset + fieldOffset, value);
+    }
+
+    private static void WriteDouble(
+        IntPtr address,
+        int parentOffset,
+        System.Type declaringType,
+        string fieldName,
+        double value)
+    {
+        var fieldOffset = Marshal.OffsetOf(declaringType, fieldName).ToInt32();
+        Marshal.WriteInt64(
+            address,
+            parentOffset + fieldOffset,
+            System.BitConverter.DoubleToInt64Bits(value));
+    }
+
+    private static void WriteVector(
+        IntPtr address,
+        System.Type declaringType,
+        string fieldName,
+        double x,
+        double y,
+        double z)
+    {
+        var fieldOffset = Marshal.OffsetOf(declaringType, fieldName).ToInt32();
+        Marshal.WriteInt64(address, fieldOffset, System.BitConverter.DoubleToInt64Bits(x));
+        Marshal.WriteInt64(address, fieldOffset + sizeof(long), System.BitConverter.DoubleToInt64Bits(y));
+        Marshal.WriteInt64(address, fieldOffset + sizeof(long) * 2, System.BitConverter.DoubleToInt64Bits(z));
+    }
+
     private static void ProviderSelector_DoesNotFallbackFromLimitedPicoSample()
     {
         var root = new GameObject("PicoLimitedSelectorTest");
@@ -477,21 +605,35 @@ public static class PicoBodyTrackingSelfTests
             AssertTrue(panel.StatusCanvas.transform.parent == camera.transform, "Status Canvas must be parented to the target camera.");
             AssertTrue(Vector3.Distance(panel.StatusCanvas.transform.localPosition, new Vector3(0f, -0.18f, 1.2f)) < 0.0001f, "Status Canvas should use the default head-local position.");
             AssertTrue(Quaternion.Angle(panel.StatusCanvas.transform.localRotation, Quaternion.identity) < 0.001f, "Status Canvas should face forward in camera-local space.");
-            AssertTrue(Vector3.Distance(panel.StatusCanvas.transform.localScale, Vector3.one * 0.0015f) < 0.0001f, "Status Canvas should use the default scale.");
+            AssertTrue(Vector3.Distance(panel.StatusCanvas.transform.localScale, Vector3.one * 0.001f) < 0.0001f, "Status Canvas should use the readable headset scale.");
 
             var canvasRect = panel.StatusCanvas.transform as RectTransform;
-            AssertTrue(canvasRect != null && Vector2.Distance(canvasRect.sizeDelta, new Vector2(900f, 420f)) < 0.001f, "Status Canvas should use the default 900 x 420 size.");
+            AssertTrue(canvasRect != null && Vector2.Distance(canvasRect.sizeDelta, new Vector2(1200f, 720f)) < 0.001f, "Status Canvas should provide enough room for all diagnostic rows.");
             AssertTrue(panel.StatusText != null && panel.StatusText is TextMeshProUGUI, "Status text must use TextMeshProUGUI.");
-            AssertTrue(Mathf.Abs(panel.StatusText.fontSize - 72f) < 0.001f, "Status text should use the default 72 font size.");
+            AssertTrue(Mathf.Abs(panel.StatusText.fontSize - 44f) < 0.001f, "Status text should use a readable true-device font size.");
             AssertTrue(!panel.StatusText.enableAutoSizing, "Status text auto sizing must remain disabled.");
             AssertTrue(panel.StatusText.alignment == TextAlignmentOptions.MidlineLeft, "Status text should be left aligned and vertically centered.");
-            AssertTrue(panel.StatusText.outlineWidth > 0f, "Status text should have a black outline.");
+            AssertTrue(Mathf.Abs(panel.StatusText.lineSpacing) < 0.001f, "Status text must use natural non-overlapping line spacing.");
+            AssertTrue(panel.StatusText.enableWordWrapping, "Long diagnostics should wrap inside the panel.");
+            AssertTrue(panel.StatusText.outlineWidth > 0f && panel.StatusText.outlineWidth <= 0.1f, "Status text should use a restrained black outline.");
+            panel.StatusText.ForceMeshUpdate();
+            AssertTrue(panel.StatusText.preferredHeight <= canvasRect.rect.height, "All default diagnostic rows should fit inside the status panel.");
 
             var background = panel.StatusCanvas.GetComponent<Image>();
             AssertTrue(background != null && Mathf.Abs(background.color.a - 0.8f) < 0.001f, "Status panel should have the default semi-transparent background.");
             AssertTrue(panel.StatusText.text.Contains("Tracking State: Valid"), "Status panel should display the tracking state.");
             AssertTrue(panel.StatusText.text.Contains("Valid Joint Count: 1"), "Status panel should display the latest valid joint count.");
             AssertTrue(panel.StatusText.text.Contains("Successful Sample Count: 1"), "Status panel should display sample diagnostics.");
+
+            var chineseFont = AssetDatabase.LoadAssetAtPath<TMP_FontAsset>(
+                "Assets/_Project/Materials/Rehab/RehabChineseTMP.asset");
+            AssertTrue(chineseFont != null, "Status panel layout test requires the project Chinese TMP font.");
+            panel.StatusFontAsset = chineseFont;
+            fake.dataExceptionMessage = "读取 PICO Body Tracking 关节数据失败。请确认两个 Motion Tracker 均在线并已完成校准。";
+            provider.TryGetSample(new RehabBodySample());
+            panel.RefreshNow();
+            panel.StatusText.ForceMeshUpdate();
+            AssertTrue(panel.StatusText.preferredHeight <= canvasRect.rect.height, "Long Chinese diagnostics should remain inside the status panel.");
         }
         finally
         {
@@ -517,6 +659,31 @@ public static class PicoBodyTrackingSelfTests
             panel.RefreshNow();
             AssertTrue(ReferenceEquals(canvas, panel.StatusCanvas), "Status panel must reuse its Canvas.");
             AssertTrue(ReferenceEquals(text, panel.StatusText), "Status panel must reuse its TextMeshProUGUI component.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(root);
+            Object.DestroyImmediate(cameraObject);
+        }
+    }
+
+    private static void PicoStatusPanel_UpgradesUnreadableLegacyLayout()
+    {
+        var root = new GameObject("PicoStatusPanelLegacyLayoutTest");
+        var cameraObject = new GameObject("Legacy Status Camera");
+        try
+        {
+            var camera = cameraObject.AddComponent<Camera>();
+            var panel = root.AddComponent<PicoBodyTrackingStatusPanel>();
+            panel.TargetCamera = camera;
+            panel.StatusFontSize = 72f;
+            panel.StatusPanelSize = new Vector2(900f, 420f);
+            panel.StatusPanelScale = Vector3.one * 0.0015f;
+            panel.RefreshNow();
+
+            AssertTrue(Mathf.Abs(panel.StatusFontSize - 44f) < 0.001f, "Serialized legacy font size should upgrade at runtime.");
+            AssertTrue(Vector2.Distance(panel.StatusPanelSize, new Vector2(1200f, 720f)) < 0.001f, "Serialized legacy panel size should upgrade at runtime.");
+            AssertTrue(Vector3.Distance(panel.StatusPanelScale, Vector3.one * 0.001f) < 0.0001f, "Serialized legacy panel scale should upgrade at runtime.");
         }
         finally
         {

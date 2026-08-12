@@ -9,7 +9,7 @@ namespace PicoElderCare.Rehab.Tracking.Pico
         private const string SupportQueryFailedMessage = "查询 PICO Body Tracking 支持状态失败。";
         private const string StartFailedMessage = "启动 PICO Body Tracking 失败。";
         private const string StateQueryFailedMessage = "读取 PICO Body Tracking 状态失败。";
-        private const string DataQueryFailedMessage = "读取 PICO Body Tracking 关节数据失败。";
+        private const string DataQueryFailedMessage = "读取 PICO Body Tracking 关节数据失败。请确认两个 Motion Tracker 均在线并已完成校准。";
         private const string MissingOriginMessage = "世界空间输出需要绑定 XR Origin。";
         private const string NoMappedJointsMessage = "PICO 返回的数据中没有可映射的身体关节。";
 
@@ -201,19 +201,24 @@ namespace PicoElderCare.Rehab.Tracking.Pico
                 return false;
             }
 
+            var dataExceptionCaught = false;
             try
             {
                 diagnostics.dataResult = _api.GetBodyTrackingData(_picoFrame);
             }
             catch (Exception exception)
             {
+                dataExceptionCaught = true;
                 diagnostics.lastError = exception.Message;
                 diagnostics.dataResult = -1;
             }
 
             if (diagnostics.dataResult != ApiSuccess)
             {
-                CaptureApiError(DataQueryFailedMessage);
+                if (!dataExceptionCaught)
+                {
+                    CaptureApiError(DataQueryFailedMessage);
+                }
                 SetState(RehabTrackingState.Error, DataQueryFailedMessage);
                 target.trackingState = _trackingState;
                 diagnostics.failedSampleCount++;

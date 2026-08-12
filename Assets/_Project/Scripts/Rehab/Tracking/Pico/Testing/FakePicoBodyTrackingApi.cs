@@ -9,6 +9,7 @@ namespace PicoElderCare.Rehab.Tracking.Pico
         public int stopResult;
         public int stateResult;
         public int dataResult;
+        public string dataExceptionMessage = string.Empty;
         public int calibrationResult;
         public string errorMessage = string.Empty;
         public PicoBodyTrackingApiState trackingState;
@@ -55,6 +56,11 @@ namespace PicoElderCare.Rehab.Tracking.Pico
         public int GetBodyTrackingData(PicoBodyTrackingFrame target)
         {
             dataCallCount++;
+            if (!string.IsNullOrEmpty(dataExceptionMessage))
+            {
+                throw new System.InvalidOperationException(dataExceptionMessage);
+            }
+
             if (dataResult == 0 && target != null)
             {
                 target.CopyFrom(bodyData);

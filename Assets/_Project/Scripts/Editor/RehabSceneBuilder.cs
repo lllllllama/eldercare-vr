@@ -382,16 +382,13 @@ public static class RehabSceneBuilder
         var leftController = FindChildByName(xrOrigin.transform, "Left Controller");
         var rightController = FindChildByName(xrOrigin.transform, "Right Controller");
 
-        var pxrManager = FindSceneComponent<PXR_Manager>(scene);
-        if (pxrManager == null)
-        {
-            pxrManager = xrOrigin.gameObject.AddComponent<PXR_Manager>();
-            changed = true;
-        }
+        var pxrManager = EnsureSinglePXRManager(scene, xrOrigin.gameObject, out var pxrManagerChanged);
+        changed |= pxrManagerChanged;
 
-        if (!pxrManager.bodyTracking)
+        if (!pxrManager.bodyTracking || !pxrManager.openMRC)
         {
             pxrManager.bodyTracking = true;
+            pxrManager.openMRC = true;
             EditorUtility.SetDirty(pxrManager);
             changed = true;
         }
@@ -477,11 +474,26 @@ public static class RehabSceneBuilder
             changed = true;
         }
 
+        var statusFont = GetRehabFontAsset();
+        var statusPanelSize = new Vector2(1200f, 720f);
+        var statusPanelScale = Vector3.one * 0.001f;
         if (bodyTrackingStatusPanel.Provider != picoBodyTrackingProvider ||
-            bodyTrackingStatusPanel.TargetCamera != mainCamera)
+            bodyTrackingStatusPanel.TargetCamera != mainCamera ||
+            bodyTrackingStatusPanel.StatusFontAsset != statusFont ||
+            !Mathf.Approximately(bodyTrackingStatusPanel.StatusDistance, 1.2f) ||
+            !Mathf.Approximately(bodyTrackingStatusPanel.StatusVerticalOffset, -0.18f) ||
+            !Mathf.Approximately(bodyTrackingStatusPanel.StatusFontSize, 44f) ||
+            bodyTrackingStatusPanel.StatusPanelSize != statusPanelSize ||
+            bodyTrackingStatusPanel.StatusPanelScale != statusPanelScale)
         {
             bodyTrackingStatusPanel.Provider = picoBodyTrackingProvider;
             bodyTrackingStatusPanel.TargetCamera = mainCamera;
+            bodyTrackingStatusPanel.StatusFontAsset = statusFont;
+            bodyTrackingStatusPanel.StatusDistance = 1.2f;
+            bodyTrackingStatusPanel.StatusVerticalOffset = -0.18f;
+            bodyTrackingStatusPanel.StatusFontSize = 44f;
+            bodyTrackingStatusPanel.StatusPanelSize = statusPanelSize;
+            bodyTrackingStatusPanel.StatusPanelScale = statusPanelScale;
             EditorUtility.SetDirty(bodyTrackingStatusPanel);
             changed = true;
         }
@@ -512,7 +524,7 @@ public static class RehabSceneBuilder
             changed = true;
         }
 
-        return changed;
+        return true;
     }
 
     private static bool ValidateAuthoredRehabBaseline(
@@ -2452,6 +2464,64 @@ public static class RehabSceneBuilder
         }
 
         return null;
+    }
+
+    private static PXR_Manager EnsureSinglePXRManager(
+        Scene scene,
+        GameObject preferredHost,
+        out bool changed)
+    {
+        changed = false;
+        PXR_Manager firstManager = null;
+        PXR_Manager preferredManager = null;
+        PXR_Manager inheritedPreferredManager = null;
+        var roots = scene.GetRootGameObjects();
+
+        for (var i = 0; i < roots.Length; i++)
+        {
+            var managers = roots[i].GetComponentsInChildren<PXR_Manager>(true);
+            for (var j = 0; j < managers.Length; j++)
+            {
+                var manager = managers[j];
+                if (manager == null) continue;
+
+                if (firstManager == null) firstManager = manager;
+                if (manager.gameObject != preferredHost) continue;
+
+                if (preferredManager == null) preferredManager = manager;
+                if (PrefabUtility.GetCorrespondingObjectFromSource(manager) != null)
+                {
+                    inheritedPreferredManager = manager;
+                }
+            }
+        }
+
+        var keeper = inheritedPreferredManager != null
+            ? inheritedPreferredManager
+            : preferredManager != null
+                ? preferredManager
+                : firstManager;
+        if (keeper == null)
+        {
+            keeper = preferredHost.AddComponent<PXR_Manager>();
+            changed = true;
+        }
+
+        for (var i = 0; i < roots.Length; i++)
+        {
+            var managers = roots[i].GetComponentsInChildren<PXR_Manager>(true);
+            for (var j = 0; j < managers.Length; j++)
+            {
+                var manager = managers[j];
+                if (manager != null && manager != keeper)
+                {
+                    Object.DestroyImmediate(manager);
+                    changed = true;
+                }
+            }
+        }
+
+        return keeper;
     }
 
     private static void RemoveSceneComponentsInScene<T>(Scene scene) where T : Component

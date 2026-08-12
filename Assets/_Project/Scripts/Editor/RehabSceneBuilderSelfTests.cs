@@ -46,6 +46,7 @@ public static class RehabSceneBuilderSelfTests
             var pxrManager = xrOriginObject.AddComponent<PXR_Manager>();
             pxrManager.bodyTracking = false;
             pxrManager.useRecommendedAntiAliasingLevel = false;
+            xrOriginObject.AddComponent<PXR_Manager>();
 
             var rehabRoot = new GameObject("Rehab");
             SceneManager.MoveGameObjectToScene(rehabRoot, scene);
@@ -93,6 +94,10 @@ public static class RehabSceneBuilderSelfTests
             AssertTrue(selector.FallbackProvider == controllerProvider && selector.AllowAutomaticFallback, "Selector should retain controller fallback.");
             AssertTrue(statusPanel != null && statusPanel.Provider == picoProvider, "Head-locked status panel should be created and bound.");
             AssertTrue(statusPanel.TargetCamera == camera && statusPanel.StatusPanelEnabled, "Status panel should target the current Main Camera.");
+            AssertTrue(statusPanel.StatusFontAsset != null && statusPanel.StatusFontAsset.name == "RehabChineseTMP", "Status panel should use the project Chinese TMP font.");
+            AssertTrue(Mathf.Abs(statusPanel.StatusFontSize - 44f) < 0.001f, "Status panel should use the verified compact font size.");
+            AssertTrue(Vector2.Distance(statusPanel.StatusPanelSize, new Vector2(1200f, 720f)) < 0.001f, "Status panel should fit every diagnostics row without overlap.");
+            AssertTrue(Vector3.Distance(statusPanel.StatusPanelScale, Vector3.one * 0.001f) < 0.0001f, "Status panel should preserve a comfortable world-space size.");
             AssertTrue(session.handPoseTracker == poseTracker && session.poseProviderSelector == selector, "Session should use the synchronized providers.");
 
             AssertTrue(RehabSceneBuilder.SynchronizeRehabScene(scene), "Repeated synchronization should remain successful.");
@@ -101,6 +106,7 @@ public static class RehabSceneBuilderSelfTests
             AssertTrue(CountSceneComponents<PicoBodyTrackingStatusPanel>(scene) == 1, "Repeated synchronization must not duplicate the status panel.");
             AssertTrue(CountSceneComponents<ControllerPoseProvider>(scene) == 1, "Repeated synchronization must not duplicate the controller provider.");
             AssertTrue(CountSceneComponents<RehabPoseProviderSelector>(scene) == 1, "Repeated synchronization must not duplicate the provider selector.");
+            AssertTrue(CountSceneComponents<PXR_Manager>(scene) == 1, "Repeated synchronization must keep exactly one PXR Manager.");
         }
         finally
         {
