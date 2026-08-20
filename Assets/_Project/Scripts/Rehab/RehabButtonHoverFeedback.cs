@@ -15,19 +15,19 @@ namespace PicoElderCare.Rehab
         IDeselectHandler
     {
         private Button _button;
-        private RectTransform _visualRoot;
-        private Graphic _surface;
-        private Graphic _glow;
-        private Color _normalSurfaceColor;
-        private Color _hoverSurfaceColor;
-        private Color _normalGlowColor;
-        private Color _hoverGlowColor;
-        private Vector2 _basePosition;
-        private float _hoverScale = 1.04f;
-        private float _pressedScale = 0.975f;
-        private float _hoverLift = 5f;
-        private float _animationSpeed = 12f;
-        private bool _configured;
+        [SerializeField] private RectTransform _visualRoot;
+        [SerializeField] private Graphic _surface;
+        [SerializeField] private Graphic _glow;
+        [SerializeField] private Color _normalSurfaceColor;
+        [SerializeField] private Color _hoverSurfaceColor;
+        [SerializeField] private Color _normalGlowColor;
+        [SerializeField] private Color _hoverGlowColor;
+        [SerializeField] private Vector2 _basePosition;
+        [SerializeField] private float _hoverScale = 1.04f;
+        [SerializeField] private float _pressedScale = 0.975f;
+        [SerializeField] private float _hoverLift = 5f;
+        [SerializeField] private float _animationSpeed = 12f;
+        [SerializeField] private bool _configured;
         private bool _hovered;
         private bool _pressed;
         private bool _selected;
@@ -56,8 +56,7 @@ namespace PicoElderCare.Rehab
             _basePosition = visualRoot != null ? visualRoot.anchoredPosition : Vector2.zero;
             _configured = visualRoot != null;
 
-            if (_surface != null) _surface.color = _normalSurfaceColor;
-            if (_glow != null) _glow.color = _normalGlowColor;
+            ResetFeedbackImmediate();
         }
 
         private void Awake()
@@ -66,6 +65,11 @@ namespace PicoElderCare.Rehab
         }
 
         private void OnDisable()
+        {
+            ResetFeedbackImmediate();
+        }
+
+        public void ResetFeedbackImmediate()
         {
             _hovered = false;
             _pressed = false;

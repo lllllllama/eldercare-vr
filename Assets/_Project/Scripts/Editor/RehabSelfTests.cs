@@ -15,6 +15,7 @@ public static class RehabSelfTests
         PicoBodyTrackingSelfTests.RunAll();
         PicoWristObjectTrackingSelfTests.RunAll();
         RehabSceneBuilderSelfTests.RunAll();
+        MainEntryInteractionSelfTests.RunAll();
         TwoHandsAboveHeadPoseAccumulatesHold();
         TwoHandsLiftHeavenSequenceRequiresRiseHoldAndReturn();
         TwoHandsLiftHeavenRejectsAsynchronousRise();

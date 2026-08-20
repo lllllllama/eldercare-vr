@@ -1,4 +1,7 @@
 using System.Collections;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using PicoElderCare.Rehab.Tracking.Pico.ObjectTracking;
@@ -21,6 +24,7 @@ namespace PicoElderCare.Rehab
 
         private Coroutine _recenterCoroutine;
         private PicoWristTrackingStatusPanel _trackerSettingsPanel;
+        private bool _quitRequested;
 
         private void OnEnable()
         {
@@ -70,6 +74,18 @@ namespace PicoElderCare.Rehab
         public void CloseTrackerSettings()
         {
             if (_trackerSettingsPanel != null) _trackerSettingsPanel.Close();
+        }
+
+        public void QuitApplication()
+        {
+            if (_quitRequested) return;
+            _quitRequested = true;
+
+#if UNITY_EDITOR
+            EditorApplication.isPlaying = false;
+#else
+            Application.Quit();
+#endif
         }
 
         public void RecenterPanels()

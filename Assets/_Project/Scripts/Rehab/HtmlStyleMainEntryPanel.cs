@@ -6,6 +6,7 @@ using UnityEditor;
 using UnityEditor.Events;
 #endif
 using UnityEngine;
+using UnityEngine.EventSystems;
 using UnityEngine.UI;
 
 namespace PicoElderCare.Rehab
@@ -21,36 +22,67 @@ namespace PicoElderCare.Rehab
         public static readonly Vector2 PanelSize = ElderCareMenuDesignTokens.MainEntryPanelSize;
         public static readonly Vector2 CardSize = ElderCareMenuDesignTokens.MainEntryCardSize;
         public static readonly Vector2 SafeButtonSize = ElderCareMenuDesignTokens.MainEntrySafeButtonSize;
+        public const int CurrentGeneratedUiVersion = 1;
 
         private const string IconTableTennis = "table_tennis";
         private const string IconLotus = "lotus";
         private const string IconLuggage = "luggage";
         private const string IconCamera = "camera";
-        private const string RequiredChineseGlyphs = "\u5f20\u5976\u4e0a\u5348\u597d\u667422\u00b0915\u5065\u5eb7\u6e38\u620f\u52a8\u8111\u53c8\u5f00\u5fc3\u5eb7\u590d\u8fd0\u4eca\u65e53\u4e2a\u4f5cVR\u65c5\u6e38\u8db3\u4e0d\u51fa\u6237\u770b\u4e16\u754c\u5f80\u65e5\u65f6\u5149\u56de\u5230\u4ece\u524d\u5f85\u63a5\u5165\u8bbe\u7f6e\u6211\u7684\u6392\u884c\u699c\u5df2\u63a5\u5165\u5176\u4ed6\u529f\u80fd\u6682\u65f6\u4fdd\u7559\u7a7a\u72b6\u6001\u5361\u7247\u60ac\u505c\u4f1a\u653e\u5927\u5e95\u90e8\u4e3a\u548c\u8f7b\u677e\u953b\u70bc\u8212\u7f13\u8bad\u7ec3\u517b\u751f\u91cd\u6e29\u719f\u6089\u8bb0\u5fc6\u5f00\u59cb\u4f53\u9a8c";
+        private const string RequiredChineseGlyphs = "\u5f20\u5976\u4e0a\u5348\u597d\u667422\u00b0915\u5065\u5eb7\u6e38\u620f\u52a8\u8111\u53c8\u5f00\u5fc3\u5eb7\u590d\u8fd0\u4eca\u65e53\u4e2a\u4f5cVR\u65c5\u6e38\u8db3\u4e0d\u51fa\u6237\u770b\u4e16\u754c\u5f80\u65e5\u65f6\u5149\u56de\u5230\u4ece\u524d\u5f85\u63a5\u5165\u8bbe\u7f6e\u6211\u7684\u6392\u884c\u699c\u5df2\u63a5\u5165\u5176\u4ed6\u529f\u80fd\u6682\u65f6\u4fdd\u7559\u7a7a\u72b6\u6001\u5361\u7247\u60ac\u505c\u4f1a\u653e\u5927\u5e95\u90e8\u4e3a\u548c\u8f7b\u677e\u953b\u70bc\u8212\u7f13\u8bad\u7ec3\u517b\u751f\u91cd\u6e29\u719f\u6089\u8bb0\u5fc6\u5f00\u59cb\u4f53\u9a8c"
+            + "确定要退出应用吗？退出后将返回PICO系统界面继续使用"
+            + "对准可用按钮即可操作；部分功能正在完善中";
 
         private static readonly Color RoomBase = new Color(0.20f, 0.15f, 0.10f, 0.08f);
         private static readonly Color RoomWarmGlow = new Color(1f, 0.86f, 0.62f, 0.09f);
+
+        public static bool CoversRequiredChineseGlyphs(string value)
+        {
+            if (string.IsNullOrEmpty(value)) return true;
+
+            for (var i = 0; i < value.Length; i++)
+            {
+                if (char.IsWhiteSpace(value[i])) continue;
+                if (RequiredChineseGlyphs.IndexOf(value[i]) < 0) return false;
+            }
+
+            return true;
+        }
 
         public UnifiedEntryMenu menu;
         public TMP_FontAsset uiFont;
         public bool rebuildOnEnable = true;
         public bool normalizeWorldCanvasScale = true;
         public float targetWorldWidthMeters = 1.55f;
+        [SerializeField, HideInInspector] private int generatedUiVersion;
+
+        public int GeneratedUiVersion { get { return generatedUiVersion; } }
 
         private static readonly Dictionary<string, Sprite> IconSpriteCache = new Dictionary<string, Sprite>();
         private TMP_FontAsset _panelFontInstance;
         private TMP_FontAsset _panelFontSource;
+        private GameObject _exitConfirmationOverlay;
+        private Button _exitContinueButton;
+        private Button _exitConfirmButton;
+        private RehabButtonHoverFeedback _closeFeedback;
+        private bool _exitConfirmationVisible;
+        private bool _skipNextOnEnableRebuild;
 
         private void Awake()
         {
-            if (!rebuildOnEnable) return;
+            if (!RequiresLifecycleRebuild()) return;
             ResolveReferences();
             BuildOrRepair();
+            _skipNextOnEnableRebuild = true;
         }
 
         private void OnEnable()
         {
-            if (!rebuildOnEnable) return;
+            if (_skipNextOnEnableRebuild)
+            {
+                _skipNextOnEnableRebuild = false;
+                return;
+            }
+            if (!RequiresLifecycleRebuild()) return;
 
             ResolveReferences();
             BuildOrRepair();
@@ -81,6 +113,7 @@ namespace PicoElderCare.Rehab
         {
             ResolveReferences();
             ConfigureForVrDisplay();
+            ResetExitConfirmationReferences();
             ClearChildren(transform);
 
             CreateRoomBackdrop(transform);
@@ -111,6 +144,13 @@ namespace PicoElderCare.Rehab
             CreateSafeBar(panel.transform);
             CreateWindowControls(transform);
             CreateHint(transform);
+            CreateExitConfirmationDialog(transform);
+            generatedUiVersion = CurrentGeneratedUiVersion;
+        }
+
+        private bool RequiresLifecycleRebuild()
+        {
+            return rebuildOnEnable || generatedUiVersion < CurrentGeneratedUiVersion;
         }
 
         private void CreateRoomBackdrop(Transform parent)
@@ -225,9 +265,9 @@ namespace PicoElderCare.Rehab
             ConfigureRect(bar, new Vector2(626f, 62f), new Vector2(0f, -172f));
             var background = CreatePanel(bar.transform, "Background", new Vector2(626f, 62f), Vector2.zero, ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.RiceMid, 0.92f), 28f, false);
             ConfigureNativeStroke(background, ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.GoldStroke, 0.46f), 1f);
-            CreateSafeButton(bar.transform, "Settings", ElderCareIconType.Gear, "设置", new Vector2(-218f, 0f), true, OpenTrackerSettings);
-            CreateSafeButton(bar.transform, "Health", ElderCareIconType.User, "我的健康", Vector2.zero, false, null);
-            CreateSafeButton(bar.transform, "Rank", ElderCareIconType.Trophy, "排行榜", new Vector2(218f, 0f), false, null);
+            CreateSafeButton(bar.transform, "Settings", ElderCareIconType.Gear, "设置", new Vector2(-218f, 0f), ElderCareMenuDesignTokens.Jade, true, OpenTrackerSettings);
+            CreateSafeButton(bar.transform, "Health", ElderCareIconType.User, "我的健康", Vector2.zero, ElderCareMenuDesignTokens.GoldDeep, false, null);
+            CreateSafeButton(bar.transform, "Rank", ElderCareIconType.Trophy, "排行榜", new Vector2(218f, 0f), ElderCareMenuDesignTokens.GoldDeep, false, null);
         }
 
         private void CreateSafeButton(
@@ -236,6 +276,7 @@ namespace PicoElderCare.Rehab
             ElderCareIconType iconType,
             string label,
             Vector2 position,
+            Color accent,
             bool interactable,
             UnityEngine.Events.UnityAction onClick)
         {
@@ -244,7 +285,15 @@ namespace PicoElderCare.Rehab
             button.interactable = interactable;
             if (interactable && onClick != null)
             {
-                button.onClick.AddListener(onClick);
+                BindButtonAction(button, onClick);
+            }
+
+            if (interactable)
+            {
+                var glow = CreatePanel(button.transform, "Glow", SafeButtonSize + new Vector2(12f, 10f), Vector2.zero, ElderCareMenuDesignTokens.WithAlpha(accent, 0.05f), SafeButtonSize.y * 0.5f + 5f, false);
+                glow.transform.SetAsFirstSibling();
+                var surface = button.transform.Find("Surface")?.GetComponent<Graphic>();
+                ConfigureInteractiveFeedback(button, button.transform as RectTransform, surface, glow, accent, 1.04f, 4f);
             }
         }
 
@@ -256,14 +305,120 @@ namespace PicoElderCare.Rehab
 
         private void CreateWindowControls(Transform parent)
         {
-            CreateRoundIconButton(parent, "Minimize", ElderCareIconType.Minus, new Vector2(-44f, -254f), ElderCareMenuDesignTokens.GoldDeep);
-            CreateRoundIconButton(parent, "Close", ElderCareIconType.Close, new Vector2(44f, -254f), ElderCareMenuDesignTokens.Coral);
+            CreateRoundIconButton(parent, "Minimize", ElderCareIconType.Minus, new Vector2(-44f, -254f), ElderCareMenuDesignTokens.GoldDeep, false, null);
+            var closeButton = CreateRoundIconButton(parent, "Close", ElderCareIconType.Close, new Vector2(44f, -254f), ElderCareMenuDesignTokens.Coral, true, RequestQuit);
+            _closeFeedback = closeButton != null ? closeButton.GetComponent<RehabButtonHoverFeedback>() : null;
+        }
+
+        public void RequestQuit()
+        {
+            if (_exitConfirmationVisible || _exitConfirmationOverlay == null) return;
+
+            _exitConfirmationVisible = true;
+            _closeFeedback?.ResetFeedbackImmediate();
+            _exitConfirmationOverlay.SetActive(true);
+            _exitConfirmationOverlay.transform.SetAsLastSibling();
+
+            if (_exitContinueButton != null && EventSystem.current != null)
+            {
+                EventSystem.current.SetSelectedGameObject(_exitContinueButton.gameObject);
+            }
+        }
+
+        public void CancelQuit()
+        {
+            _exitConfirmationVisible = false;
+            if (EventSystem.current != null &&
+                EventSystem.current.currentSelectedGameObject != null &&
+                _exitConfirmationOverlay != null &&
+                EventSystem.current.currentSelectedGameObject.transform.IsChildOf(_exitConfirmationOverlay.transform))
+            {
+                EventSystem.current.SetSelectedGameObject(null);
+            }
+
+            if (_exitConfirmationOverlay != null) _exitConfirmationOverlay.SetActive(false);
+        }
+
+        public void ConfirmQuit()
+        {
+            ResolveReferences();
+            if (menu != null) menu.QuitApplication();
         }
 
         private void CreateHint(Transform parent)
         {
             CreatePanel(parent, "HintPanel", new Vector2(620f, 30f), new Vector2(0f, -306f), ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.RiceMid, 0.74f), 15f, false);
-            CreateText(parent, "Hint", "卡片悬停会放大；旅游、往日时光和底部功能为待接入", new Vector2(596f, 24f), new Vector2(0f, -306f), 15f, FontStyles.Bold, TextAlignmentOptions.Center, ElderCareMenuDesignTokens.TextSecondary);
+            CreateText(parent, "Hint", "对准可用按钮即可操作；部分功能正在完善中", new Vector2(596f, 24f), new Vector2(0f, -306f), 15f, FontStyles.Bold, TextAlignmentOptions.Center, ElderCareMenuDesignTokens.TextSecondary);
+        }
+
+        private void CreateExitConfirmationDialog(Transform parent)
+        {
+            _exitConfirmationOverlay = CreateUiObject("ExitConfirmationOverlay", parent);
+            ConfigureRect(_exitConfirmationOverlay, CanvasSize, Vector2.zero);
+
+            CreatePanel(
+                _exitConfirmationOverlay.transform,
+                "ExitConfirmationBlocker",
+                CanvasSize,
+                Vector2.zero,
+                new Color(0.12f, 0.08f, 0.045f, 0.52f),
+                0f,
+                true);
+
+            var dialog = CreateUiObject("ExitConfirmationDialog", _exitConfirmationOverlay.transform);
+            ConfigureRect(dialog, new Vector2(580f, 320f), Vector2.zero);
+            CreatePanel(dialog.transform, "DialogShadow", new Vector2(596f, 336f), new Vector2(0f, -9f), ElderCareMenuDesignTokens.WarmShadow, 42f, false);
+
+            var woodFrame = CreatePanel(dialog.transform, "DialogWoodFrame", new Vector2(580f, 320f), Vector2.zero, ElderCareMenuDesignTokens.Wood, 40f, false);
+            ConfigureNativeStroke(woodFrame, ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.WoodDark, 0.72f), 2f);
+
+            var ricePanel = CreatePanel(dialog.transform, "DialogRicePanel", new Vector2(548f, 288f), Vector2.zero, ElderCareMenuDesignTokens.RiceLight, 32f, false);
+            ConfigureNativeStroke(ricePanel, ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.GoldStroke, 0.78f), 1.5f);
+            CreatePanel(dialog.transform, "DialogWarmLayer", new Vector2(528f, 268f), Vector2.zero, ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.RiceMid, 0.36f), 27f, false);
+
+            CreateText(dialog.transform, "ExitConfirmationTitle", "确定要退出应用吗？", new Vector2(490f, 48f), new Vector2(0f, 72f), 34f, FontStyles.Bold, TextAlignmentOptions.Center, ElderCareMenuDesignTokens.TextPrimary);
+            CreateText(dialog.transform, "ExitConfirmationDescription", "退出后将返回 PICO 系统界面", new Vector2(490f, 38f), new Vector2(0f, 22f), 22f, FontStyles.Normal, TextAlignmentOptions.Center, ElderCareMenuDesignTokens.TextSecondary);
+
+            _exitContinueButton = CreateModalActionButton(dialog.transform, "ExitContinueButton", "继续使用", new Vector2(-112f, -88f), ElderCareMenuDesignTokens.Jade, CancelQuit);
+            _exitConfirmButton = CreateModalActionButton(dialog.transform, "ExitQuitButton", "退出应用", new Vector2(112f, -88f), ElderCareMenuDesignTokens.Coral, ConfirmQuit);
+
+            _exitConfirmationVisible = false;
+            _exitConfirmationOverlay.transform.SetAsLastSibling();
+            _exitConfirmationOverlay.SetActive(false);
+        }
+
+        private Button CreateModalActionButton(
+            Transform parent,
+            string name,
+            string label,
+            Vector2 position,
+            Color accent,
+            UnityEngine.Events.UnityAction onClick)
+        {
+            var go = CreateUiObject(name, parent);
+            var rect = ConfigureRect(go, new Vector2(200f, 62f), position);
+            var glow = CreatePanel(go.transform, "Glow", new Vector2(212f, 74f), Vector2.zero, ElderCareMenuDesignTokens.WithAlpha(accent, 0.05f), 37f, false);
+            var surfaceColor = Color.Lerp(ElderCareMenuDesignTokens.RiceLight, accent, 0.26f);
+            var surface = CreatePanel(go.transform, "Surface", new Vector2(200f, 62f), Vector2.zero, surfaceColor, 31f, true);
+            ConfigureNativeStroke(surface, ElderCareMenuDesignTokens.WithAlpha(accent, 0.68f), 1.5f);
+            CreateText(go.transform, "Label", label, new Vector2(184f, 52f), Vector2.zero, 23f, FontStyles.Bold, TextAlignmentOptions.Center, ElderCareMenuDesignTokens.TextPrimary);
+
+            var button = go.AddComponent<Button>();
+            button.targetGraphic = surface;
+            button.interactable = true;
+            button.transition = Selectable.Transition.None;
+            BindButtonAction(button, onClick);
+            ConfigureInteractiveFeedback(button, rect, surface, glow, accent, 1.04f, 4f);
+            return button;
+        }
+
+        private void ResetExitConfirmationReferences()
+        {
+            _exitConfirmationVisible = false;
+            _exitConfirmationOverlay = null;
+            _exitContinueButton = null;
+            _exitConfirmButton = null;
+            _closeFeedback = null;
         }
 
         private void LoadHealthGames()
@@ -282,7 +437,7 @@ namespace PicoElderCare.Rehab
         {
             var go = CreateUiObject(name, parent);
             ConfigureRect(go, size, position);
-            var graphic = CreatePanel(go.transform, "Surface", size, Vector2.zero, enabled ? ElderCareMenuDesignTokens.CardHighlight : ElderCareMenuDesignTokens.Card, size.y * 0.5f, true);
+            var graphic = CreatePanel(go.transform, "Surface", size, Vector2.zero, enabled ? ElderCareMenuDesignTokens.CardHighlight : ElderCareMenuDesignTokens.Card, size.y * 0.5f, enabled);
             ConfigureNativeStroke(graphic, ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.GoldStroke, enabled ? 0.64f : 0.34f), 1.5f);
             CreateText(go.transform, "Label", label, new Vector2(size.x - 58f, size.y - 6f), new Vector2(26f, 0f), 22f, FontStyles.Bold, TextAlignmentOptions.Center, enabled ? ElderCareMenuDesignTokens.TextPrimary : ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.TextPrimary, 0.72f));
             var button = go.AddComponent<Button>();
@@ -292,46 +447,88 @@ namespace PicoElderCare.Rehab
             return button;
         }
 
-        private void CreateRoundIconButton(Transform parent, string name, ElderCareIconType iconType, Vector2 position, Color accent)
+        private Button CreateRoundIconButton(
+            Transform parent,
+            string name,
+            ElderCareIconType iconType,
+            Vector2 position,
+            Color accent,
+            bool interactable,
+            UnityEngine.Events.UnityAction onClick)
         {
             var go = CreateUiObject(name, parent);
-            ConfigureRect(go, new Vector2(62f, 62f), position);
-            var surface = CreatePanel(go.transform, "Surface", new Vector2(62f, 62f), Vector2.zero, ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.RiceMid, 0.86f), 31f, true);
+            var rect = ConfigureRect(go, new Vector2(62f, 62f), position);
+            ElderCareRoundedPanel glow = null;
+            if (interactable)
+            {
+                glow = CreatePanel(go.transform, "Glow", new Vector2(72f, 72f), Vector2.zero, ElderCareMenuDesignTokens.WithAlpha(accent, 0.05f), 36f, false);
+            }
+            var surface = CreatePanel(go.transform, "Surface", new Vector2(62f, 62f), Vector2.zero, ElderCareMenuDesignTokens.WithAlpha(ElderCareMenuDesignTokens.RiceMid, 0.86f), 31f, interactable);
             ConfigureNativeStroke(surface, ElderCareMenuDesignTokens.WithAlpha(accent, 0.34f), 1.5f);
             CreateLineIcon(go.transform, "Icon", iconType, new Vector2(26f, 26f), Vector2.zero, ElderCareMenuDesignTokens.TextPrimary, 3f);
 
             var button = go.AddComponent<Button>();
             button.targetGraphic = surface;
-            button.interactable = false;
+            button.interactable = interactable;
             button.transition = Selectable.Transition.None;
+            if (interactable && onClick != null) BindButtonAction(button, onClick);
 
-            var group = go.GetComponent<CanvasGroup>();
-            if (group == null)
-            {
-                group = go.AddComponent<CanvasGroup>();
-            }
-
-            var motion = go.AddComponent<TechModuleCardMotion>();
-            motion.cardTransform = go.transform as RectTransform;
-            motion.canvasGroup = group;
-            motion.playEntrance = false;
-            motion.cardGraphic = surface;
-            motion.interactable = false;
-            motion.normalColor = surface.color;
-            motion.hoverColor = surface.color;
-            motion.pressedColor = surface.color;
-            motion.hoverScale = 1f;
-            motion.pressedScale = 1f;
-            motion.ambientMotion = false;
+            var group = go.AddComponent<CanvasGroup>();
             group.alpha = 1f;
-            group.interactable = false;
-            group.blocksRaycasts = false;
-            var rect = go.transform as RectTransform;
-            if (rect != null)
+            group.interactable = interactable;
+            group.blocksRaycasts = interactable;
+            if (interactable)
             {
-                rect.anchoredPosition = position;
-                rect.localScale = Vector3.one;
+                ConfigureInteractiveFeedback(button, rect, surface, glow, accent, 1.06f, 3f);
             }
+            rect.anchoredPosition = position;
+            rect.localScale = Vector3.one;
+            return button;
+        }
+
+        private static void ConfigureInteractiveFeedback(
+            Button button,
+            RectTransform visualRoot,
+            Graphic surface,
+            Graphic glow,
+            Color accent,
+            float hoverScale,
+            float hoverLift)
+        {
+            if (button == null || !button.interactable || visualRoot == null || surface == null) return;
+
+            var feedback = button.GetComponent<RehabButtonHoverFeedback>();
+            if (feedback == null) feedback = button.gameObject.AddComponent<RehabButtonHoverFeedback>();
+
+            var normalSurface = surface.color;
+            var opaqueAccent = accent;
+            opaqueAccent.a = normalSurface.a;
+            feedback.Configure(
+                visualRoot,
+                surface,
+                glow,
+                normalSurface,
+                Color.Lerp(normalSurface, opaqueAccent, 0.16f),
+                ElderCareMenuDesignTokens.WithAlpha(accent, 0.05f),
+                ElderCareMenuDesignTokens.WithAlpha(accent, 0.28f),
+                hoverScale,
+                hoverLift);
+        }
+
+        private static void BindButtonAction(Button button, UnityEngine.Events.UnityAction onClick)
+        {
+            if (button == null || onClick == null) return;
+#if UNITY_EDITOR
+            if (!Application.isPlaying)
+            {
+                UnityEventTools.AddPersistentListener(button.onClick, onClick);
+                button.onClick.SetPersistentListenerState(
+                    button.onClick.GetPersistentEventCount() - 1,
+                    UnityEngine.Events.UnityEventCallState.EditorAndRuntime);
+                return;
+            }
+#endif
+            button.onClick.AddListener(onClick);
         }
 
         private void ResolveReferences()
@@ -546,6 +743,7 @@ namespace PicoElderCare.Rehab
                 var child = root.GetChild(i);
                 if (Application.isPlaying)
                 {
+                    child.gameObject.SetActive(false);
                     Destroy(child.gameObject);
                 }
                 else
