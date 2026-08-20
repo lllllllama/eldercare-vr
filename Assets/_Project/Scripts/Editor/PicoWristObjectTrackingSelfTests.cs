@@ -11,12 +11,20 @@ public static class PicoWristObjectTrackingSelfTests
     [MenuItem("Tools/PICO ElderCare/Run Wrist Object Tracking Self Tests")]
     public static void RunAll()
     {
+        PicoWristTrackingLifecycleSelfTests.RunAll();
         Provider_ZeroTrackersNotReady();
         Provider_OneTrackerNotReady();
         Provider_TwoUnboundRequiresBinding();
         Provider_BoundInvalidPoseNotReady();
         Provider_StabilizesThenOutputsExactlyThreeJoints();
         Provider_LossClearsAndRecoveryRestabilizes();
+        Api_StartTrackingDoesNotRequestTrackerSetup();
+        Api_SetupRequestInFlightRejectsDuplicateRequest();
+        Api_CompletionAndImmediateFailureReleaseSetupRequest();
+        StatusPanel_FirstOpenRequestsTrackerSetupOnce();
+        StatusPanel_RepeatedOpenDoesNotRepeatTrackerSetup();
+        StatusPanel_CloseThenOpenStartsNewSetupSession();
+        StatusPanel_ExplicitReconfigureIsASeparateUserAction();
         Binding_DefaultTimingAllowsVrReactionTime();
         Binding_UsesMovementAndStableIdsNotArrayIndex();
         Binding_DiagnosticsExposePendingLeftAndPersistentFailure();
@@ -107,6 +115,109 @@ public static class PicoWristObjectTrackingSelfTests
             AssertFalse(context.provider.TryGetSample(context.sample), "Recovery must stabilize again.");
             AssertTrue(context.provider.TryGetSample(context.sample), "Recovery should become ready only after the stable threshold.");
         });
+    }
+
+    private static void StatusPanel_FirstOpenRequestsTrackerSetupOnce()
+    {
+        var root = new GameObject("TrackerSettingsSessionTest", typeof(RectTransform), typeof(Canvas));
+        try
+        {
+            var service = new FakeWristTrackerSetupService();
+            var panel = root.AddComponent<PicoWristTrackingStatusPanel>();
+            panel.Configure(null, service);
+            panel.Open();
+            AssertEqual(1, service.SetupRequestCount, "Opening tracker settings should issue exactly one explicit setup request.");
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(root);
+        }
+    }
+
+    private static void StatusPanel_RepeatedOpenDoesNotRepeatTrackerSetup()
+    {
+        WithStatusPanel(delegate(PicoWristTrackingStatusPanel panel, FakeWristTrackerSetupService service)
+        {
+            panel.Open();
+            panel.Open();
+            panel.Open();
+            AssertEqual(1, service.SetupRequestCount, "Repeated Open calls in one visible settings session must not repeat setup.");
+        });
+    }
+
+    private static void StatusPanel_CloseThenOpenStartsNewSetupSession()
+    {
+        WithStatusPanel(delegate(PicoWristTrackingStatusPanel panel, FakeWristTrackerSetupService service)
+        {
+            panel.Open();
+            panel.Close();
+            panel.Open();
+            AssertEqual(2, service.SetupRequestCount, "Closing and reopening settings should allow one new setup request.");
+        });
+    }
+
+    private static void StatusPanel_ExplicitReconfigureIsASeparateUserAction()
+    {
+        WithStatusPanel(delegate(PicoWristTrackingStatusPanel panel, FakeWristTrackerSetupService service)
+        {
+            panel.Open();
+            var setup = panel.transform.Find("TrackerSettingsPanel/WoodFrame/Actions/Setup");
+            var button = setup != null ? setup.GetComponent<UnityEngine.UI.Button>() : null;
+            AssertTrue(button != null, "Tracker settings should expose the explicit reconfigure button.");
+            button.onClick.Invoke();
+            AssertEqual(2, service.SetupRequestCount, "Clicking reconfigure is a new explicit user setup action.");
+        });
+    }
+
+    private static void Api_StartTrackingDoesNotRequestTrackerSetup()
+    {
+        var api = new FakePicoObjectTrackingApi();
+        AssertTrue(api.StartTracking(), "Supported fake API should start.");
+        AssertEqual(0, api.Diagnostics.setupRequestCount, "Starting the tracking runtime must not request PICO tracker setup.");
+        api.Dispose();
+    }
+
+    private static void Api_SetupRequestInFlightRejectsDuplicateRequest()
+    {
+        var api = new FakePicoObjectTrackingApi();
+        api.StartTracking();
+        AssertTrue(api.RequestTrackerSetup(), "First explicit setup request should start.");
+        AssertFalse(api.RequestTrackerSetup(), "A setup request already in flight must reject duplicate requests.");
+        AssertEqual(1, api.Diagnostics.setupRequestCount, "Duplicate in-flight requests must not reach the SDK facade.");
+        api.Dispose();
+    }
+
+    private static void Api_CompletionAndImmediateFailureReleaseSetupRequest()
+    {
+        var api = new FakePicoObjectTrackingApi();
+        api.StartTracking();
+        AssertTrue(api.RequestTrackerSetup(), "First explicit request should start.");
+        api.CompleteSetupRequest();
+        AssertTrue(api.RequestTrackerSetup(), "SDK completion should allow a later explicit request.");
+        api.CompleteSetupRequest();
+
+        api.SetupRequestSucceeds = false;
+        AssertFalse(api.RequestTrackerSetup(), "Immediate SDK setup failure should be reported.");
+        api.SetupRequestSucceeds = true;
+        AssertTrue(api.RequestTrackerSetup(), "Immediate failure must release the in-flight guard.");
+        AssertEqual(4, api.Diagnostics.setupRequestCount, "Each accepted explicit action should reach the SDK facade exactly once.");
+        api.Dispose();
+    }
+
+    private static void WithStatusPanel(Action<PicoWristTrackingStatusPanel, FakeWristTrackerSetupService> action)
+    {
+        var root = new GameObject("TrackerSettingsSessionTest", typeof(RectTransform), typeof(Canvas));
+        try
+        {
+            var service = new FakeWristTrackerSetupService();
+            var panel = root.AddComponent<PicoWristTrackingStatusPanel>();
+            panel.Configure(null, service);
+            action(panel, service);
+        }
+        finally
+        {
+            UnityEngine.Object.DestroyImmediate(root);
+        }
     }
 
     private static void Binding_UsesMovementAndStableIdsNotArrayIndex()

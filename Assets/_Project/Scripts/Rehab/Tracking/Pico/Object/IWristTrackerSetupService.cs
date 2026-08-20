@@ -23,7 +23,8 @@ namespace PicoElderCare.Rehab.Tracking.Pico.ObjectTracking
 
         bool TryGetConnectedTrackerId(int index, out string trackerId);
         bool TryGetConnectedTrackerPose(int index, out PicoObjectTrackerPose pose);
-        void RefreshTrackers();
+        /// <summary>Explicit user action that may open PICO system tracker setup.</summary>
+        bool RequestTrackerSetup();
         void BeginBinding();
         void CancelBinding();
         void ClearBinding();

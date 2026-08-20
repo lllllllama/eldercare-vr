@@ -42,6 +42,7 @@ namespace PicoElderCare.Rehab.Tracking.Pico.ObjectTracking
         private readonly string[] _stableIds = new string[MaximumTrackerCount];
         private readonly bool[] _connected = new bool[MaximumTrackerCount];
         private readonly PicoObjectTrackingDiagnostics _diagnostics = new PicoObjectTrackingDiagnostics();
+        private readonly TrackerSetupRequestGate _setupRequestGate = new TrackerSetupRequestGate();
         private int _connectedCount;
         private bool _running;
         private bool _disposed;
@@ -84,12 +85,13 @@ namespace PicoElderCare.Rehab.Tracking.Pico.ObjectTracking
 
 #if UNITY_ANDROID && !UNITY_EDITOR && !PICO_OPENXR_SDK
             // Object Tracking and Body Tracking share the Motion Tracker mode.
-            // Stop the legacy body mode before requesting independent trackers.
+            // Stop the legacy body mode before starting the independent-tracker runtime.
+            // Do not call CheckMotionTrackerNumber here: that API may open system UI.
             PXR_MotionTracking.StopBodyTracking();
             PXR_MotionTracking.RequestMotionTrackerCompleteAction += HandleTrackerRequestCompleted;
             PXR_MotionTracking.MotionTrackerConnectionAction += HandleTrackerConnectionChanged;
             _running = true;
-            return RefreshTrackers();
+            return true;
 #else
             return false;
 #endif
@@ -107,30 +109,52 @@ namespace PicoElderCare.Rehab.Tracking.Pico.ObjectTracking
             PXR_MotionTracking.MotionTrackerConnectionAction -= HandleTrackerConnectionChanged;
 #endif
             _running = false;
+            CompleteSetupRequest();
             ClearTrackers();
         }
 
-        public bool RefreshTrackers()
+        public bool RequestTrackerSetup()
         {
             if (!_running || !IsSupported)
             {
                 return false;
             }
 
+            if (!_setupRequestGate.TryBegin()) return false;
+            _diagnostics.setupRequestInFlight = true;
+
 #if UNITY_ANDROID && !UNITY_EDITOR && !PICO_OPENXR_SDK
-            _diagnostics.refreshCount++;
-            _diagnostics.discoveryResult = PXR_MotionTracking.CheckMotionTrackerNumber(MotionTrackerNum.TWO);
-            if (_diagnostics.discoveryResult != ApiSuccess)
+            _diagnostics.setupRequestCount++;
+            try
             {
-                SetError("请求 PICO Motion Tracker 列表失败，错误码 " + _diagnostics.discoveryResult + "。");
+                _diagnostics.setupRequestResult = PXR_MotionTracking.CheckMotionTrackerNumber(MotionTrackerNum.TWO);
+            }
+            catch (Exception exception)
+            {
+                CompleteSetupRequest();
+                SetError("请求 PICO Motion Tracker 配置时发生异常：" + exception.Message);
+                Debug.LogException(exception);
+                return false;
+            }
+
+            if (_diagnostics.setupRequestResult != ApiSuccess)
+            {
+                CompleteSetupRequest();
+                SetError("请求 PICO Motion Tracker 配置失败，错误码 " + _diagnostics.setupRequestResult + "。");
                 return false;
             }
 
             _diagnostics.lastError = string.Empty;
             return true;
 #else
+            CompleteSetupRequest();
             return false;
 #endif
+        }
+
+        public void ReconcileAfterApplicationResume()
+        {
+            CompleteSetupRequest();
         }
 
         public bool TryGetTrackerId(int index, out string trackerId)
@@ -207,6 +231,7 @@ namespace PicoElderCare.Rehab.Tracking.Pico.ObjectTracking
 #if UNITY_ANDROID && !UNITY_EDITOR && !PICO_OPENXR_SDK
         private void HandleTrackerRequestCompleted(RequestMotionTrackerCompleteEventData data)
         {
+            CompleteSetupRequest();
             ClearTrackers();
             if ((int)data.result != ApiSuccess || data.trackerIds == null)
             {
@@ -257,6 +282,12 @@ namespace PicoElderCare.Rehab.Tracking.Pico.ObjectTracking
             }
         }
 #endif
+
+        private void CompleteSetupRequest()
+        {
+            _setupRequestGate.Complete();
+            _diagnostics.setupRequestInFlight = false;
+        }
 
         private static Vector3 ConvertMotionVector(Vector3f value)
         {

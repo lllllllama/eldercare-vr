@@ -12,7 +12,10 @@ namespace PicoElderCare.Rehab.Tracking.Pico.ObjectTracking
 
         bool StartTracking();
         void StopTracking();
-        bool RefreshTrackers();
+        /// <summary>Explicit user request that may open the PICO system Motion Tracker setup UI.</summary>
+        bool RequestTrackerSetup();
+        /// <summary>Releases request state after returning from system UI without starting another request.</summary>
+        void ReconcileAfterApplicationResume();
         bool TryGetTrackerId(int index, out string trackerId);
         bool TryGetTrackerPose(string trackerId, out PicoObjectTrackerPose pose);
     }

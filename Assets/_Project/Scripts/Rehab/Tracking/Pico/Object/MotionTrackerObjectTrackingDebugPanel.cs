@@ -34,7 +34,6 @@ namespace PicoElderCare.Rehab.Tracking.Pico.ObjectTracking
             {
                 _service.AdvancedDiagnosticsVisible = true;
                 _service.StartDiagnostics();
-                _service.RefreshTrackers();
             }
         }
 

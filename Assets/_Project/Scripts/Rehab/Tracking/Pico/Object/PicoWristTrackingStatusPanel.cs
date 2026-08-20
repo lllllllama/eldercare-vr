@@ -29,6 +29,7 @@ namespace PicoElderCare.Rehab.Tracking.Pico.ObjectTracking
         private Button _diagnosticsButton;
         private Button _advancedButton;
         private float _nextRefreshTime;
+        private bool _trackerSetupRequestedThisOpen;
 
         public bool IsOpen { get { return _panelRoot != null && _panelRoot.gameObject.activeSelf; } }
         public UnifiedEntryMenu EntryMenu { get { return entryMenu; } }
@@ -47,19 +48,29 @@ namespace PicoElderCare.Rehab.Tracking.Pico.ObjectTracking
         /// SceneBuilder uses this in Edit Mode so the generated scene stays
         /// deterministic and opening the project never calls device APIs.
         /// </summary>
-        public void BuildOrRepairAuthoredPanel(UnifiedEntryMenu owner)
+        public bool BuildOrRepairAuthoredPanel(UnifiedEntryMenu owner)
         {
             entryMenu = owner != null ? owner : entryMenu;
             if (_panelRoot == null) BuildPanel();
             if (_mainPanel == null) _mainPanel = transform.Find("Panel");
+            var changed = MigrateSetupAction();
+            ResolveExistingText();
+            return changed;
         }
 
         public void Configure(UnifiedEntryMenu owner)
         {
+            Configure(owner, null);
+        }
+
+        public void Configure(UnifiedEntryMenu owner, IWristTrackerSetupService service)
+        {
             entryMenu = owner != null ? owner : entryMenu;
-            _service = WristTrackingRuntime.EnsureInstance();
+            if (service != null) _service = service;
+            else if (_service == null) _service = WristTrackingRuntime.EnsureInstance();
             if (_panelRoot == null) BuildPanel();
             if (_mainPanel == null) _mainPanel = transform.Find("Panel");
+            MigrateSetupAction();
             BindRuntimeActions();
         }
 
@@ -72,6 +83,7 @@ namespace PicoElderCare.Rehab.Tracking.Pico.ObjectTracking
                 _panelRoot.gameObject.SetActive(true);
                 _panelRoot.SetAsLastSibling();
             }
+            RequestTrackerSetupOncePerOpen();
             RefreshNow();
         }
 
@@ -80,6 +92,14 @@ namespace PicoElderCare.Rehab.Tracking.Pico.ObjectTracking
             if (_service != null) _service.StopDiagnostics();
             if (_panelRoot != null) _panelRoot.gameObject.SetActive(false);
             if (_mainPanel != null) _mainPanel.gameObject.SetActive(true);
+            _trackerSetupRequestedThisOpen = false;
+        }
+
+        private void RequestTrackerSetupOncePerOpen()
+        {
+            if (_trackerSetupRequestedThisOpen || _service == null) return;
+            _trackerSetupRequestedThisOpen = true;
+            _service.RequestTrackerSetup();
         }
 
         private void Update()
@@ -131,7 +151,7 @@ namespace PicoElderCare.Rehab.Tracking.Pico.ObjectTracking
             _rightText = CreateText(rightCard.transform, "Status", string.Empty, new Vector2(392f, 90f), Vector2.zero, 19f, FontStyles.Normal, TextAlignmentOptions.MidlineLeft, ElderCareMenuDesignTokens.TextPrimary);
 
             var actions = CreateRect("Actions", frame.transform, new Vector2(906f, 132f), new Vector2(0f, -166f));
-            CreateActionButton(actions, "Rescan", "重新扫描", new Vector2(-338f, 36f), delegate { _service.RefreshTrackers(); });
+            CreateActionButton(actions, "Setup", "重新配置传感器", new Vector2(-338f, 36f), RequestTrackerSetupExplicitly);
             CreateActionButton(actions, "Bind", "开始左右匹配", new Vector2(-113f, 36f), delegate { _service.BeginBinding(); });
             CreateActionButton(actions, "Clear", "清除匹配", new Vector2(113f, 36f), delegate { _service.ClearBinding(); });
             CreateActionButton(actions, "Verify", "快速佩戴测试", new Vector2(338f, 36f), delegate { _service.BeginQuickVerification(); });
@@ -173,7 +193,7 @@ namespace PicoElderCare.Rehab.Tracking.Pico.ObjectTracking
         private void BindRuntimeActions()
         {
             if (_panelRoot == null || _service == null) return;
-            BindAction("WoodFrame/Actions/Rescan", delegate { _service.RefreshTrackers(); });
+            BindAction("WoodFrame/Actions/Setup", RequestTrackerSetupExplicitly);
             BindAction("WoodFrame/Actions/Bind", delegate { _service.BeginBinding(); });
             BindAction("WoodFrame/Actions/Clear", delegate { _service.ClearBinding(); });
             BindAction("WoodFrame/Actions/Verify", delegate { _service.BeginQuickVerification(); });
@@ -182,6 +202,39 @@ namespace PicoElderCare.Rehab.Tracking.Pico.ObjectTracking
             _advancedButton = BindAction("WoodFrame/Actions/Advanced", ToggleAdvanced);
             BindAction("WoodFrame/Actions/Identity", delegate { _service.UseIdentityCalibration(); });
             BindAction("WoodFrame/Back", Close);
+        }
+
+        private bool MigrateSetupAction()
+        {
+            if (_panelRoot == null) return false;
+            var actions = _panelRoot.Find("WoodFrame/Actions");
+            if (actions == null) return false;
+
+            var changed = false;
+            var setupAction = actions.Find("Setup");
+            var legacyAction = actions.Find("Rescan");
+            if (setupAction == null && legacyAction != null)
+            {
+                legacyAction.name = "Setup";
+                setupAction = legacyAction;
+                changed = true;
+            }
+
+            var label = setupAction != null ? setupAction.GetComponentInChildren<TMP_Text>(true) : null;
+            if (label != null && label.text != "重新配置传感器")
+            {
+                label.text = "重新配置传感器";
+                changed = true;
+            }
+
+            return changed;
+        }
+
+        private void RequestTrackerSetupExplicitly()
+        {
+            if (_service == null) return;
+            _service.RequestTrackerSetup();
+            RefreshNow();
         }
 
         private Button BindAction(string relativePath, UnityAction action)

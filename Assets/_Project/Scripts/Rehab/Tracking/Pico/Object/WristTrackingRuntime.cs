@@ -11,7 +11,6 @@ namespace PicoElderCare.Rehab.Tracking.Pico.ObjectTracking
     {
         private const string RuntimeObjectName = "WristTrackingRuntime";
         private const string PreferenceKey = "ElderCare.WristTracking.Preference";
-        private const float RefreshIntervalSeconds = 0.75f;
 
         private static WristTrackingRuntime _instance;
 
@@ -22,7 +21,6 @@ namespace PicoElderCare.Rehab.Tracking.Pico.ObjectTracking
         private PicoWristObjectTrackingProvider _provider;
         private RehabPoseProviderSelector _activeSelector;
         private readonly RehabBodySample _diagnosticSample = new RehabBodySample();
-        private float _nextRefreshTime;
         private bool _diagnosticsActive;
         private bool _advancedDiagnosticsVisible;
         private int _providerSwitchCount;
@@ -150,7 +148,13 @@ namespace PicoElderCare.Rehab.Tracking.Pico.ObjectTracking
 
             _instance = this;
             DontDestroyOnLoad(gameObject);
-            _api = new PicoObjectTrackingApi();
+            InitializeTrackingServices(new PicoObjectTrackingApi());
+            SceneManager.sceneLoaded += HandleSceneLoaded;
+        }
+
+        private void InitializeTrackingServices(IPicoObjectTrackingApi api)
+        {
+            _api = api;
             _binding = new WristTrackerBindingManager(_api);
             _calibration = new WristTrackerCalibration(_api, _binding);
             _runtimeProvider = GetComponent<PicoWristObjectTrackingProvider>();
@@ -158,7 +162,6 @@ namespace PicoElderCare.Rehab.Tracking.Pico.ObjectTracking
             _provider = _runtimeProvider;
             _provider.Configure(_api, _binding, _calibration, null, null);
             _provider.StartTracking();
-            SceneManager.sceneLoaded += HandleSceneLoaded;
         }
 
         private void Start()
@@ -179,16 +182,15 @@ namespace PicoElderCare.Rehab.Tracking.Pico.ObjectTracking
 
         private void Update()
         {
+            TickRuntime(Time.unscaledDeltaTime);
+        }
+
+        internal void TickRuntime(float deltaTime)
+        {
             if (_api == null) return;
 
-            if (Time.unscaledTime >= _nextRefreshTime)
-            {
-                _nextRefreshTime = Time.unscaledTime + RefreshIntervalSeconds;
-                _api.RefreshTrackers();
-            }
-
-            _binding.Tick(Time.unscaledDeltaTime);
-            _calibration.Tick(Time.unscaledDeltaTime);
+            _binding.Tick(deltaTime);
+            _calibration.Tick(deltaTime);
 
             // In Rehab the selector owns the per-frame read. Querying here as well would
             // hit the native tracker API twice in one frame while diagnostics are visible.
@@ -201,7 +203,31 @@ namespace PicoElderCare.Rehab.Tracking.Pico.ObjectTracking
             if (_diagnosticsActive) UpdateMarkers();
         }
 
-        public void RefreshTrackers() { if (_api != null) _api.RefreshTrackers(); }
+        private void OnApplicationFocus(bool hasFocus)
+        {
+            if (hasFocus) ReconcileAfterApplicationResume();
+        }
+
+        private void OnApplicationPause(bool pauseStatus)
+        {
+            if (!pauseStatus) ReconcileAfterApplicationResume();
+        }
+
+        internal void ReconcileAfterApplicationResume()
+        {
+            if (_api != null) _api.ReconcileAfterApplicationResume();
+        }
+
+        internal void ReplaceApiForTesting(IPicoObjectTrackingApi api)
+        {
+            if (api == null || ReferenceEquals(_api, api)) return;
+            if (_provider != null) _provider.StopTracking();
+            if (_api != null) _api.Dispose();
+            InitializeTrackingServices(api);
+        }
+
+        /// <summary>Called only by an explicit settings-page user action.</summary>
+        public bool RequestTrackerSetup() { return _api != null && _api.RequestTrackerSetup(); }
         public void BeginBinding()
         {
             if (_calibration != null) _calibration.ClearCalibration();

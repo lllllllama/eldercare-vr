@@ -211,7 +211,7 @@ public static class RehabSceneBuilder
 
         var existingPanel = canvas.Find("TrackerSettingsPanel");
         var previousEntryMenu = statusPanel.EntryMenu;
-        statusPanel.BuildOrRepairAuthoredPanel(menu);
+        changed |= statusPanel.BuildOrRepairAuthoredPanel(menu);
         if (existingPanel == null && canvas.Find("TrackerSettingsPanel") != null) changed = true;
         if (previousEntryMenu != menu)
         {

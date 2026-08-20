@@ -37,6 +37,10 @@ public static class RehabSceneBuilderSelfTests
             var button = settings.GetComponent<UnityEngine.UI.Button>();
             AssertTrue(settingsPanel != null, "Tracker settings component should be authored on MainEntry canvas.");
             AssertTrue(canvasObject.transform.Find("TrackerSettingsPanel") != null, "Tracker settings hierarchy should be authored.");
+            var setupAction = canvasObject.transform.Find("TrackerSettingsPanel/WoodFrame/Actions/Setup");
+            var setupLabel = setupAction != null ? setupAction.GetComponentInChildren<TMPro.TMP_Text>(true) : null;
+            AssertTrue(setupAction != null, "Tracker settings should expose an explicitly named Setup action.");
+            AssertTrue(setupLabel != null && setupLabel.text == "重新配置传感器", "Setup action should describe its system-configuration side effect.");
             AssertTrue(button.interactable, "Settings button should be enabled.");
             AssertTrue(button.onClick.GetPersistentEventCount() == 1, "Settings button should have exactly one persistent binding.");
             AssertTrue(button.onClick.GetPersistentTarget(0) == menu && button.onClick.GetPersistentMethodName(0) == "OpenTrackerSettings", "Settings button should call UnifiedEntryMenu.OpenTrackerSettings.");

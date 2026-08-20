@@ -9,11 +9,13 @@ namespace PicoElderCare.Rehab.Tracking.Pico.ObjectTracking.Testing
         private readonly PicoObjectTrackerPose[] _poses = new PicoObjectTrackerPose[Capacity];
         private readonly bool[] _occupied = new bool[Capacity];
         private readonly PicoObjectTrackingDiagnostics _diagnostics = new PicoObjectTrackingDiagnostics();
+        private readonly TrackerSetupRequestGate _setupRequestGate = new TrackerSetupRequestGate();
         private bool _running;
 
         public bool Supported = true;
         public bool StartSucceeds = true;
-        public bool RefreshSucceeds = true;
+        public bool SetupRequestSucceeds = true;
+        public int StartCount { get; private set; }
 
         public bool IsSupported { get { return Supported; } }
         public bool IsRunning { get { return _running; } }
@@ -31,12 +33,38 @@ namespace PicoElderCare.Rehab.Tracking.Pico.ObjectTracking.Testing
 
         public bool StartTracking()
         {
+            StartCount++;
             _running = Supported && StartSucceeds;
             return _running;
         }
 
-        public void StopTracking() { _running = false; }
-        public bool RefreshTrackers() { _diagnostics.refreshCount++; return _running && RefreshSucceeds; }
+        public void StopTracking()
+        {
+            _running = false;
+            CompleteSetupRequest();
+        }
+
+        public bool RequestTrackerSetup()
+        {
+            if (!_running || !Supported || !_setupRequestGate.TryBegin()) return false;
+            _diagnostics.setupRequestInFlight = true;
+            _diagnostics.setupRequestCount++;
+            _diagnostics.setupRequestResult = SetupRequestSucceeds ? 0 : -1;
+            if (SetupRequestSucceeds) return true;
+            CompleteSetupRequest();
+            return false;
+        }
+
+        public void ReconcileAfterApplicationResume()
+        {
+            CompleteSetupRequest();
+        }
+
+        public void CompleteSetupRequest()
+        {
+            _setupRequestGate.Complete();
+            _diagnostics.setupRequestInFlight = false;
+        }
 
         public bool TryGetTrackerId(int index, out string trackerId)
         {
