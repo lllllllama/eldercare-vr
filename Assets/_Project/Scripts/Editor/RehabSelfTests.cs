@@ -16,11 +16,23 @@ public static class RehabSelfTests
         PicoWristObjectTrackingSelfTests.RunAll();
         RehabSceneBuilderSelfTests.RunAll();
         TwoHandsAboveHeadPoseAccumulatesHold();
+        TwoHandsLiftHeavenSequenceRequiresRiseHoldAndReturn();
+        TwoHandsLiftHeavenRejectsAsynchronousRise();
+        TwoHandsLiftHeavenFreezesInitialFacingDirection();
+        MovementEvaluatorCapturesBaselineBeforeLiftStarts();
         LowHandFailsPose();
         UnevenHandsFailPose();
         HoldMustReachMinimumDuration();
         BaduanjinDefinitionsContainEightMovements();
         BaduanjinCorePosesCanComplete();
+        GuotiDetailedCatalogDefinesThirtyElderFriendlySlices();
+        GuotiDetailedSlicesUseIndependentCriteria();
+        GuotiDetailedReturnSlicesDoNotReusePeakPoseRules();
+        GuotiDetailedPunchSlicesRequireOppositeSidesAndReturn();
+        GuotiDetailedNoMotionTimeoutStaysSkipped();
+        GuotiDetailedTempoRewardsGentleMotion();
+        GuotiDetailedHeelRaiseDoesNotInferFeetFromHeadRise();
+        SessionBaselineRequiresStableNaturalPreparationPose();
         LookBackRejectsFastTurnUntilRecentered();
         MovementTimeoutSkipsAndRecordsResult();
         FinalizeCurrentMovementRecordsPartialResult();
@@ -355,15 +367,92 @@ public static class RehabSelfTests
             evaluator.minimumHoldSeconds = 2f;
             evaluator.ResetEvaluation();
 
-            var sample = CreateSample(1.6f, 1.82f, 1.84f);
-            var result = evaluator.Evaluate(sample, 1f, false, 1f);
-            AssertTrue(result.poseValid, "Two hands above the head with a small height difference should be valid.");
-            AssertTrue(result.currentHoldSeconds > 0.99f && result.currentHoldSeconds < 1.01f, "Valid pose should accumulate hold time.");
-            AssertTrue(!result.completed, "One second of hold should not complete a two second movement.");
+            evaluator.Evaluate(CreateSample(1.6f, 1.15f, 1.16f), 0.1f, false, 0.1f);
+            evaluator.Evaluate(CreateSample(1.6f, 1.35f, 1.36f), 0.2f, false, 0.3f);
+            evaluator.Evaluate(CreateSample(1.6f, 1.82f, 1.84f), 0.3f, false, 0.6f);
+            evaluator.Evaluate(CreateSample(1.6f, 1.82f, 1.84f), 0.4f, false, 1f);
+            var held = evaluator.Evaluate(CreateSample(1.6f, 1.82f, 1.84f), 0.4f, false, 1.4f);
+            AssertTrue(!held.targetReached, "An overhead hold must wait for both wrists to return before reaching the target.");
+            var result = evaluator.Evaluate(CreateSample(1.6f, 1.20f, 1.21f), 0.4f, false, 1.8f);
+            AssertTrue(result.poseValid && result.targetReached, "The full rise, stable hold, and return sequence should reach the target.");
+            AssertTrue(result.currentHoldSeconds >= 2f, "A completed sequence should satisfy the configured movement hold requirement.");
+            AssertTrue(!result.completed, "Target recognition should not bypass the session's timer-driven movement completion.");
         }
         finally
         {
             Object.DestroyImmediate(evaluatorObject);
+        }
+    }
+
+    private static void TwoHandsLiftHeavenSequenceRequiresRiseHoldAndReturn()
+    {
+        var evaluator = new TwoHandsLiftHeavenEvaluator
+        {
+            minimumWristRiseMeters = 0.35f,
+            overheadAboveHeadMeters = 0.12f,
+            overheadHoldSeconds = 0.4f,
+            maximumOverheadSpeed = 0.25f
+        };
+        var neutral = CreateSample(1.6f, 1.15f, 1.16f);
+        evaluator.Reset(neutral);
+
+        var rising = CreateSample(1.6f, 1.30f, 1.31f);
+        evaluator.Evaluate(rising, 0.2f);
+        var overhead = CreateSample(1.6f, 1.76f, 1.77f);
+        var reached = evaluator.Evaluate(overhead, 0.5f);
+        AssertTrue(!reached.sequenceCompleted, "Reaching overhead must not complete before a stable hold and return.");
+        evaluator.Evaluate(overhead, 0.2f);
+        var held = evaluator.Evaluate(overhead, 0.2f);
+        AssertTrue(evaluator.Phase == TwoHandsLiftHeavenPhase.Lowering, "Stable overhead pose should advance to lowering.");
+        AssertTrue(!held.sequenceCompleted, "Overhead hold alone must not complete the sequence.");
+
+        var returned = evaluator.Evaluate(CreateSample(1.6f, 1.20f, 1.21f), 0.5f);
+        AssertTrue(returned.sequenceCompleted && evaluator.Phase == TwoHandsLiftHeavenPhase.Completed, "Both wrists returning to the neutral zone should complete the sequence.");
+    }
+
+    private static void TwoHandsLiftHeavenRejectsAsynchronousRise()
+    {
+        var evaluator = new TwoHandsLiftHeavenEvaluator();
+        evaluator.Reset(CreateSample(1.6f, 1.15f, 1.15f));
+        var result = evaluator.Evaluate(CreateSample(1.6f, 1.35f, 1.16f), 0.2f);
+        AssertTrue(evaluator.Phase == TwoHandsLiftHeavenPhase.WaitingForRise, "One wrist moving alone must not start the lift sequence.");
+        AssertTrue(!result.sequenceCompleted, "Asynchronous movement must not complete the action.");
+    }
+
+    private static void TwoHandsLiftHeavenFreezesInitialFacingDirection()
+    {
+        var neutral = CreateSample(1.6f, 1.15f, 1.15f);
+        neutral.headRotation = Quaternion.Euler(0f, 35f, 0f);
+        var evaluator = new TwoHandsLiftHeavenEvaluator();
+        evaluator.Reset(neutral);
+        var capturedFacing = evaluator.SessionFrame.InitialFacingDirection;
+
+        var turnedHead = neutral;
+        turnedHead.headRotation = Quaternion.Euler(0f, -70f, 0f);
+        evaluator.Evaluate(turnedHead, 0.2f);
+        AssertTrue(Vector3.Distance(capturedFacing, evaluator.SessionFrame.InitialFacingDirection) < 0.0001f, "Turning the HMD after baseline capture must not change the session facing axis.");
+        AssertTrue(evaluator.SessionFrame.NeutralHeadHeight == neutral.headPosition.y, "Session frame should retain neutral head height.");
+        AssertTrue(evaluator.SessionFrame.ComfortableOverheadHeight > neutral.headPosition.y, "Session frame should calculate an individual overhead target.");
+    }
+
+    private static void MovementEvaluatorCapturesBaselineBeforeLiftStarts()
+    {
+        var root = new GameObject("TwoHandsSessionBaselineTest");
+        try
+        {
+            var evaluator = root.AddComponent<MovementEvaluator>();
+            ConfigureSingleTwoHandsMovement(evaluator);
+            evaluator.ResetEvaluation();
+            var neutral = CreateSample(1.6f, 1.14f, 1.15f);
+            AssertTrue(evaluator.TryCaptureSessionBaseline(neutral), "A valid preparation pose should capture the session baseline.");
+
+            var alreadyRaised = CreateSample(1.6f, 1.35f, 1.36f);
+            evaluator.Evaluate(alreadyRaised, 0.2f, false, 0.2f);
+            AssertTrue(evaluator.baduanjinEvaluator.twoHandsLiftHeaven.SessionFrame.NeutralLeftWristHeight < 1.2f, "Movement start should reuse the preparation baseline instead of treating raised wrists as neutral.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(root);
         }
     }
 
@@ -387,12 +476,12 @@ public static class RehabSelfTests
         try
         {
             var evaluator = evaluatorObject.AddComponent<MovementEvaluator>();
-            ConfigureSingleTwoHandsMovement(evaluator);
+            ConfigureSingleLegacyStaticMovement(evaluator);
             evaluator.minimumHoldSeconds = 2f;
             evaluator.maximumHoldSeconds = 5f;
             evaluator.ResetEvaluation();
 
-            var sample = CreateSample(1.6f, 1.82f, 1.83f);
+            var sample = CreateSample(1.6f, 1.15f, 1.16f);
             var first = evaluator.Evaluate(sample, 1.5f, false, 1.5f);
             AssertTrue(!first.completed, "Hold shorter than the minimum duration should not complete.");
 
@@ -426,7 +515,7 @@ public static class RehabSelfTests
             var baduanjin = evaluatorObject.AddComponent<BaduanjinEvaluator>();
             var definitions = BaduanjinEvaluator.CreateDefaultMovements();
 
-            AssertStepValid(baduanjin, definitions[0], 0, CreateSample(1.6f, 1.82f, 1.83f), "Two hands lift should validate.");
+            AssertTwoHandsSequenceValid(baduanjin, definitions[0]);
             AssertStepValid(baduanjin, definitions[1], 0, CreateSampleWithHands(1.6f, new Vector3(-0.52f, 1.2f, 0.15f), new Vector3(0.08f, 1.2f, 0.15f)), "Left draw-bow should validate.");
             AssertStepValid(baduanjin, definitions[2], 0, CreateSampleWithHands(1.6f, new Vector3(-0.2f, 1.78f, 0.2f), new Vector3(0.2f, 1.15f, 0.2f)), "Single raise should validate.");
             AssertStepValid(baduanjin, definitions[3], 0, CreateSampleWithHeadYaw(1.6f, -28f), "Gentle left look-back should validate.");
@@ -434,6 +523,268 @@ public static class RehabSelfTests
             AssertStepValid(baduanjin, definitions[5], 0, CreateSample(1.6f, 0.82f, 0.83f), "Simplified reach-down should validate.");
             AssertStepValid(baduanjin, definitions[6], 0, CreateSampleWithHands(1.6f, new Vector3(-0.18f, 1.18f, 0.48f), new Vector3(0.18f, 1.18f, 0.48f)), "Gentle punch should validate.");
             AssertStepValid(baduanjin, definitions[7], 0, CreateSampleWithHeadPosition(new Vector3(0f, 1.66f, 0f)), "Heel raise or seated finish should validate.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(evaluatorObject);
+        }
+    }
+
+    private static void GuotiDetailedCatalogDefinesThirtyElderFriendlySlices()
+    {
+        var definitions = BaduanjinGuotiDetailedCatalog.CreateMovements();
+        AssertTrue(definitions.Length == 30, "The Guoti catalog should contain exactly 30 video-aligned slices.");
+        for (var i = 0; i < definitions.Length; i++)
+        {
+            var definition = definitions[i];
+            AssertTrue(
+                BaduanjinGuotiDetailedEvaluator.IsDetailedMovement(definition.movementId),
+                "Every Guoti catalog entry should route to the detailed evaluator: " + definition.movementId);
+            AssertTrue(definition.StepCount == 1, "Each video slice should remain one independently timed movement.");
+            AssertTrue(
+                definition.GetStep(0).requiredHoldSeconds <= 0.8f,
+                "Elder-friendly slice recognition should not require a long static hold.");
+            AssertTrue(
+                !string.IsNullOrEmpty(definition.GetStep(0).instruction) &&
+                definition.GetStep(0).instruction != definition.movementName,
+                "Every slice should provide a concrete movement-specific instruction.");
+        }
+    }
+
+    private static void GuotiDetailedSlicesUseIndependentCriteria()
+    {
+        var evaluatorObject = new GameObject("GuotiDetailedEvaluatorTest");
+        try
+        {
+            var evaluator = evaluatorObject.AddComponent<BaduanjinEvaluator>();
+            var definitions = BaduanjinGuotiDetailedCatalog.CreateMovements();
+            var neutral = CreateSampleWithHands(
+                1.6f,
+                new Vector3(-0.2f, 1.15f, 0.3f),
+                new Vector3(0.2f, 1.15f, 0.3f));
+
+            for (var i = 0; i < definitions.Length; i++)
+            {
+                var movement = definitions[i];
+                if (movement.movementId == RehabMovementId.Baduanjin_Guoti_02_LiangshouTuotian)
+                {
+                    AssertGuotiLiftSequenceValid(evaluator, movement, neutral);
+                    continue;
+                }
+
+                evaluator.ResetForMovement(movement.movementId, neutral);
+                var result = EvaluateValidGuotiSliceSequence(evaluator, movement, neutral);
+                AssertTrue(
+                    result.poseValid,
+                    "Guoti slice should accept its own relaxed upper-body target: " + movement.movementId +
+                    " (" + result.statusMessage + ")");
+                AssertTrue(
+                    result.statusMessage != "当前切片尚未配置国体版动作判定",
+                    "No Guoti slice may fall through to the legacy unconfigured result.");
+            }
+        }
+        finally
+        {
+            Object.DestroyImmediate(evaluatorObject);
+        }
+    }
+
+    private static void GuotiDetailedReturnSlicesDoNotReusePeakPoseRules()
+    {
+        var evaluatorObject = new GameObject("GuotiReturnSliceTest");
+        try
+        {
+            var evaluator = evaluatorObject.AddComponent<BaduanjinEvaluator>();
+            var definitions = BaduanjinGuotiDetailedCatalog.CreateMovements();
+            var neutral = CreateSample(1.6f, 1.15f, 1.15f);
+
+            var rightRaise = FindMovement(definitions, RehabMovementId.Baduanjin_Guoti_07_YouShangju);
+            evaluator.ResetForMovement(rightRaise.movementId, neutral);
+            var raisedPose = CreateSampleWithHands(
+                1.6f,
+                new Vector3(-0.2f, 1.15f, 0.3f),
+                new Vector3(0.2f, 1.64f, 0.3f));
+            AssertTrue(evaluator.EvaluateStep(rightRaise, 0, raisedPose, 1f).poseValid, "Right-raise slice should accept a raised right wrist.");
+
+            var rightLower = FindMovement(definitions, RehabMovementId.Baduanjin_Guoti_08_YouXialuo);
+            evaluator.ResetForMovement(rightLower.movementId, neutral);
+            AssertTrue(!evaluator.EvaluateStep(rightLower, 0, raisedPose, 1f).poseValid, "Right-lower slice must not reuse the preceding raised-pose rule.");
+            evaluator.ResetForMovement(rightLower.movementId, neutral);
+            AssertTrue(!evaluator.EvaluateStep(rightLower, 0, neutral, 1f).poseValid, "Right-lower slice must not pass from a neutral end pose without observing a raised start.");
+            evaluator.ResetForMovement(rightLower.movementId, neutral);
+            AssertTrue(!evaluator.EvaluateStep(rightLower, 0, raisedPose, 0.5f).poseValid, "Raised start should arm the lower sequence without completing it.");
+            AssertTrue(evaluator.EvaluateStep(rightLower, 0, neutral, 0.8f).sequenceCompleted, "Right-lower slice should complete after the wrist visibly returns from a raised pose.");
+
+            var turnRight = FindMovement(definitions, RehabMovementId.Baduanjin_Guoti_11_YouHouqiao);
+            var turned = CreateSampleWithHeadYaw(1.6f, 20f);
+            evaluator.ResetForMovement(turnRight.movementId, neutral);
+            AssertTrue(evaluator.EvaluateStep(turnRight, 0, turned, 1f).poseValid, "Right look-back should accept a comfortable turn.");
+
+            var faceForward = FindMovement(definitions, RehabMovementId.Baduanjin_Guoti_12_YouHouqiaoZhuanzheng);
+            evaluator.ResetForMovement(faceForward.movementId, neutral);
+            AssertTrue(!evaluator.EvaluateStep(faceForward, 0, turned, 1f).poseValid, "Return-to-front slice must not reuse the look-back target.");
+            AssertTrue(evaluator.EvaluateStep(faceForward, 0, neutral, 1f).sequenceCompleted, "Return-to-front slice should complete only after the turn and visible return.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(evaluatorObject);
+        }
+    }
+
+    private static void GuotiDetailedPunchSlicesRequireOppositeSidesAndReturn()
+    {
+        var evaluatorObject = new GameObject("GuotiPunchSequenceTest");
+        try
+        {
+            var evaluator = evaluatorObject.AddComponent<BaduanjinEvaluator>();
+            var definitions = BaduanjinGuotiDetailedCatalog.CreateMovements();
+            var neutral = CreateSampleWithHands(
+                1.6f,
+                new Vector3(-0.30f, 1.16f, 0.18f),
+                new Vector3(0.30f, 1.16f, 0.18f));
+            var leftPunch = CreateSampleWithHands(
+                1.6f,
+                new Vector3(-0.25f, 1.18f, 0.50f),
+                new Vector3(0.25f, 1.18f, 0.18f));
+            var rightPunch = CreateSampleWithHands(
+                1.6f,
+                new Vector3(-0.25f, 1.18f, 0.18f),
+                new Vector3(0.25f, 1.18f, 0.50f));
+            var bothForward = CreateSampleWithHands(
+                1.6f,
+                new Vector3(-0.25f, 1.18f, 0.50f),
+                new Vector3(0.25f, 1.18f, 0.50f));
+
+            var first = FindMovement(definitions, RehabMovementId.Baduanjin_Guoti_24_ChuquanShouquan);
+            evaluator.ResetForMovement(first.movementId, neutral);
+            evaluator.EvaluateStep(first, 0, neutral, 0.4f);
+            AssertTrue(!evaluator.EvaluateStep(first, 0, bothForward, 0.4f).sequenceCompleted, "Both wrists extending together must not satisfy a one-sided punch.");
+            AssertTrue(!evaluator.EvaluateStep(first, 0, rightPunch, 0.4f).sequenceCompleted, "The first punch slice must reject the opposite wrist.");
+            AssertTrue(!evaluator.EvaluateStep(first, 0, leftPunch, 0.8f).sequenceCompleted, "Reaching the punch target must still wait for the return.");
+            AssertTrue(evaluator.EvaluateStep(first, 0, neutral, 0.8f).sequenceCompleted, "Left punch plus return should complete the first punch slice.");
+
+            var second = FindMovement(definitions, RehabMovementId.Baduanjin_Guoti_25_HuanshouChuquanShouquan);
+            evaluator.ResetForMovement(second.movementId, neutral);
+            evaluator.EvaluateStep(second, 0, neutral, 0.4f);
+            AssertTrue(!evaluator.EvaluateStep(second, 0, leftPunch, 0.8f).sequenceCompleted, "The change-hand slice must reject repeating the first side.");
+            AssertTrue(!evaluator.EvaluateStep(second, 0, rightPunch, 0.8f).sequenceCompleted, "The opposite punch target must still wait for the return.");
+            AssertTrue(evaluator.EvaluateStep(second, 0, neutral, 0.8f).sequenceCompleted, "Right punch plus return should complete the change-hand slice.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(evaluatorObject);
+        }
+    }
+
+    private static void GuotiDetailedNoMotionTimeoutStaysSkipped()
+    {
+        var evaluatorObject = new GameObject("GuotiNoMotionTimeoutTest");
+        try
+        {
+            var evaluator = evaluatorObject.AddComponent<MovementEvaluator>();
+            evaluator.autoCreateDefaultBaduanjinDefinitions = false;
+            evaluator.movementDefinitions = new[]
+            {
+                FindMovement(
+                    BaduanjinGuotiDetailedCatalog.CreateMovements(),
+                    RehabMovementId.Baduanjin_Guoti_08_YouXialuo)
+            };
+            var neutral = CreateSample(1.6f, 1.15f, 1.15f);
+            evaluator.ResetEvaluation();
+            evaluator.TryCaptureSessionBaseline(neutral);
+            var evaluation = evaluator.Evaluate(neutral, 1f, false, 1f, 0);
+            AssertTrue(evaluation.currentMovementBestCompletion <= 0f, "A neutral end pose without any lowering motion must keep completion at zero.");
+            evaluator.FinishCurrentMovementByTimer(2f, 0);
+            AssertTrue(evaluator.MovementResults[0].skippedByTimeout, "A detailed slice with no observable motion must be recorded as skipped.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(evaluatorObject);
+        }
+    }
+
+    private static void GuotiDetailedTempoRewardsGentleMotion()
+    {
+        var evaluatorObject = new GameObject("GuotiTempoTest");
+        try
+        {
+            var evaluator = evaluatorObject.AddComponent<BaduanjinEvaluator>();
+            var movement = FindMovement(
+                BaduanjinGuotiDetailedCatalog.CreateMovements(),
+                RehabMovementId.Baduanjin_Guoti_07_YouShangju);
+            var neutral = CreateSample(1.6f, 1.15f, 1.15f);
+            var raised = CreateValidGuotiSliceSample(movement.movementId);
+
+            evaluator.ResetForMovement(movement.movementId, neutral);
+            evaluator.EvaluateStep(movement, 0, neutral, 0.4f);
+            var gentle = evaluator.EvaluateStep(movement, 0, raised, 1.2f);
+
+            evaluator.ResetForMovement(movement.movementId, neutral);
+            evaluator.EvaluateStep(movement, 0, neutral, 0.02f);
+            var fast = evaluator.EvaluateStep(movement, 0, raised, 0.02f);
+
+            AssertTrue(gentle.sequenceCompleted && fast.sequenceCompleted, "Tempo should remain a score, not a strict pass condition for older users.");
+            AssertTrue(gentle.tempo > fast.tempo, "A gentle raise should receive a better tempo score than an abrupt raise.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(evaluatorObject);
+        }
+    }
+
+    private static void SessionBaselineRequiresStableNaturalPreparationPose()
+    {
+        var evaluatorObject = new GameObject("StableBaselineCaptureTest");
+        try
+        {
+            var evaluator = evaluatorObject.AddComponent<MovementEvaluator>();
+            evaluator.baselineStableSeconds = 0.5f;
+            evaluator.baselineStableFrames = 5;
+            evaluator.ResetEvaluation();
+
+            var raisedForUi = CreateSample(1.6f, 1.52f, 1.15f);
+            for (var i = 0; i < 10; i++)
+            {
+                evaluator.UpdateSessionBaselineCandidate(raisedForUi, 0.1f, true);
+            }
+            AssertTrue(!evaluator.HasSessionBaseline, "A wrist raised for UI interaction must not be captured as the natural baseline.");
+
+            var natural = CreateSample(1.6f, 1.15f, 1.15f);
+            for (var i = 0; i < 4; i++)
+            {
+                evaluator.UpdateSessionBaselineCandidate(natural, 0.1f, true);
+            }
+            AssertTrue(!evaluator.HasSessionBaseline, "Baseline must wait for both its time and stable-frame requirements.");
+            for (var i = 0; i < 3; i++)
+            {
+                evaluator.UpdateSessionBaselineCandidate(natural, 0.1f, true);
+            }
+            AssertTrue(evaluator.HasSessionBaseline, "A natural pose held stable during preparation should capture the session baseline.");
+        }
+        finally
+        {
+            Object.DestroyImmediate(evaluatorObject);
+        }
+    }
+
+    private static void GuotiDetailedHeelRaiseDoesNotInferFeetFromHeadRise()
+    {
+        var evaluatorObject = new GameObject("GuotiHeelRaiseTest");
+        try
+        {
+            var evaluator = evaluatorObject.AddComponent<BaduanjinEvaluator>();
+            var movement = FindMovement(
+                BaduanjinGuotiDetailedCatalog.CreateMovements(),
+                RehabMovementId.Baduanjin_Guoti_27_Tizhong);
+            var neutral = CreateSample(1.6f, 1.15f, 1.15f);
+            evaluator.ResetForMovement(movement.movementId, neutral);
+
+            var stableUpperBody = CreateSample(1.6f, 1.15f, 1.15f);
+            var result = evaluator.EvaluateStep(movement, 0, stableUpperBody, 1f);
+            AssertTrue(result.poseValid, "Heel-raise slice should score observable upper-body stability without demanding fake HMD rise.");
+
+            var unsafeLean = CreateSampleWithHeadPosition(new Vector3(0.28f, 1.6f, 0f));
+            AssertTrue(!evaluator.EvaluateStep(movement, 0, unsafeLean, 1f).poseValid, "Large upper-body displacement should still be rejected during heel-raise guidance.");
         }
         finally
         {
@@ -1963,6 +2314,173 @@ public static class RehabSelfTests
         };
     }
 
+    private static MovementDefinition FindMovement(
+        MovementDefinition[] movements,
+        RehabMovementId movementId)
+    {
+        for (var i = 0; i < movements.Length; i++)
+        {
+            if (movements[i] != null && movements[i].movementId == movementId) return movements[i];
+        }
+
+        throw new System.Exception("Movement was not found in the detailed catalog: " + movementId);
+    }
+
+    private static RehabPoseSample CreateValidGuotiSliceSample(RehabMovementId movementId)
+    {
+        switch (movementId)
+        {
+            case RehabMovementId.Baduanjin_Guoti_00_WujiZhuang:
+                return CreateSampleWithHands(1.6f, new Vector3(-0.22f, 1.10f, 0.22f), new Vector3(0.22f, 1.10f, 0.22f));
+            case RehabMovementId.Baduanjin_Guoti_01_BaoqiuZhuang:
+                return CreateSampleWithHands(1.6f, new Vector3(-0.24f, 1.24f, 0.30f), new Vector3(0.24f, 1.24f, 0.30f));
+            case RehabMovementId.Baduanjin_Guoti_03_YouKaigong:
+                return CreateSampleWithHands(1.6f, new Vector3(-0.10f, 1.20f, 0.25f), new Vector3(0.38f, 1.22f, 0.25f));
+            case RehabMovementId.Baduanjin_Guoti_05_ZuoKaigong:
+                return CreateSampleWithHands(1.6f, new Vector3(-0.38f, 1.22f, 0.25f), new Vector3(0.10f, 1.20f, 0.25f));
+            case RehabMovementId.Baduanjin_Guoti_07_YouShangju:
+                return CreateSampleWithHands(1.6f, new Vector3(-0.2f, 1.16f, 0.28f), new Vector3(0.2f, 1.64f, 0.28f));
+            case RehabMovementId.Baduanjin_Guoti_09_ZuoShangju:
+                return CreateSampleWithHands(1.6f, new Vector3(-0.2f, 1.64f, 0.28f), new Vector3(0.2f, 1.16f, 0.28f));
+            case RehabMovementId.Baduanjin_Guoti_11_YouHouqiao:
+                return CreateSampleWithHeadYaw(1.6f, 20f);
+            case RehabMovementId.Baduanjin_Guoti_13_ZuoHouqiao:
+                return CreateSampleWithHeadYaw(1.6f, -20f);
+            case RehabMovementId.Baduanjin_Guoti_15_ShangtuoXiaan:
+                return CreateSampleWithHands(1.6f, new Vector3(-0.2f, 1.60f, 0.25f), new Vector3(0.2f, 1.16f, 0.25f));
+            case RehabMovementId.Baduanjin_Guoti_16_YouxuanYaotouBaiwei:
+                return CreateSampleWithHeadYaw(1.6f, 14f);
+            case RehabMovementId.Baduanjin_Guoti_17_ZuoxuanYaotouBaiwei:
+                return CreateSampleWithHeadYaw(1.6f, -14f);
+            case RehabMovementId.Baduanjin_Guoti_18_LiangshouPanzu:
+            case RehabMovementId.Baduanjin_Guoti_20_FanchuanPanzu:
+                return CreateSample(1.6f, 0.94f, 0.95f);
+            case RehabMovementId.Baduanjin_Guoti_19_TaishouFanchuan:
+                return CreateSample(1.6f, 1.34f, 1.35f);
+            case RehabMovementId.Baduanjin_Guoti_21_PanzuJushou:
+                return CreateSample(1.6f, 1.48f, 1.49f);
+            case RehabMovementId.Baduanjin_Guoti_23_CuanquanMabu:
+            case RehabMovementId.Baduanjin_Guoti_26_JieshuFuwei:
+                return CreateSampleWithHands(1.6f, new Vector3(-0.30f, 1.16f, 0.18f), new Vector3(0.30f, 1.16f, 0.18f));
+            case RehabMovementId.Baduanjin_Guoti_24_ChuquanShouquan:
+                return CreateSampleWithHands(1.6f, new Vector3(-0.25f, 1.18f, 0.48f), new Vector3(0.25f, 1.18f, 0.18f));
+            case RehabMovementId.Baduanjin_Guoti_25_HuanshouChuquanShouquan:
+                return CreateSampleWithHands(1.6f, new Vector3(-0.25f, 1.18f, 0.18f), new Vector3(0.25f, 1.18f, 0.48f));
+            case RehabMovementId.Baduanjin_Guoti_28_ShuangshouBaofu:
+            case RehabMovementId.Baduanjin_Guoti_29_ShoushiTiaoxi:
+                return CreateSampleWithHands(1.6f, new Vector3(-0.15f, 1.18f, 0.24f), new Vector3(0.15f, 1.18f, 0.24f));
+            case RehabMovementId.Baduanjin_Guoti_04_YouKaigongBingbu:
+            case RehabMovementId.Baduanjin_Guoti_06_ZuoKaigongBingbu:
+            case RehabMovementId.Baduanjin_Guoti_08_YouXialuo:
+            case RehabMovementId.Baduanjin_Guoti_10_ZuoXialuo:
+            case RehabMovementId.Baduanjin_Guoti_12_YouHouqiaoZhuanzheng:
+            case RehabMovementId.Baduanjin_Guoti_14_ZuoHouqiaoZhuanzheng:
+            case RehabMovementId.Baduanjin_Guoti_22_JushouXiaanFuwei:
+            case RehabMovementId.Baduanjin_Guoti_27_Tizhong:
+                return CreateSample(1.6f, 1.15f, 1.16f);
+            default:
+                return CreateSample(1.6f, 1.15f, 1.16f);
+        }
+    }
+
+    private static BaduanjinStepEvaluation EvaluateValidGuotiSliceSequence(
+        BaduanjinEvaluator evaluator,
+        MovementDefinition movement,
+        RehabPoseSample neutral)
+    {
+        var target = CreateValidGuotiSliceSample(movement.movementId);
+        switch (movement.movementId)
+        {
+            case RehabMovementId.Baduanjin_Guoti_04_YouKaigongBingbu:
+                evaluator.EvaluateStep(
+                    movement,
+                    0,
+                    CreateValidGuotiSliceSample(RehabMovementId.Baduanjin_Guoti_03_YouKaigong),
+                    0.5f);
+                return evaluator.EvaluateStep(movement, 0, target, 0.8f);
+            case RehabMovementId.Baduanjin_Guoti_06_ZuoKaigongBingbu:
+                evaluator.EvaluateStep(
+                    movement,
+                    0,
+                    CreateValidGuotiSliceSample(RehabMovementId.Baduanjin_Guoti_05_ZuoKaigong),
+                    0.5f);
+                return evaluator.EvaluateStep(movement, 0, target, 0.8f);
+            case RehabMovementId.Baduanjin_Guoti_07_YouShangju:
+            case RehabMovementId.Baduanjin_Guoti_09_ZuoShangju:
+            case RehabMovementId.Baduanjin_Guoti_18_LiangshouPanzu:
+            case RehabMovementId.Baduanjin_Guoti_19_TaishouFanchuan:
+            case RehabMovementId.Baduanjin_Guoti_20_FanchuanPanzu:
+            case RehabMovementId.Baduanjin_Guoti_21_PanzuJushou:
+                evaluator.EvaluateStep(movement, 0, neutral, 0.5f);
+                return evaluator.EvaluateStep(movement, 0, target, 0.8f);
+            case RehabMovementId.Baduanjin_Guoti_08_YouXialuo:
+                evaluator.EvaluateStep(
+                    movement,
+                    0,
+                    CreateValidGuotiSliceSample(RehabMovementId.Baduanjin_Guoti_07_YouShangju),
+                    0.5f);
+                return evaluator.EvaluateStep(movement, 0, target, 0.8f);
+            case RehabMovementId.Baduanjin_Guoti_10_ZuoXialuo:
+                evaluator.EvaluateStep(
+                    movement,
+                    0,
+                    CreateValidGuotiSliceSample(RehabMovementId.Baduanjin_Guoti_09_ZuoShangju),
+                    0.5f);
+                return evaluator.EvaluateStep(movement, 0, target, 0.8f);
+            case RehabMovementId.Baduanjin_Guoti_12_YouHouqiaoZhuanzheng:
+                evaluator.EvaluateStep(movement, 0, CreateSampleWithHeadYaw(1.6f, 20f), 0.5f);
+                return evaluator.EvaluateStep(movement, 0, target, 0.8f);
+            case RehabMovementId.Baduanjin_Guoti_14_ZuoHouqiaoZhuanzheng:
+                evaluator.EvaluateStep(movement, 0, CreateSampleWithHeadYaw(1.6f, -20f), 0.5f);
+                return evaluator.EvaluateStep(movement, 0, target, 0.8f);
+            case RehabMovementId.Baduanjin_Guoti_22_JushouXiaanFuwei:
+                evaluator.EvaluateStep(
+                    movement,
+                    0,
+                    CreateValidGuotiSliceSample(RehabMovementId.Baduanjin_Guoti_21_PanzuJushou),
+                    0.5f);
+                return evaluator.EvaluateStep(movement, 0, target, 0.8f);
+            case RehabMovementId.Baduanjin_Guoti_24_ChuquanShouquan:
+            case RehabMovementId.Baduanjin_Guoti_25_HuanshouChuquanShouquan:
+                evaluator.EvaluateStep(movement, 0, neutral, 0.4f);
+                evaluator.EvaluateStep(movement, 0, target, 0.8f);
+                return evaluator.EvaluateStep(movement, 0, neutral, 0.8f);
+            case RehabMovementId.Baduanjin_Guoti_26_JieshuFuwei:
+                evaluator.EvaluateStep(
+                    movement,
+                    0,
+                    CreateValidGuotiSliceSample(RehabMovementId.Baduanjin_Guoti_25_HuanshouChuquanShouquan),
+                    0.5f);
+                return evaluator.EvaluateStep(movement, 0, target, 0.8f);
+            case RehabMovementId.Baduanjin_Guoti_29_ShoushiTiaoxi:
+                evaluator.EvaluateStep(
+                    movement,
+                    0,
+                    CreateSampleWithHands(
+                        1.6f,
+                        new Vector3(-0.42f, 1.48f, 0.30f),
+                        new Vector3(0.42f, 1.48f, 0.30f)),
+                    0.5f);
+                return evaluator.EvaluateStep(movement, 0, target, 0.8f);
+            default:
+                return evaluator.EvaluateStep(movement, 0, target, 1f);
+        }
+    }
+
+    private static void AssertGuotiLiftSequenceValid(
+        BaduanjinEvaluator evaluator,
+        MovementDefinition movement,
+        RehabPoseSample neutral)
+    {
+        evaluator.ResetForMovement(movement.movementId, neutral);
+        evaluator.EvaluateStep(movement, 0, CreateSample(1.6f, 1.25f, 1.26f), 0.2f);
+        evaluator.EvaluateStep(movement, 0, CreateSample(1.6f, 1.70f, 1.71f), 0.3f);
+        evaluator.EvaluateStep(movement, 0, CreateSample(1.6f, 1.70f, 1.71f), 0.3f);
+        evaluator.EvaluateStep(movement, 0, CreateSample(1.6f, 1.70f, 1.71f), 0.3f);
+        var result = evaluator.EvaluateStep(movement, 0, neutral, 0.4f);
+        AssertTrue(result.sequenceCompleted, "The detailed lift-heaven slice should accept a relaxed rise, short hold, and return sequence.");
+    }
+
     private static RehabPoseSample CreateTaiChiSample(Vector3 leftLocal, Vector3 rightLocal)
     {
         var head = new Vector3(0f, 1.6f, 0f);
@@ -1991,6 +2509,30 @@ public static class RehabSelfTests
                 "test",
                 new MovementStepDefinition("上举保持", "双手举至头顶上方", 2f, 25f))
         };
+    }
+
+    private static void ConfigureSingleLegacyStaticMovement(MovementEvaluator evaluator)
+    {
+        evaluator.autoCreateDefaultBaduanjinDefinitions = false;
+        evaluator.movementDefinitions = new[]
+        {
+            new MovementDefinition(
+                RehabMovementId.Baduanjin_HeelRaiseFinish,
+                "静态保持测试",
+                "generic hold test",
+                new MovementStepDefinition("稳定保持", "双手自然放松并保持稳定", 2f, 25f))
+        };
+    }
+
+    private static void AssertTwoHandsSequenceValid(BaduanjinEvaluator evaluator, MovementDefinition movement)
+    {
+        evaluator.ResetForMovement(movement.movementId, CreateSample(1.6f, 1.15f, 1.16f));
+        evaluator.EvaluateStep(movement, 0, CreateSample(1.6f, 1.35f, 1.36f), 0.2f);
+        evaluator.EvaluateStep(movement, 0, CreateSample(1.6f, 1.82f, 1.83f), 0.3f);
+        evaluator.EvaluateStep(movement, 0, CreateSample(1.6f, 1.82f, 1.83f), 0.4f);
+        evaluator.EvaluateStep(movement, 0, CreateSample(1.6f, 1.82f, 1.83f), 0.4f);
+        var result = evaluator.EvaluateStep(movement, 0, CreateSample(1.6f, 1.20f, 1.21f), 0.4f);
+        AssertTrue(result.sequenceCompleted, "Two hands lift should validate only after rise, stable overhead hold, and return.");
     }
 
     private static void AssertStepValid(BaduanjinEvaluator evaluator, MovementDefinition movement, int stepIndex, RehabPoseSample sample, string message)

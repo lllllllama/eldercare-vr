@@ -177,6 +177,11 @@ namespace PicoElderCare.Rehab
             var userInsideTrainingArea = IsUserInsideTrainingArea(sample.headPosition);
             var userSafeForTimedFlow = userInsideTrainingArea && !safety.isPaused;
 
+            movementEvaluator.UpdateSessionBaselineCandidate(
+                sample,
+                Time.deltaTime,
+                userSafeForTimedFlow && IsBaselinePreparationFlow());
+
             if (TickStartFlowIfNeeded(userSafeForTimedFlow))
             {
                 return;
@@ -194,7 +199,14 @@ namespace PicoElderCare.Rehab
                 case RehabTrainingFlowState.WaitingForUserInTrainingArea:
                     if (userInsideTrainingArea && !safety.isPaused)
                     {
-                        StartOrResumeCurrentMovement(false);
+                        if (movementEvaluator.HasSessionBaseline)
+                        {
+                            StartOrResumeCurrentMovement(false);
+                        }
+                        else
+                        {
+                            ShowBaselinePreparationPrompt();
+                        }
                     }
                     else
                     {
@@ -750,7 +762,14 @@ namespace PicoElderCare.Rehab
         private void HandleStartFlowMovementReadyToStart()
         {
             if (!IsSessionActive) return;
-            StartOrResumeCurrentMovement(false);
+            if (movementEvaluator != null && movementEvaluator.HasSessionBaseline)
+            {
+                StartOrResumeCurrentMovement(false);
+                return;
+            }
+
+            _trainingFlowState = RehabTrainingFlowState.WaitingForUserInTrainingArea;
+            ShowBaselinePreparationPrompt();
         }
 
         private void SyncTrainingFlowStateFromStartFlow()
@@ -1051,6 +1070,30 @@ namespace PicoElderCare.Rehab
                 panelPlacementController.videoPanelRoot = videoGuideController.videoPanel.transform;
                 panelPlacementController.videoLayoutController = videoGuideController.layoutController;
             }
+        }
+
+        private void ShowBaselinePreparationPrompt()
+        {
+            const string message = "请放松双臂并保持站稳，正在记录自然姿态";
+            SetStatus(message);
+            RefreshTitle();
+            RefreshTimer();
+
+            if (uiController != null)
+            {
+                var movement = movementEvaluator != null ? movementEvaluator.CurrentMovement : null;
+                uiController.SetIdle(
+                    movement != null ? movement.movementName : movementEvaluator != null ? movementEvaluator.movementName : string.Empty,
+                    message,
+                    _currentMovementRemainingSeconds);
+            }
+        }
+
+        private bool IsBaselinePreparationFlow()
+        {
+            return _trainingFlowState == RehabTrainingFlowState.StartPreparation ||
+                   _trainingFlowState == RehabTrainingFlowState.PreMovementCountdown ||
+                   _trainingFlowState == RehabTrainingFlowState.WaitingForUserInTrainingArea;
         }
 
         private void SubscribeToPoseProviderSelector(RehabPoseProviderSelector selector)

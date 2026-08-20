@@ -19,6 +19,15 @@ namespace PicoElderCare.Rehab
         public bool autoCreateDefaultBaduanjinDefinitions = true;
         public float defaultStepTimeoutSeconds = 25f;
 
+        [Header("Session baseline capture")]
+        [Min(0.1f)] public float baselineStableSeconds = 0.75f;
+        [Min(1)] public int baselineStableFrames = 20;
+        [Min(0.01f)] public float baselineMaximumHeadDriftMeters = 0.06f;
+        [Min(0.01f)] public float baselineMaximumWristDriftMeters = 0.10f;
+        [Min(1f)] public float baselineMaximumYawDriftDegrees = 8f;
+        [Min(0.1f)] public float baselineMinimumWristBelowHeadMeters = 0.20f;
+        [Min(0.1f)] public float baselineMaximumWristHeightDifferenceMeters = 0.32f;
+
         private readonly List<RehabMovementResult> _movementResults = new List<RehabMovementResult>();
         private int _movementIndex;
         private int _stepIndex;
@@ -40,6 +49,12 @@ namespace PicoElderCare.Rehab
         private bool _completed;
         private bool _movementStarted;
         private bool _currentMovementSkippedByTimeout;
+        private RehabPoseSample _sessionBaselineSample;
+        private bool _hasSessionBaseline;
+        private RehabPoseSample _baselineCandidateSample;
+        private float _baselineCandidateStableSeconds;
+        private int _baselineCandidateStableFrames;
+        private bool _hasBaselineCandidate;
 
         public float BestHoldSeconds
         {
@@ -64,6 +79,11 @@ namespace PicoElderCare.Rehab
         public float CurrentCompletion
         {
             get { return _currentMovementBestCompletion; }
+        }
+
+        public bool HasSessionBaseline
+        {
+            get { return _hasSessionBaseline; }
         }
 
         public MovementDefinition CurrentMovement
@@ -119,6 +139,9 @@ namespace PicoElderCare.Rehab
             _completed = false;
             _movementStarted = false;
             _currentMovementSkippedByTimeout = false;
+            _sessionBaselineSample = default(RehabPoseSample);
+            _hasSessionBaseline = false;
+            ResetBaselineCandidate();
             _movementStartSafetyWarningCount = 0;
             _movementResults.Clear();
 
@@ -181,8 +204,22 @@ namespace PicoElderCare.Rehab
             var stepEvaluation = EvaluateCurrentStep(movement, _stepIndex, sample, safeDeltaTime);
             _lastSymmetry = stepEvaluation.symmetry;
             _lastTempo = stepEvaluation.tempo;
+            _currentMovementBestCompletion = Mathf.Max(
+                _currentMovementBestCompletion,
+                Mathf.Clamp01(stepEvaluation.completion01));
 
-            if (stepEvaluation.poseValid)
+            var requiredHoldSeconds = Mathf.Max(0.1f, step.requiredHoldSeconds > 0f ? step.requiredHoldSeconds : minimumHoldSeconds);
+
+            if (stepEvaluation.sequenceCompleted)
+            {
+                _currentHoldSeconds = requiredHoldSeconds;
+                _bestHoldSeconds = Mathf.Max(_bestHoldSeconds, _currentHoldSeconds);
+            }
+            else if (stepEvaluation.requiresSequenceCompletion)
+            {
+                _currentHoldSeconds = 0f;
+            }
+            else if (stepEvaluation.poseValid)
             {
                 _currentHoldSeconds += safeDeltaTime;
                 if (_currentHoldSeconds > _bestHoldSeconds)
@@ -195,7 +232,6 @@ namespace PicoElderCare.Rehab
                 _currentHoldSeconds = 0f;
             }
 
-            var requiredHoldSeconds = Mathf.Max(0.1f, step.requiredHoldSeconds > 0f ? step.requiredHoldSeconds : minimumHoldSeconds);
             if (_currentHoldSeconds >= requiredHoldSeconds)
             {
                 var completedStepIndex = _stepIndex;
@@ -240,12 +276,102 @@ namespace PicoElderCare.Rehab
             _currentMovementBestCompletion = 0f;
             _currentStepTargetReached = false;
             _currentMovementSkippedByTimeout = false;
+            _sessionBaselineSample = default(RehabPoseSample);
+            _hasSessionBaseline = false;
+            ResetBaselineCandidate();
 
             var movement = CurrentMovement;
             if (movement != null)
             {
                 ResetEvaluatorForMovement(movement, default(RehabPoseSample));
             }
+        }
+
+        public bool TryCaptureSessionBaseline(RehabPoseSample sample)
+        {
+            if (_hasSessionBaseline) return true;
+            if (!sample.IsValid) return false;
+            _sessionBaselineSample = sample;
+            _hasSessionBaseline = true;
+            ResetBaselineCandidate();
+            if (_movementStarted)
+            {
+                var movement = CurrentMovement;
+                if (movement != null) ResetEvaluatorForMovement(movement, _sessionBaselineSample);
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Captures the user-relative frame only after a natural, stable preparation pose.
+        /// Runtime flow uses this method so a hand raised to click the UI cannot become neutral.
+        /// TryCaptureSessionBaseline remains available for explicit/test setup.
+        /// </summary>
+        public bool UpdateSessionBaselineCandidate(
+            RehabPoseSample sample,
+            float deltaTime,
+            bool captureAllowed)
+        {
+            if (_hasSessionBaseline) return true;
+            if (!captureAllowed || !IsNaturalBaselinePose(sample))
+            {
+                ResetBaselineCandidate();
+                return false;
+            }
+
+            if (!_hasBaselineCandidate || !IsStableRelativeToCandidate(sample))
+            {
+                _baselineCandidateSample = sample;
+                _baselineCandidateStableSeconds = 0f;
+                _baselineCandidateStableFrames = 1;
+                _hasBaselineCandidate = true;
+                return false;
+            }
+
+            _baselineCandidateStableSeconds += Mathf.Max(0f, deltaTime);
+            _baselineCandidateStableFrames++;
+            if (_baselineCandidateStableSeconds < Mathf.Max(0.1f, baselineStableSeconds) ||
+                _baselineCandidateStableFrames < Mathf.Max(1, baselineStableFrames))
+            {
+                return false;
+            }
+
+            return TryCaptureSessionBaseline(sample);
+        }
+
+        public bool IsNaturalBaselinePose(RehabPoseSample sample)
+        {
+            if (!sample.IsValid) return false;
+
+            var leftBelowHead = sample.headPosition.y - sample.leftHandPosition.y;
+            var rightBelowHead = sample.headPosition.y - sample.rightHandPosition.y;
+            return leftBelowHead >= baselineMinimumWristBelowHeadMeters &&
+                   rightBelowHead >= baselineMinimumWristBelowHeadMeters &&
+                   Mathf.Abs(sample.leftHandPosition.y - sample.rightHandPosition.y) <=
+                   baselineMaximumWristHeightDifferenceMeters;
+        }
+
+        private bool IsStableRelativeToCandidate(RehabPoseSample sample)
+        {
+            if (!_hasBaselineCandidate || !_baselineCandidateSample.IsValid) return false;
+
+            return Vector3.Distance(sample.headPosition, _baselineCandidateSample.headPosition) <=
+                   baselineMaximumHeadDriftMeters &&
+                   Vector3.Distance(sample.leftHandPosition, _baselineCandidateSample.leftHandPosition) <=
+                   baselineMaximumWristDriftMeters &&
+                   Vector3.Distance(sample.rightHandPosition, _baselineCandidateSample.rightHandPosition) <=
+                   baselineMaximumWristDriftMeters &&
+                   Mathf.Abs(Mathf.DeltaAngle(
+                       _baselineCandidateSample.headRotation.eulerAngles.y,
+                       sample.headRotation.eulerAngles.y)) <= baselineMaximumYawDriftDegrees;
+        }
+
+        private void ResetBaselineCandidate()
+        {
+            _baselineCandidateSample = default(RehabPoseSample);
+            _baselineCandidateStableSeconds = 0f;
+            _baselineCandidateStableFrames = 0;
+            _hasBaselineCandidate = false;
         }
 
         public static bool IsTwoHandsLiftHeavenPoseValid(
@@ -288,7 +414,9 @@ namespace PicoElderCare.Rehab
 
             movementId = movement.movementId;
             movementName = movement.movementName;
-            ResetEvaluatorForMovement(movement, sample);
+            ResetEvaluatorForMovement(
+                movement,
+                _hasSessionBaseline ? _sessionBaselineSample : sample);
         }
 
         public void AdvanceCurrentStepByTimer(float elapsedSessionSeconds, int safetyWarningCount)

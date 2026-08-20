@@ -2,7 +2,7 @@ namespace PicoElderCare.Rehab
 {
     public static class BaduanjinGuotiDetailedCatalog
     {
-        private const float RequiredHoldSeconds = 1.5f;
+        private const float RequiredHoldSeconds = 0.8f;
         private const float TimeoutSeconds = 25f;
 
         public static MovementDefinition[] CreateMovements()
@@ -44,15 +44,85 @@ namespace PicoElderCare.Rehab
 
         private static MovementDefinition Create(RehabMovementId movementId, string movementName)
         {
+            var instruction = GetInstruction(movementId);
             return new MovementDefinition(
                 movementId,
                 movementName,
-                movementName,
+                instruction,
                 new MovementStepDefinition(
                     movementName,
-                    movementName,
+                    instruction,
                     RequiredHoldSeconds,
                     TimeoutSeconds));
+        }
+
+        private static string GetInstruction(RehabMovementId movementId)
+        {
+            switch (movementId)
+            {
+                case RehabMovementId.Baduanjin_Guoti_00_WujiZhuang:
+                    return "双手自然下垂，上身放松稳定";
+                case RehabMovementId.Baduanjin_Guoti_01_BaoqiuZhuang:
+                    return "双腕在腹部至胸前形成舒适抱球姿势";
+                case RehabMovementId.Baduanjin_Guoti_02_LiangshouTuotian:
+                    return "双腕同步上举、头顶短暂停留，再缓慢回到起始位置";
+                case RehabMovementId.Baduanjin_Guoti_03_YouKaigong:
+                    return "右腕向右舒适展开，左腕留在胸前";
+                case RehabMovementId.Baduanjin_Guoti_04_YouKaigongBingbu:
+                    return "右开弓结束，双腕缓慢收回身前";
+                case RehabMovementId.Baduanjin_Guoti_05_ZuoKaigong:
+                    return "左腕向左舒适展开，右腕留在胸前";
+                case RehabMovementId.Baduanjin_Guoti_06_ZuoKaigongBingbu:
+                    return "左开弓结束，双腕缓慢收回身前";
+                case RehabMovementId.Baduanjin_Guoti_07_YouShangju:
+                    return "右腕上举、左腕自然下按";
+                case RehabMovementId.Baduanjin_Guoti_08_YouXialuo:
+                    return "右腕缓慢下落并回到身前";
+                case RehabMovementId.Baduanjin_Guoti_09_ZuoShangju:
+                    return "左腕上举、右腕自然下按";
+                case RehabMovementId.Baduanjin_Guoti_10_ZuoXialuo:
+                    return "左腕缓慢下落并回到身前";
+                case RehabMovementId.Baduanjin_Guoti_11_YouHouqiao:
+                    return "头部缓慢向右转到舒适角度";
+                case RehabMovementId.Baduanjin_Guoti_12_YouHouqiaoZhuanzheng:
+                    return "从右后瞧缓慢转回正前方";
+                case RehabMovementId.Baduanjin_Guoti_13_ZuoHouqiao:
+                    return "头部缓慢向左转到舒适角度";
+                case RehabMovementId.Baduanjin_Guoti_14_ZuoHouqiaoZhuanzheng:
+                    return "从左后瞧缓慢转回正前方";
+                case RehabMovementId.Baduanjin_Guoti_15_ShangtuoXiaan:
+                    return "一腕舒适上托，另一腕自然下按";
+                case RehabMovementId.Baduanjin_Guoti_16_YouxuanYaotouBaiwei:
+                    return "上身向右舒适转移，避免大幅弯腰";
+                case RehabMovementId.Baduanjin_Guoti_17_ZuoxuanYaotouBaiwei:
+                    return "上身向左舒适转移，避免大幅弯腰";
+                case RehabMovementId.Baduanjin_Guoti_18_LiangshouPanzu:
+                    return "双腕向腿部方向舒适下探，不要求触碰脚面";
+                case RehabMovementId.Baduanjin_Guoti_19_TaishouFanchuan:
+                    return "双腕从下方缓慢抬至胸前";
+                case RehabMovementId.Baduanjin_Guoti_20_FanchuanPanzu:
+                    return "双腕随反穿动作再次向下舒适伸展";
+                case RehabMovementId.Baduanjin_Guoti_21_PanzuJushou:
+                    return "双腕由下向上举至肩部附近";
+                case RehabMovementId.Baduanjin_Guoti_22_JushouXiaanFuwei:
+                    return "双腕缓慢下按，回到腹部附近";
+                case RehabMovementId.Baduanjin_Guoti_23_CuanquanMabu:
+                    return "双腕收在腰部两侧；马步只作安全引导";
+                case RehabMovementId.Baduanjin_Guoti_24_ChuquanShouquan:
+                    return "一侧腕部温和向前出拳，另一侧留在腰间";
+                case RehabMovementId.Baduanjin_Guoti_25_HuanshouChuquanShouquan:
+                    return "换侧温和出拳，肩臂保持放松";
+                case RehabMovementId.Baduanjin_Guoti_26_JieshuFuwei:
+                    return "双腕收回腰部两侧并放松";
+                case RehabMovementId.Baduanjin_Guoti_27_Tizhong:
+                    return "保持上身稳定并轻柔提踵；不考核脚部幅度";
+                case RehabMovementId.Baduanjin_Guoti_28_ShuangshouBaofu:
+                    return "双手放在腹部前方，保持舒适间距";
+                case RehabMovementId.Baduanjin_Guoti_29_ShoushiTiaoxi:
+                    return "上身稳定，双手放松于腹前并自然呼吸";
+                default:
+                    return "跟随视频在舒适范围内完成动作";
+            }
         }
     }
 }

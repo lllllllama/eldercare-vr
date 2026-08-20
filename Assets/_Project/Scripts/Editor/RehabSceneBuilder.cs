@@ -1,6 +1,7 @@
 using PicoElderCare.Rehab;
 using PicoElderCare.Rehab.Tracking;
 using PicoElderCare.Rehab.Tracking.Pico;
+using PicoElderCare.Rehab.Tracking.Pico.ObjectTracking;
 using PicoElderCare.HealthGame;
 using PicoElderCare.UI;
 using TMPro;
@@ -187,11 +188,78 @@ public static class RehabSceneBuilder
             EditorUtility.SetDirty(placer);
         }
 
+        var trackingSettingsChanged = SynchronizeMainEntryTrackerSettings(canvas.transform, menu);
+
         var strokeMigration = MigrateMainEntryNativeStrokes(canvas.transform);
         SaveAuthoredSceneIfChanged(
             scene,
-            menuChanged || placementChanged || placerChanged || strokeMigration.changed,
+            menuChanged || placementChanged || placerChanged || trackingSettingsChanged || strokeMigration.changed,
             "main entry");
+    }
+
+    internal static bool SynchronizeMainEntryTrackerSettings(Transform canvas, UnifiedEntryMenu menu)
+    {
+        if (canvas == null || menu == null) return false;
+
+        var changed = false;
+        var statusPanel = canvas.GetComponent<PicoWristTrackingStatusPanel>();
+        if (statusPanel == null)
+        {
+            statusPanel = canvas.gameObject.AddComponent<PicoWristTrackingStatusPanel>();
+            changed = true;
+        }
+
+        var existingPanel = canvas.Find("TrackerSettingsPanel");
+        var previousEntryMenu = statusPanel.EntryMenu;
+        statusPanel.BuildOrRepairAuthoredPanel(menu);
+        if (existingPanel == null && canvas.Find("TrackerSettingsPanel") != null) changed = true;
+        if (previousEntryMenu != menu)
+        {
+            EditorUtility.SetDirty(statusPanel);
+            changed = true;
+        }
+
+        var settingsTransform = FindChildByName(canvas, "Settings");
+        var settingsButton = settingsTransform != null ? settingsTransform.GetComponent<Button>() : null;
+        if (settingsButton == null)
+        {
+            Debug.LogError("[RehabSceneBuilder] Main-entry Settings button is missing; tracker settings were not bound.");
+            return changed;
+        }
+
+        if (!settingsButton.interactable || !HasPersistentListener(settingsButton, menu, "OpenTrackerSettings"))
+        {
+            Undo.RecordObject(settingsButton, "Bind tracker settings button");
+            settingsButton.interactable = true;
+            for (var i = settingsButton.onClick.GetPersistentEventCount() - 1; i >= 0; i--)
+            {
+                UnityEventTools.RemovePersistentListener(settingsButton.onClick, i);
+            }
+            settingsButton.onClick.RemoveAllListeners();
+            UnityEventTools.AddPersistentListener(settingsButton.onClick, menu.OpenTrackerSettings);
+            EditorUtility.SetDirty(settingsButton);
+            changed = true;
+        }
+
+        var group = settingsTransform.GetComponent<CanvasGroup>();
+        if (group != null && (!group.interactable || !group.blocksRaycasts || !Mathf.Approximately(group.alpha, 1f)))
+        {
+            group.interactable = true;
+            group.blocksRaycasts = true;
+            group.alpha = 1f;
+            EditorUtility.SetDirty(group);
+            changed = true;
+        }
+
+        var motion = settingsTransform.GetComponent<TechModuleCardMotion>();
+        if (motion != null && !motion.interactable)
+        {
+            motion.interactable = true;
+            EditorUtility.SetDirty(motion);
+            changed = true;
+        }
+
+        return changed;
     }
 
     private static void SynchronizeAuthoredHealthGameMenuScene()
@@ -385,9 +453,9 @@ public static class RehabSceneBuilder
         var pxrManager = EnsureSinglePXRManager(scene, xrOrigin.gameObject, out var pxrManagerChanged);
         changed |= pxrManagerChanged;
 
-        if (!pxrManager.bodyTracking || !pxrManager.openMRC)
+        if (pxrManager.bodyTracking || !pxrManager.openMRC)
         {
-            pxrManager.bodyTracking = true;
+            pxrManager.bodyTracking = false;
             pxrManager.openMRC = true;
             EditorUtility.SetDirty(pxrManager);
             changed = true;
@@ -434,16 +502,19 @@ public static class RehabSceneBuilder
             providerObject.transform.SetParent(xrOrigin.transform, false);
             picoBodyTrackingProvider = providerObject.AddComponent<PicoBodyTrackingProvider>();
             picoBodyTrackingProvider.AutoStartOnEnable = false;
-            providerObject.SetActive(true);
-            picoBodyTrackingProvider.AutoStartOnEnable = true;
             changed = true;
         }
 
         if (picoBodyTrackingProvider.XrOrigin != xrOrigin.transform ||
-            picoBodyTrackingProvider.OutputSpace != PicoBodyTrackingOutputSpace.XrOriginLocal)
+            picoBodyTrackingProvider.OutputSpace != PicoBodyTrackingOutputSpace.XrOriginLocal ||
+            picoBodyTrackingProvider.AutoStartOnEnable ||
+            picoBodyTrackingProvider.enabled)
         {
             picoBodyTrackingProvider.XrOrigin = xrOrigin.transform;
             picoBodyTrackingProvider.OutputSpace = PicoBodyTrackingOutputSpace.XrOriginLocal;
+            picoBodyTrackingProvider.AutoStartOnEnable = false;
+            picoBodyTrackingProvider.StopTracking();
+            picoBodyTrackingProvider.enabled = false;
             EditorUtility.SetDirty(picoBodyTrackingProvider);
             changed = true;
         }
@@ -470,7 +541,7 @@ public static class RehabSceneBuilder
         if (bodyTrackingStatusPanel == null)
         {
             bodyTrackingStatusPanel = picoBodyTrackingProvider.gameObject.AddComponent<PicoBodyTrackingStatusPanel>();
-            bodyTrackingStatusPanel.StatusPanelEnabled = true;
+            bodyTrackingStatusPanel.StatusPanelEnabled = false;
             changed = true;
         }
 
@@ -478,6 +549,7 @@ public static class RehabSceneBuilder
         var statusPanelSize = new Vector2(1200f, 720f);
         var statusPanelScale = Vector3.one * 0.001f;
         if (bodyTrackingStatusPanel.Provider != picoBodyTrackingProvider ||
+            bodyTrackingStatusPanel.StatusPanelEnabled ||
             bodyTrackingStatusPanel.TargetCamera != mainCamera ||
             bodyTrackingStatusPanel.StatusFontAsset != statusFont ||
             !Mathf.Approximately(bodyTrackingStatusPanel.StatusDistance, 1.2f) ||
@@ -487,6 +559,7 @@ public static class RehabSceneBuilder
             bodyTrackingStatusPanel.StatusPanelScale != statusPanelScale)
         {
             bodyTrackingStatusPanel.Provider = picoBodyTrackingProvider;
+            bodyTrackingStatusPanel.StatusPanelEnabled = false;
             bodyTrackingStatusPanel.TargetCamera = mainCamera;
             bodyTrackingStatusPanel.StatusFontAsset = statusFont;
             bodyTrackingStatusPanel.StatusDistance = 1.2f;
@@ -498,6 +571,24 @@ public static class RehabSceneBuilder
             changed = true;
         }
 
+        var wristProvider = FindSceneComponent<PicoWristObjectTrackingProvider>(scene);
+        if (wristProvider == null)
+        {
+            wristProvider = managers.AddComponent<PicoWristObjectTrackingProvider>();
+            changed = true;
+        }
+
+        if (wristProvider.HmdTransform != hmd ||
+            wristProvider.XrOrigin != xrOrigin.transform ||
+            wristProvider.RequiredStableFrames != 20)
+        {
+            wristProvider.HmdTransform = hmd;
+            wristProvider.XrOrigin = xrOrigin.transform;
+            wristProvider.RequiredStableFrames = 20;
+            EditorUtility.SetDirty(wristProvider);
+            changed = true;
+        }
+
         var poseProviderSelector = FindSceneComponent<RehabPoseProviderSelector>(scene);
         if (poseProviderSelector == null)
         {
@@ -505,13 +596,15 @@ public static class RehabSceneBuilder
             changed = true;
         }
 
-        if (poseProviderSelector.PrimaryProvider != picoBodyTrackingProvider ||
+        if (poseProviderSelector.PrimaryProvider != wristProvider ||
             poseProviderSelector.FallbackProvider != controllerPoseProvider ||
-            !poseProviderSelector.AllowAutomaticFallback)
+            !poseProviderSelector.AllowAutomaticFallback ||
+            poseProviderSelector.Preference != RehabTrackingPreference.Auto)
         {
-            poseProviderSelector.PrimaryProvider = picoBodyTrackingProvider;
+            poseProviderSelector.PrimaryProvider = wristProvider;
             poseProviderSelector.FallbackProvider = controllerPoseProvider;
             poseProviderSelector.AllowAutomaticFallback = true;
+            poseProviderSelector.Preference = RehabTrackingPreference.Auto;
             EditorUtility.SetDirty(poseProviderSelector);
             changed = true;
         }
@@ -637,6 +730,15 @@ public static class RehabSceneBuilder
         }
 
         return null;
+    }
+
+    private static bool HasPersistentListener(Button button, Object target, string methodName)
+    {
+        if (button == null || target == null) return false;
+        var eventCount = button.onClick.GetPersistentEventCount();
+        if (eventCount != 1) return false;
+        return button.onClick.GetPersistentTarget(0) == target &&
+               button.onClick.GetPersistentMethodName(0) == methodName;
     }
 
     private static void SaveAuthoredSceneIfChanged(Scene scene, bool changed, string label)

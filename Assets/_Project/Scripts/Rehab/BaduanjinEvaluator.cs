@@ -5,6 +5,9 @@ namespace PicoElderCare.Rehab
     public struct BaduanjinStepEvaluation
     {
         public bool poseValid;
+        public bool sequenceCompleted;
+        public bool requiresSequenceCompletion;
+        public float completion01;
         public string statusMessage;
         public float symmetry;
         public float tempo;
@@ -23,6 +26,8 @@ namespace PicoElderCare.Rehab
         public float reachDownBelowHeadMeters = 0.70f;
         public float punchForwardMeters = 0.36f;
         public float heelRaiseHeadRiseMeters = 0.04f;
+        public TwoHandsLiftHeavenEvaluator twoHandsLiftHeaven = new TwoHandsLiftHeavenEvaluator();
+        public BaduanjinGuotiDetailedEvaluator guotiDetailed = new BaduanjinGuotiDetailedEvaluator();
 
         private RehabMovementId _activeMovementId;
         private bool _hasBaseline;
@@ -41,6 +46,16 @@ namespace PicoElderCare.Rehab
             _lastYaw = _baselineYaw;
             _lastTempo = 1f;
             _lookBackOverspeed = false;
+            if (movementId == RehabMovementId.Baduanjin_TwoHandsLiftHeaven)
+            {
+                if (twoHandsLiftHeaven == null) twoHandsLiftHeaven = new TwoHandsLiftHeavenEvaluator();
+                twoHandsLiftHeaven.Reset(sample);
+            }
+            else if (BaduanjinGuotiDetailedEvaluator.IsDetailedMovement(movementId))
+            {
+                if (guotiDetailed == null) guotiDetailed = new BaduanjinGuotiDetailedEvaluator();
+                guotiDetailed.Reset(movementId, sample);
+            }
         }
 
         public BaduanjinStepEvaluation EvaluateStep(
@@ -64,10 +79,16 @@ namespace PicoElderCare.Rehab
                 ResetForMovement(movement.movementId, sample);
             }
 
+            if (BaduanjinGuotiDetailedEvaluator.IsDetailedMovement(movement.movementId))
+            {
+                if (guotiDetailed == null) guotiDetailed = new BaduanjinGuotiDetailedEvaluator();
+                return guotiDetailed.Evaluate(movement.movementId, sample, deltaTime);
+            }
+
             switch (movement.movementId)
             {
                 case RehabMovementId.Baduanjin_TwoHandsLiftHeaven:
-                    return EvaluateTwoHandsLiftHeaven(sample);
+                    return EvaluateTwoHandsLiftHeaven(sample, deltaTime);
                 case RehabMovementId.Baduanjin_DrawBowShootHawk:
                     return EvaluateDrawBow(sample, stepIndex);
                 case RehabMovementId.Baduanjin_SingleRaiseRegulateSpleen:
@@ -81,49 +102,6 @@ namespace PicoElderCare.Rehab
                 case RehabMovementId.Baduanjin_ClenchFistsAngryEyes:
                     return EvaluateGentlePunch(sample);
                 case RehabMovementId.Baduanjin_HeelRaiseFinish:
-                    return EvaluateHeelRaiseOrSeatedFinish(sample);
-                case RehabMovementId.Baduanjin_Guoti_00_WujiZhuang:
-                case RehabMovementId.Baduanjin_Guoti_01_BaoqiuZhuang:
-                case RehabMovementId.Baduanjin_Guoti_28_ShuangshouBaofu:
-                case RehabMovementId.Baduanjin_Guoti_29_ShoushiTiaoxi:
-                    return EvaluateStableStandingOrBreathing(sample);
-                case RehabMovementId.Baduanjin_Guoti_02_LiangshouTuotian:
-                    return EvaluateTwoHandsLiftHeaven(sample);
-                case RehabMovementId.Baduanjin_Guoti_03_YouKaigong:
-                case RehabMovementId.Baduanjin_Guoti_04_YouKaigongBingbu:
-                    return EvaluateDrawBow(sample, 1);
-                case RehabMovementId.Baduanjin_Guoti_05_ZuoKaigong:
-                case RehabMovementId.Baduanjin_Guoti_06_ZuoKaigongBingbu:
-                    return EvaluateDrawBow(sample, 0);
-                case RehabMovementId.Baduanjin_Guoti_07_YouShangju:
-                case RehabMovementId.Baduanjin_Guoti_08_YouXialuo:
-                    return EvaluateSingleRaise(sample, 1);
-                case RehabMovementId.Baduanjin_Guoti_09_ZuoShangju:
-                case RehabMovementId.Baduanjin_Guoti_10_ZuoXialuo:
-                    return EvaluateSingleRaise(sample, 0);
-                case RehabMovementId.Baduanjin_Guoti_11_YouHouqiao:
-                case RehabMovementId.Baduanjin_Guoti_12_YouHouqiaoZhuanzheng:
-                    return EvaluateLookBack(sample, 1, deltaTime);
-                case RehabMovementId.Baduanjin_Guoti_13_ZuoHouqiao:
-                case RehabMovementId.Baduanjin_Guoti_14_ZuoHouqiaoZhuanzheng:
-                    return EvaluateLookBack(sample, 0, deltaTime);
-                case RehabMovementId.Baduanjin_Guoti_15_ShangtuoXiaan:
-                case RehabMovementId.Baduanjin_Guoti_17_ZuoxuanYaotouBaiwei:
-                    return EvaluateGentleSway(sample, 0);
-                case RehabMovementId.Baduanjin_Guoti_16_YouxuanYaotouBaiwei:
-                    return EvaluateGentleSway(sample, 1);
-                case RehabMovementId.Baduanjin_Guoti_18_LiangshouPanzu:
-                case RehabMovementId.Baduanjin_Guoti_19_TaishouFanchuan:
-                case RehabMovementId.Baduanjin_Guoti_20_FanchuanPanzu:
-                case RehabMovementId.Baduanjin_Guoti_21_PanzuJushou:
-                case RehabMovementId.Baduanjin_Guoti_22_JushouXiaanFuwei:
-                    return EvaluateReachDown(sample);
-                case RehabMovementId.Baduanjin_Guoti_23_CuanquanMabu:
-                case RehabMovementId.Baduanjin_Guoti_24_ChuquanShouquan:
-                case RehabMovementId.Baduanjin_Guoti_25_HuanshouChuquanShouquan:
-                case RehabMovementId.Baduanjin_Guoti_26_JieshuFuwei:
-                    return EvaluateGentlePunch(sample);
-                case RehabMovementId.Baduanjin_Guoti_27_Tizhong:
                     return EvaluateHeelRaiseOrSeatedFinish(sample);
                 default:
                     return Invalid("当前动作尚未接入八段锦判定");
@@ -186,14 +164,22 @@ namespace PicoElderCare.Rehab
             return Result(sample.IsValid, "\u4fdd\u6301\u7a33\u5b9a\u7ad9\u7acb\u6216\u81ea\u7136\u8c03\u606f", 1f, 1f);
         }
 
-        private BaduanjinStepEvaluation EvaluateTwoHandsLiftHeaven(RehabPoseSample sample)
+        private BaduanjinStepEvaluation EvaluateTwoHandsLiftHeaven(RehabPoseSample sample, float deltaTime)
         {
-            var valid = MovementEvaluator.IsTwoHandsLiftHeavenPoseValid(
-                sample,
-                handsAboveHeadMeters,
-                maximumHandHeightDifferenceMeters);
-            var symmetry = 1f - Mathf.Clamp01(Mathf.Abs(sample.leftHandPosition.y - sample.rightHandPosition.y) / Mathf.Max(0.01f, maximumHandHeightDifferenceMeters));
-            return Result(valid, "双手举至头顶上方，并保持左右齐平", symmetry, 1f);
+            if (twoHandsLiftHeaven == null) twoHandsLiftHeaven = new TwoHandsLiftHeavenEvaluator();
+            twoHandsLiftHeaven.overheadAboveHeadMeters = handsAboveHeadMeters;
+            twoHandsLiftHeaven.maximumHandHeightDifferenceMeters = maximumHandHeightDifferenceMeters;
+            var evaluation = twoHandsLiftHeaven.Evaluate(sample, deltaTime);
+            return new BaduanjinStepEvaluation
+            {
+                poseValid = evaluation.poseValid,
+                sequenceCompleted = evaluation.sequenceCompleted,
+                requiresSequenceCompletion = true,
+                completion01 = evaluation.progress01,
+                statusMessage = evaluation.statusMessage,
+                symmetry = evaluation.symmetry,
+                tempo = evaluation.tempo
+            };
         }
 
         private BaduanjinStepEvaluation EvaluateDrawBow(RehabPoseSample sample, int stepIndex)
@@ -305,6 +291,9 @@ namespace PicoElderCare.Rehab
             return new BaduanjinStepEvaluation
             {
                 poseValid = false,
+                sequenceCompleted = false,
+                requiresSequenceCompletion = false,
+                completion01 = 0f,
                 statusMessage = message,
                 symmetry = 0f,
                 tempo = 0f
@@ -316,6 +305,9 @@ namespace PicoElderCare.Rehab
             return new BaduanjinStepEvaluation
             {
                 poseValid = valid,
+                sequenceCompleted = false,
+                requiresSequenceCompletion = false,
+                completion01 = 0f,
                 statusMessage = message,
                 symmetry = Mathf.Clamp01(symmetry),
                 tempo = Mathf.Clamp01(tempo)

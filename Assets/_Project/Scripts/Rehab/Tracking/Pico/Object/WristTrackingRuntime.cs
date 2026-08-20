@@ -18,6 +18,7 @@ namespace PicoElderCare.Rehab.Tracking.Pico.ObjectTracking
         private IPicoObjectTrackingApi _api;
         private WristTrackerBindingManager _binding;
         private WristTrackerCalibration _calibration;
+        private PicoWristObjectTrackingProvider _runtimeProvider;
         private PicoWristObjectTrackingProvider _provider;
         private RehabPoseProviderSelector _activeSelector;
         private readonly RehabBodySample _diagnosticSample = new RehabBodySample();
@@ -152,8 +153,9 @@ namespace PicoElderCare.Rehab.Tracking.Pico.ObjectTracking
             _api = new PicoObjectTrackingApi();
             _binding = new WristTrackerBindingManager(_api);
             _calibration = new WristTrackerCalibration(_api, _binding);
-            _provider = GetComponent<PicoWristObjectTrackingProvider>();
-            if (_provider == null) _provider = gameObject.AddComponent<PicoWristObjectTrackingProvider>();
+            _runtimeProvider = GetComponent<PicoWristObjectTrackingProvider>();
+            if (_runtimeProvider == null) _runtimeProvider = gameObject.AddComponent<PicoWristObjectTrackingProvider>();
+            _provider = _runtimeProvider;
             _provider.Configure(_api, _binding, _calibration, null, null);
             _provider.StartTracking();
             SceneManager.sceneLoaded += HandleSceneLoaded;
@@ -238,6 +240,15 @@ namespace PicoElderCare.Rehab.Tracking.Pico.ObjectTracking
         {
             var camera = Camera.main;
             var origin = FindObjectOfType<XROrigin>(true);
+            var authoredProvider = FindAuthoredSceneProvider(scene);
+            var nextProvider = authoredProvider != null ? authoredProvider : _runtimeProvider;
+            if (_provider != null && _provider != nextProvider && _provider.IsRunning)
+            {
+                _provider.StopTracking();
+            }
+
+            _provider = nextProvider;
+            if (_provider == null) return;
             _provider.Configure(
                 _api,
                 _binding,
@@ -272,6 +283,19 @@ namespace PicoElderCare.Rehab.Tracking.Pico.ObjectTracking
                     (int)RehabTrackingPreference.Auto);
                 if (!selector.IsRunning) selector.StartTracking();
             }
+        }
+
+        private static PicoWristObjectTrackingProvider FindAuthoredSceneProvider(Scene scene)
+        {
+            if (!scene.IsValid() || !scene.isLoaded) return null;
+            var roots = scene.GetRootGameObjects();
+            for (var i = 0; i < roots.Length; i++)
+            {
+                var providers = roots[i].GetComponentsInChildren<PicoWristObjectTrackingProvider>(true);
+                if (providers.Length > 0) return providers[0];
+            }
+
+            return null;
         }
 
         private void SubscribeSelector(RehabPoseProviderSelector selector)

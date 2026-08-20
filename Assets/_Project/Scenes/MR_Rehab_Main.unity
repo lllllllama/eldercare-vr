@@ -1362,12 +1362,12 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 224057064}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ce6b04259bd748d59bc8a942808601bc, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  autoStartOnEnable: 1
+  autoStartOnEnable: 0
   xrOrigin: {fileID: 145102877}
   outputSpace: 0
   seatedMode: 0
@@ -1395,7 +1395,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: d73dbbf8d4ff4ee7baa526ba80530264, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  statusPanelEnabled: 1
+  statusPanelEnabled: 0
   provider: {fileID: 224057066}
   targetCamera: {fileID: 816540686}
   statusDistance: 1.2
@@ -5408,7 +5408,7 @@ MonoBehaviour:
   lipsyncTracking: 0
   lateLatching: 0
   latelatchingDebug: 0
-  bodyTracking: 1
+  bodyTracking: 0
   foveationLevel: -1
   adaptiveResolution: 0
   eyeFoveationLevel: -1
@@ -12379,6 +12379,7 @@ GameObject:
   - component: {fileID: 1970877966}
   - component: {fileID: 1970877968}
   - component: {fileID: 1970877967}
+  - component: {fileID: 1970877969}
   m_Layer: 0
   m_Name: RehabManagers
   m_TagString: Untagged
@@ -12669,6 +12670,17 @@ MonoBehaviour:
   reachDownBelowHeadMeters: 0.7
   punchForwardMeters: 0.36
   heelRaiseHeadRiseMeters: 0.04
+  twoHandsLiftHeaven:
+    minimumWristRiseMeters: 0.35
+    overheadAboveHeadMeters: 0.12
+    startRiseMeters: 0.05
+    minimumUpwardSpeed: 0.03
+    maximumHandHeightDifferenceMeters: 0.18
+    maximumVerticalSpeedDifference: 0.25
+    maximumOverheadSpeed: 0.18
+    overheadHoldSeconds: 0.8
+    returnHeightToleranceMeters: 0.14
+    verticalNoiseToleranceMeters: 0.018
 --- !u!114 &1970877963
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -12763,9 +12775,10 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 41e0e19160294f06b5b8de70a9ec3cb4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  primaryProvider: {fileID: 224057066}
+  primaryProvider: {fileID: 1970877969}
   fallbackProvider: {fileID: 1970877968}
   allowAutomaticFallback: 1
+  preference: 0
 --- !u!114 &1970877968
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -12779,6 +12792,21 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   handPoseTracker: {fileID: 1970877964}
+--- !u!114 &1970877969
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1970877954}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2191bf6dcef14ed98c097d0538f43d75, type: 3}
+  m_Name:
+  m_EditorClassIdentifier:
+  hmdTransform: {fileID: 816540687}
+  xrOrigin: {fileID: 145102877}
+  requiredStableFrames: 20
 --- !u!1 &1992105125
 GameObject:
   m_ObjectHideFlags: 0

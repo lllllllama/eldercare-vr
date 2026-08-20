@@ -15,7 +15,7 @@ namespace PicoElderCare.Rehab.Tracking.Pico.ObjectTracking
 
         private readonly StringBuilder _statusBuilder = new StringBuilder(1024);
         private IWristTrackerSetupService _service;
-        private UnifiedEntryMenu _entryMenu;
+        [SerializeField] private UnifiedEntryMenu entryMenu;
         private Transform _mainPanel;
         private RectTransform _panelRoot;
         private TMP_FontAsset _font;
@@ -31,6 +31,7 @@ namespace PicoElderCare.Rehab.Tracking.Pico.ObjectTracking
         private float _nextRefreshTime;
 
         public bool IsOpen { get { return _panelRoot != null && _panelRoot.gameObject.activeSelf; } }
+        public UnifiedEntryMenu EntryMenu { get { return entryMenu; } }
 
         public static PicoWristTrackingStatusPanel Ensure(Transform canvas, UnifiedEntryMenu entryMenu)
         {
@@ -41,17 +42,30 @@ namespace PicoElderCare.Rehab.Tracking.Pico.ObjectTracking
             return panel;
         }
 
-        public void Configure(UnifiedEntryMenu entryMenu)
+        /// <summary>
+        /// Creates the authored panel hierarchy without starting the PICO runtime.
+        /// SceneBuilder uses this in Edit Mode so the generated scene stays
+        /// deterministic and opening the project never calls device APIs.
+        /// </summary>
+        public void BuildOrRepairAuthoredPanel(UnifiedEntryMenu owner)
         {
-            _entryMenu = entryMenu;
-            _service = WristTrackingRuntime.EnsureInstance();
+            entryMenu = owner != null ? owner : entryMenu;
             if (_panelRoot == null) BuildPanel();
             if (_mainPanel == null) _mainPanel = transform.Find("Panel");
         }
 
+        public void Configure(UnifiedEntryMenu owner)
+        {
+            entryMenu = owner != null ? owner : entryMenu;
+            _service = WristTrackingRuntime.EnsureInstance();
+            if (_panelRoot == null) BuildPanel();
+            if (_mainPanel == null) _mainPanel = transform.Find("Panel");
+            BindRuntimeActions();
+        }
+
         public void Open()
         {
-            Configure(_entryMenu);
+            Configure(entryMenu);
             if (_mainPanel != null) _mainPanel.gameObject.SetActive(false);
             if (_panelRoot != null)
             {
@@ -138,6 +152,7 @@ namespace PicoElderCare.Rehab.Tracking.Pico.ObjectTracking
 
         private void ResolveExistingText()
         {
+            if (_panelRoot == null) return;
             _summaryText = FindText("DeviceSummary/Summary");
             _leftText = FindText("LeftWrist/Status");
             _rightText = FindText("RightWrist/Status");
@@ -145,6 +160,38 @@ namespace PicoElderCare.Rehab.Tracking.Pico.ObjectTracking
             _leftCard = _panelRoot.Find("WoodFrame/LeftWrist") != null ? _panelRoot.Find("WoodFrame/LeftWrist").gameObject : null;
             _rightCard = _panelRoot.Find("WoodFrame/RightWrist") != null ? _panelRoot.Find("WoodFrame/RightWrist").gameObject : null;
             _advancedCard = _panelRoot.Find("WoodFrame/AdvancedDiagnostics") != null ? _panelRoot.Find("WoodFrame/AdvancedDiagnostics").gameObject : null;
+            _diagnosticsButton = FindButton("WoodFrame/Actions/Markers");
+            _advancedButton = FindButton("WoodFrame/Actions/Advanced");
+        }
+
+        private Button FindButton(string relativePath)
+        {
+            var target = _panelRoot != null ? _panelRoot.Find(relativePath) : null;
+            return target != null ? target.GetComponent<Button>() : null;
+        }
+
+        private void BindRuntimeActions()
+        {
+            if (_panelRoot == null || _service == null) return;
+            BindAction("WoodFrame/Actions/Rescan", delegate { _service.RefreshTrackers(); });
+            BindAction("WoodFrame/Actions/Bind", delegate { _service.BeginBinding(); });
+            BindAction("WoodFrame/Actions/Clear", delegate { _service.ClearBinding(); });
+            BindAction("WoodFrame/Actions/Verify", delegate { _service.BeginQuickVerification(); });
+            BindAction("WoodFrame/Actions/Calibrate", delegate { _service.BeginCalibration(); });
+            _diagnosticsButton = BindAction("WoodFrame/Actions/Markers", ToggleDiagnostics);
+            _advancedButton = BindAction("WoodFrame/Actions/Advanced", ToggleAdvanced);
+            BindAction("WoodFrame/Actions/Identity", delegate { _service.UseIdentityCalibration(); });
+            BindAction("WoodFrame/Back", Close);
+        }
+
+        private Button BindAction(string relativePath, UnityAction action)
+        {
+            var target = _panelRoot.Find(relativePath);
+            var button = target != null ? target.GetComponent<Button>() : null;
+            if (button == null) return null;
+            button.onClick.RemoveAllListeners();
+            if (action != null) button.onClick.AddListener(action);
+            return button;
         }
 
         private TMP_Text FindText(string relativePath)
