@@ -1,456 +1,383 @@
 # PICO ElderCare VR/MR
 
-面向 PICO 设备的老年人 VR/MR 综合康养项目。现有主导航保留健康游戏、康复运动、VR旅游、场景视频入口；健康游戏进入二级选择场景，再分别进入独立的乒乓球训练、双手拉弓射箭训练和单手投掷飞镖训练场景。
+面向 PICO 一体机的适老化 VR/MR 康养训练原型。项目以“低学习成本、坐姿可用、减少误触、可追踪和可回归”为设计目标，仓库当前实现两条训练链路：
 
-![mode-vr](https://img.shields.io/badge/mode-VR-blue) ![mode-mr](https://img.shields.io/badge/mode-MR-orange) ![unity](https://img.shields.io/badge/Unity-2022.3.62f3-black) ![sdk](https://img.shields.io/badge/PICO%20SDK-3.4.0-green)
+- **健康游戏**：乒乓球、双手射箭、单手飞镖。
+- **康复运动**：八段锦、太极动作引导、动作完成度评估与训练结果记录。
 
-- **VR 模式**：主导航 + 健康游戏选择页 + 独立乒乓球 / 射箭 / 飞镖训练场景。
-- **MR 模式**：乒乓球、射箭、飞镖场景分别复用项目的 XR/MR 基础配置（视频透视 + 房间感知），各玩法互不注入、互不依赖。
+项目基于 Unity 2022.3 LTS 和 PICO XR SDK，运行入口、训练场景、追踪适配、物理解算、适老化世界空间 UI 与编辑器自测工具均保存在本仓库中。
 
----
+> [!IMPORTANT]
+> 本项目是康复辅助训练与交互研究原型，不是医疗器械，不提供疾病诊断、治疗建议或临床疗效结论。动作评分用于训练反馈，不等同于医学评估。
 
-## 目录
+![mode-vr](https://img.shields.io/badge/mode-VR-2864dc) ![mode-mr](https://img.shields.io/badge/mode-MR-ef8b2c) ![unity](https://img.shields.io/badge/Unity-2022.3.62f2c1-black) ![sdk](https://img.shields.io/badge/PICO%20SDK-3.4.0-39a96b)
 
-- [项目信息](#项目信息)
-- [核心特性](#核心特性)
-- [快速开始](#快速开始)
-- [Unity 菜单](#unity-菜单)
-- [命令行构建与自测](#命令行构建与自测)
-- [MR/XR 使用方式](#mrxr-使用方式)
-- [目录结构](#目录结构)
-- [关键脚本](#关键脚本)
-- [实机检查清单](#实机检查清单)
-- [常见问题](#常见问题)
-- [开发约定](#开发约定)
-- [第三方与许可](#第三方与许可)
+## 当前范围
 
----
-
-## 项目信息
-
-| 项 | 值 |
+| 模块 | 当前实现 |
 | --- | --- |
-| Unity | `2022.3.62f3` |
-| 目标设备 | PICO 4 Ultra / 支持视频透视的 PICO XR 设备 |
-| PICO SDK | `com.unity.xr.picoxr`，来自 `PICO-Unity-Integration-SDK` 的 `release_3.4.0` |
+| 主入口 | `VR康养服务` 世界空间首页；健康游戏和康复运动可进入；VR 旅游、场景视频为待接入入口；提供追踪器设置和退出确认。 |
+| 健康游戏 | 独立的乒乓球、射箭、飞镖训练场景，包含计分、难度、训练轮次、反馈和返回导航。 |
+| 康复训练 | 八段锦与太极训练；动作视频引导；完成度、对称性、节奏和安全状态反馈；结果保存为 JSON。 |
+| 追踪 | 当前主路径为双腕 PICO Motion Tracker Object Tracking，控制器追踪自动降级；旧 Body Tracking 适配器保留用于测试和 A/B，不与 Object Tracking 同时占用设备模式。 |
+| MR | PICO Video See-Through、房间感知、平面检测、内容朝向/高度校准和空间摆放。 |
+| 工程工具 | 安全场景同步、独立玩法构建/修复、批处理自测、截图导出、远程输入测试和追踪诊断。 |
+
+上表描述的是代码与场景的实现范围，不代表已经完成临床验证、大规模老年用户研究或全部设备组合验收。适老化、坐姿和轮椅相关能力是当前设计目标与交互实现，实际适用范围仍需在目标人群和具体设备上验证。
+
+当前主构建包含以下 6 个场景：
+
+| 场景 | 职责 |
+| --- | --- |
+| `00_MainEntry` | 应用首页、追踪器设置、退出入口。 |
+| `02_HealthGameMenu` | 健康游戏二级选择页。 |
+| `01_PingPongDemo` | 乒乓球训练；可由构建器切换 VR/MR 配置。 |
+| `03_ArcheryTraining` | 双手协作射箭训练。 |
+| `04_DartsTraining` | 单手投掷飞镖训练。 |
+| `MR_Rehab_Main` | 八段锦/太极康复训练、视频引导、动作评估。 |
+
+`00_DeviceTest`、`Debug/` 和 `BPlus/` 下的场景用于设备验证或 UI 试验，不在默认 Build Settings 中。
+
+## 核心设计
+
+### 适老化交互与安全
+
+- 世界空间 UI 使用大字号、高对比度、明确 hover/选中反馈和较大的点击区域。
+- 射箭、飞镖和康复内容会根据 HMD 高度与当前朝向重新对准，兼顾站姿、坐姿和轮椅使用。
+- Grip 和扳机采用双阈值迟滞，降低模拟量抖动导致的重复触发。
+- `IUiHoverGuard`、操作中射线屏蔽和点击前取消玩法操作共同避免“点按钮时误射箭/误投镖”。
+- 康复训练检测用户是否离开训练圈，超过安全距离时暂停，回到范围后恢复；全局守卫持续禁用摇杆移动、转向和传送，减少眩晕与误移动风险。
+- 飞镖的慢速松手视为“放回”，射箭拉距不足时不发射，避免轻微抖动变成有效操作。
+
+### 场景与模块边界
+
+主入口、健康游戏菜单、三个游戏和康复训练使用独立场景。共享能力通过小型组件、纯函数 Solver、输入接口、主题与编辑器工具复用，不把某个玩法的运行时对象注入另一个玩法。
+
+```mermaid
+flowchart LR
+    Entry[00_MainEntry] --> Health[02_HealthGameMenu]
+    Entry --> Rehab[MR_Rehab_Main]
+    Health --> PingPong[01_PingPongDemo]
+    Health --> Archery[03_ArcheryTraining]
+    Health --> Darts[04_DartsTraining]
+
+    Wrist[双腕 Object Tracking] --> Selector[RehabPoseProviderSelector]
+    Controllers[左右控制器] --> Selector
+    Selector --> Sample[统一 RehabBodySample]
+    Sample --> Evaluation[动作评估]
+    Evaluation --> Result[训练 UI 与 JSON 结果]
+```
+
+### 可测试的解算层
+
+- `PingPongHitSolver` 负责乒乓球碰撞响应、自旋转移、摩擦和方向约束。
+- `ArcherySolver` 负责拉弓状态、出箭速度、环数、弹道预测、辅助瞄准与高度/朝向校准。
+- `DartsSolver` 负责投掷速度重映射、晚松手峰值回溯和低速抛体的精确弹道辅助。
+- 解算逻辑尽量保持无场景副作用，使边界值可以通过 Unity batchmode 回归，而不依赖头显实时输入。
+
+## 功能模块
+
+### 乒乓球
+
+- 右手球拍跟随控制器；左手可抓球、释放球和拖动球桌摆放把手。
+- 自动发球支持 `Basic`、`Topspin`、`Backspin`、`Sidespin`、`RandomMixed` 五种 profile。
+- 球体包含空气阻力与 Magnus 效应，球拍接触会计算线速度、角速度和接触点速度。
+- `ContinuousDynamic` 与 `SphereCastNonAlloc` 扫掠共同降低高速球穿桌/穿拍概率。
+- VR/MR 模式共享玩法代码；MR 下可检测地面、调整球桌位置并用 `PlayerPrefs` 保存。
+
+### 射箭
+
+- 一手持弓、另一手搭弦和拉弓，支持左右利手切换与偏好持久化。
+- 根据拉距计算出箭速度；瞄准方向带低通平滑，减轻手抖影响。
+- 辅助瞄准只在接近正确方向时进行有限角度纠偏，并显示弹道预览，不接管明显偏离目标的发射。
+- 箭矢使用重力、线性阻力和 SphereCast 扫掠；命中后提供插靶、飘分、音效、粒子与触觉反馈。
+- 每轮 10 箭，支持近/中/远难度、星级评价、鼓励语和历史最佳成绩。
+
+### 飞镖
+
+- 任一手握紧 Grip/扳机拿镖，挥臂后松手投出，支持左右投掷手切换。
+- 时间窗平均速度降低单帧抖动；短时间内晚松手时可回溯挥臂峰值。
+- 投掷速度超过阈值后连续映射到镖速，避免“加力但速度不变”的反馈死区。
+- 飞镖速度低于箭矢，辅助瞄准使用无阻力弹道二次方程求低抛角；不可达目标不强制纠偏。
+- 每轮 10 镖，支持三档距离、计分、飘分、音效、粒子、星级和历史最佳。
+
+### 康复训练
+
+- **八段锦**：当前详细流程拆分为 30 个适老动作切片，覆盖预备、托天、开弓、单举、后瞧、摇头摆尾、攀足、攒拳和收势等阶段。
+- **太极**：包含起势、云手、野马分鬃、白鹤亮翅、搂膝拗步和收势 6 个训练动作。
+- 训练开始前采集自然姿态，冻结初始朝向并建立用户相对坐标系，减少身高、站位和之后看向 UI 对动作轴的影响。
+- 评估使用头部与双腕/双手的位置和方向，输出完成度、对称性、节奏、保持时间及提示语。
+- 八段锦支持按动作绑定的视频片段，视频面板可以独立于训练圈重新摆放、暂停和恢复。
+- 训练包含准备、倒计时、动作执行、恢复、超时跳过、安全暂停和结束结果页。
+- 结果通过 `TrainingResultRecorder` 写入 `Application.persistentDataPath/RehabResults/*.json`，记录动作级完成度、对称性、节奏、安全警告和结束原因。
+
+当前结果记录器只写入设备本地文件，项目没有实现训练记录网络上传，也没有提供应用内的结果浏览和删除界面。调试或演示设备上的数据应通过设备文件管理或清除应用数据进行管理。
+
+> 当前腕部 Object Tracking 只直接提供 HMD、左腕和右腕三类关节点。因此脚步、膝关节和足跟幅度不会被伪造推断；相关动作只做上肢/头部可观测部分与安全提示。完整下肢评估需要额外传感器和临床验证。
+
+### PICO 追踪架构
+
+`IRehabPoseProvider` 将训练逻辑与设备 SDK 解耦：
+
+- `PicoWristObjectTrackingProvider`：当前主要追踪源，读取两枚腕部 Motion Tracker。
+- `ControllerPoseProvider`：追踪器未连接、未绑定、丢失或用户选择控制器模式时的降级来源；它直接把控制器 Transform 作为腕部代理，用于保证训练可继续，不表示与腕部追踪具有相同精度。
+- `RehabPoseProviderSelector`：支持 `Auto`、`ControllersOnly` 和 `WristTrackersOnly`，并在来源实际切换时通知训练会话重置当前动作状态。
+- `PicoBodyTrackingProvider`：保留的 Body Tracking 适配与 Fake API 测试路径；`WristTrackingRuntime` 启用时会主动关闭它，避免两种互斥模式争用 Motion Tracker。
+- 追踪状态使用明确状态机：`Starting`、`WaitingForDevice`、`WaitingForCalibration`、`Valid`、`Limited`、`Lost`、`Error` 等。
+
+追踪器配置只允许由用户从首页“设置”面板主动触发，不会在应用启动或后台轮询时擅自打开 PICO 配置程序。绑定、快速核验、安装偏移校准与追踪偏好会持久化。`Auto` 模式会优先尝试腕部追踪；追踪丢失时自动使用控制器，腕部来源重新累积默认 20 个稳定帧后自动切回。
+
+## 技术栈与环境
+
+| 项目 | 版本/说明 |
+| --- | --- |
+| Unity | `2022.3.62f2c1`（以 `ProjectSettings/ProjectVersion.txt` 为准） |
+| PICO XR SDK | `release_3.4.0`，通过 Git Package 引入 |
+| XR Interaction Toolkit | `2.6.4` |
+| XR Management | `4.4.0` |
+| TextMesh Pro | `3.0.7` |
+| 渲染管线 | Built-in Render Pipeline，Linear Color Space |
+| 目标设备 | PICO 4 Ultra；MR 功能要求设备支持 Video See-Through 与相应空间感知能力 |
 | 主场景 | `Assets/_Project/Scenes/00_MainEntry.unity` |
-| 自检场景 | `Assets/_Project/Scenes/00_DeviceTest.unity` |
-| 第三方说明 | `THIRD_PARTY_NOTICES.md` |
 
----
+仓库尚未锁定最低 PICO OS、Motion Tracker 固件和所有硬件代际的兼容矩阵。准备交付或复现实机结果时，应记录实际设备、系统/固件、SDK、构建类型和验证日期。
 
-## 核心特性
+## 使用前安全
 
-**综合首页**
-- 运行后先进入 `VR康养服务` 世界空间首页，而不是直接开始乒乓球。
-- 首页原有布局和入口保持不变，`健康游戏` 不再直接启动乒乓球。
-- `健康游戏` 打开 `02_HealthGameMenu`，该二级场景提供 `乒乓球训练`、`射箭训练`、`飞镖训练` 三个入口。
-- 三个玩法分别运行在 `01_PingPongDemo`、`03_ArcheryTraining`、`04_DartsTraining`，互不注入、互不依赖。
-- 首页卡片使用 VR 大字号、发光 hover、线性图标和手柄/手势选择提示。
-
-**射箭训练（双手柄协作，坐姿可玩）**
-- 一手持弓、另一手在弓侧握紧 Grip 或扳机搭弦，向后拉开再松手放箭；`持弓手` 按钮可一键切换左/右利手并记忆偏好。
-- 拉距、出箭速度、命中环数、辅助瞄准全部由 `ArcherySolver` 纯函数解算，可离线回归。
-- 开始训练时按当前头部高度自动校准靶心高度（0.9–1.75 米限位），坐轮椅或沙发上也能平视瞄准；箭道朝向按当前头部朝向对齐，面板上还有 `重新对准` 按钮随时把箭道转回正前方。
-- **适老手感**：瞄准方向做防手抖低通平滑；`辅助瞄准` 开启时拉弓显示弹道预览弧线，且落点向靶心做限角（≤4°）微调——只帮"差一点"的箭，不接管乱射的箭；默认开启，可随时关闭。
-- **拟真反馈**：弓臂随拉弓实时弯曲、弓弦三段式跟手；搭弦/拉弓/放箭三段双手差异化震动；程序合成音效（搭弦咔哒、拉弓渐紧、放箭弦响、命中闷响、环数越高音越亮的钟声、金环三连音）零音频资源依赖。
-- **游戏化**：5 色环靶（白/黑/蓝/红/金对应 2/4/6/8/10 环），近/中/远三档靶距；每轮 10 支箭，命中点弹出飘分文字，金环触发金色粒子庆祝；每轮结束按命中率给 1–5 星评价和鼓励语；各难度历史最佳成绩用 `PlayerPrefs` 持久化，破纪录有专属提示音。
-- 箭矢采用自写弹道（重力 + 线性阻力）+ SphereCast 扫掠命中检测，附拖尾光带，插靶带随机滚转姿态，不依赖刚体碰撞，低速高速都不穿靶。
-
-**飞镖训练（单手投掷，坐姿可玩）**
-- 任一手握紧 Grip 或扳机拿镖，朝镖盘挥臂时松手投出；`投掷手` 按钮一键切换左/右利手并记忆偏好。
-- 出手速度由挥臂手速映射（时间窗平均测速抗手抖），慢速松手视为"把镖放回"不投出——点面板按钮永不误投。
-- 镖盘高度按头部高度自动校准（0.9–1.75 米限位），近/标准/远三档盘距（1.8/2.4/3 米）；辅助瞄准限角 8° 向盘心纠偏（投掷比拉弓更难控向，纠偏比射箭更宽）。
-- 经典镖盘配色（米白/黑/绿/红 + 金色盘心对应 2/4/6/8/10 环），每轮 10 镖，星级评价、鼓励语、飘分、金心粒子、历史最佳与射箭同一套游戏化体系。
-- 弹道/计分/辅助瞄准/星级全部复用 `ArcherySolver` 纯函数，可离线回归；音效复用程序合成器（新增出手破空声）。
-
-**乒乓球训练（挥拍击打）**
-- 右手球拍自动跟随控制器击球，支持持球发球与自由球击打两套策略。
-- 左手 Grip 抓球与释放球，松手速度自动转换为出球速度。
-- 左手 Grip 拖动桌子黄色把手摆放球桌，松开可存档。
-
-**乒乓球物理**
-- 桌面、球网、球拍、地面分别标注 `PingPongSurface` 类型，反弹/摩擦参数独立可调。
-- 击球解算统一走 `PingPongHitSolver`，支持法向反弹、切向摩擦、自旋转移、最小闭合速度、方向约束。
-- 球体自写空气动力学（阻力 + Magnus），`maxAngularVelocity` 提升到 180 rad/s，避免 Unity 默认上限截断发球旋转。
-- `ContinuousDynamic` 碰撞检测 + `SphereCast` 扫掠 fallback，双重保护高速球穿桌。
-
-**乒乓球发球**
-- 自动发球循环，支持 Basic / Topspin / Backspin / Sidespin / RandomMixed 五种 profile。
-- 弹道求解保证过网，目标点带随机扰动，旋转方向轴从水平速度动态计算。
-
-**MR**
-- 视频透视（Video See-Through），虚拟地面/背景墙自动隐藏。
-- Plane Detection 自动对齐桌面高度到真实地面；桌子位置通过 `PlayerPrefs` 记忆。
-- 独立训练场景（射箭/飞镖/康复）统一走 `CreateMixedRealitySceneFoundation` 地基：透视相机、背景抑制、房间感知一次配好。
-- 箭矢/镖的命中掩码剔除 `RoomSensing` 层，不会撞上隐形的房间感知网格。
-
-**共享适老底座（三个游戏通用）**
-- `ElderCareUiTheme` 统一视觉语言：面板底色、青色描边、主题按钮、悬停动效（`TechModuleCardMotion`）在主入口和各计分板一致。
-- `IUiHoverGuard` 悬停守卫 + 深度操作屏蔽射线 + 点击回调先取消操作，三层封死"扳机双职责"误触（点按钮误射箭/误投镖）。
-- `PicoGripOrTriggerInputSource`：Grip 或扳机任一按下都可交互，双阈值迟滞防模拟量抖动；触觉走 `GetDeviceAtXRNode` 零分配。
-- 程序合成音效（`ArcheryAudioSynth`）零音频资源依赖；`ArcheryScorePopup` 3D 飘分（打包 Noto CJK 字体防实机方块字）。
-- 星级评价、鼓励语、各难度历史最佳、辅助瞄准/利手偏好 `PlayerPrefs` 持久化，三个游戏同一套。
-
-**工具链**
-- 五个场景构建器（主导航/健康菜单/乒乓/射箭/飞镖/康复）全部代码生成场景，无需手工改 `.unity`；重建幂等，画布重建前自动清空旧对象。
-- 三套批处理自测共 60+ 项（物理 Solver、弹道、计分、辅助瞄准、场景路由、命中掩码），batchmode 可回归。
-- `VRTableTennis` 资产分层复用：`Original` 保原始素材，`Adapted` 保清理后的可用 prefab。
-
----
+- 按 PICO 系统要求设置安全边界，并清理完整手臂挥动范围内的桌角、墙面、吊灯和其他障碍物。
+- 坐姿或轮椅使用前固定座椅和轮椅刹车；不建议在旋转椅、无靠背高凳或不稳定座椅上训练。
+- 老年用户、平衡能力受限者或首次使用者应由照护者/工作人员陪同。出现头晕、恶心、疼痛、呼吸不适或失去平衡时应立即停止。
+- 康复页的“返回”会取消当前训练并停止视频；也可以使用 PICO 系统操作退出。训练圈暂停、MR Safeguard 和软件碰撞检测不能替代现实空间防护。
+- 项目没有建立医疗适应证与禁忌证，正式康复用途应由具备资质的专业人员评估。
 
 ## 快速开始
 
-1. 用 Unity Hub 打开本项目，编辑器版本必须是 `2022.3.62f3`。
-2. 首次打开等 Package Manager 拉完依赖（PICO SDK 走 Git，需要外网）。
-3. 打开主场景：
+1. 使用与 `ProjectSettings/ProjectVersion.txt` 一致的 Unity 编辑器打开项目。
+2. 等待 Package Manager 完成依赖解析。PICO SDK 来自 Git URL，首次拉取需要网络。
+3. 打开 `Assets/_Project/Scenes/00_MainEntry.unity`。
+4. 检查 Build Settings 中是否按顺序启用了上文列出的 6 个主场景。
+5. 在编辑器中先运行相应自测，再 Build And Run 到 PICO 设备。
 
-   ```text
-   Assets/_Project/Scenes/00_MainEntry.unity
-   ```
+如果本机 Unity 不在默认 Hub 目录，批处理命令可通过 PowerShell 变量指定：
 
-4. 点击 `Tools/PICO ElderCare/Build Unified MVP Scenes` 生成导航和训练场景并配置 Build Settings。
-5. Build And Run 到 PICO 设备。运行后先看到 `VR康养服务` 首页；选择 `健康游戏` 后，可继续选择乒乓球、射箭或飞镖训练。
+```powershell
+$Unity = 'C:\Program Files\Unity\Hub\Editor\2022.3.62f2c1\Editor\Unity.exe'
+& $Unity -batchmode -quit -projectPath . -executeMethod RehabSelfTests.RunAll -logFile 'Logs\rehab_tests.log'
+```
 
----
+也可以设置 `UNITY_EXE` 环境变量；`scripts/unity_test_remote_input.ps1` 会优先读取该变量，然后读取工程版本。
 
-## Unity 菜单
+## Motion Tracker 首次配置
 
-所有菜单都在 `Tools/PICO ElderCare/` 下。
+1. 在 PICO 系统中连接两枚 Motion Tracker，并佩戴到左右手腕。
+2. 启动应用，在首页打开“设置”。
+3. 由用户主动进入追踪器配置，完成设备检查、左右腕绑定和快速核验。
+4. 如安装方向与默认值不一致，执行校准并保存安装偏移。
+5. 追踪有效后选择 `自动` 或 `腕部追踪器`；如果暂时不使用追踪器，可选择 `控制器`。
 
-| 菜单项 | 作用 |
+追踪器失效时，`Auto` 模式会回退到控制器；腕部追踪重新累积默认 20 个稳定帧后会自动切回。切换来源时当前动作会重置一次，已完成动作和结果不会被重复清空。
+
+## MR 使用说明
+
+### 构建变体
+
+当前提交的 `PXR_ProjectSetting.asset` 是 **MR-capable** 配置：开启 MRC、Video See-Through、Scene Capture、Spatial Mesh 和 Plane Detection，关闭旧 Body Tracking。康复、射箭和飞镖场景按该配置使用透视与房间感知，当前集成的 6 场景应用也应保持这套 MR 配置。
+
+`Build PingPong Mixed Reality Scene` 会保持/开启全局 MR 能力；`Build PingPong Demo Scene` 则面向 **VR-only 乒乓球变体**，会关闭全局 MR 能力并恢复虚拟环境。后者会影响康复、射箭和飞镖的透视前提，因此不要在准备集成 6 场景包时执行后直接打包。若需要纯 VR 乒乓球，建议使用单独分支、单独构建配置或在打包后恢复 MR 设置。
+
+### 康复、射箭与飞镖
+
+这些独立场景复用 MR 基础配置：透明相机、视频透视、背景抑制和房间感知。进入训练后内容会按 HMD 朝向与高度定位；投射物命中掩码会剔除 `RoomSensing`，避免撞上不可见空间网格。
+
+### 乒乓球 MR 摆放
+
+1. 运行 `Tools/PICO ElderCare/Build PingPong Mixed Reality Scene`。
+2. Build And Run 到支持视频透视的 PICO 设备。
+3. 使用左手靠近球桌左前方黄色把手，按住 Grip 移动球桌。
+4. 松开 Grip 后保存位置；再次进入场景时恢复。
+5. 检测到真实地面后，球桌高度、发球点和相关碰撞限制同步调整。
+
+## Unity 编辑器工具
+
+常用菜单位于 `Tools/PICO ElderCare/`：
+
+| 菜单 | 当前作用 |
 | --- | --- |
-| `Build Unified MVP Scenes` | 一键生成全部场景（主导航、健康游戏选择、乒乓球、射箭、飞镖、康复）并配置 Build Settings，**推荐打包前必跑**。 |
-| `Build Main Entry Scene` | 生成现有主导航；`健康游戏` 只绑定到二级健康游戏选择场景。 |
-| `Build Health Game Menu Scene` | 生成纯导航的 `02_HealthGameMenu`，包含乒乓球、射箭、飞镖和返回入口。 |
-| `Build PingPong Demo Scene` | 只生成乒乓球 VR 训练内容（不含射箭/飞镖对象）。 |
-| `Build PingPong Mixed Reality Scene` | 只生成乒乓球 MR 训练内容（不含射箭/飞镖对象）。 |
-| `Build VRTableTennis Adapted Assets` | 从 `External/VRTableTennis/Original` 的模型、音频、材质生成 `Adapted` 下的可用 prefab。 |
-| `Build Archery Training Scene` | 生成独立的 `03_ArcheryTraining`，包含 XR/MR 基础、弓、箭、靶和计分板。 |
-| `Build Darts Training Scene` | 生成独立的 `04_DartsTraining`，包含 XR/MR 基础、镖、镖盘和计分板。 |
-| `Repair PingPong Demo Scene Objects` | 脚本升级后修复已有场景对象，避免整场景重建。 |
-| `Run PingPong Physics Self Tests` | 在编辑器里跑 Solver/发球/空气动力学的物理自测。 |
-| `Run Archery Self Tests` | 跑射箭拉弓/弹道/环数计分/坐姿校准及独立场景路由自测。 |
-| `Run Darts Self Tests` | 跑飞镖出手速度映射/弹道/计分/换手/场景路由自测。 |
+| `Build Unified MVP Scenes` | **不是 Player Build**。只对已有的主入口、健康菜单和康复场景执行安全同步；不会从空场景重建、不会修改三个游戏，也不会刷新 Build Settings。 |
+| `Build Main Entry Scene` | 同步主入口的安全设置、导航绑定、追踪设置和 UI 基线。 |
+| `Build Health Game Menu Scene` | 同步健康游戏菜单，不重建已创作布局。 |
+| `Build MR Rehab Main Scene` | 同步康复场景的追踪、MR 和 UI 必需组件。 |
+| `Build PingPong Demo Scene` | 将乒乓球场景配置为 VR 版本。 |
+| `Build PingPong Mixed Reality Scene` | 将乒乓球场景配置为 MR 版本。 |
+| `Build Archery Training Scene` | 构建/更新射箭训练场景，并刷新主场景 Build Settings。 |
+| `Build Darts Training Scene` | 构建/更新飞镖训练场景，并刷新主场景 Build Settings。 |
+| `Repair PingPong Demo Scene Objects` | 修复已有乒乓球场景对象与引用。 |
+| `Build Motion Tracker Object Tracking Test Scene` | 生成腕部追踪设备测试场景。 |
+| `Validate Motion Tracker Object Tracking Test Scene` | 校验腕部追踪测试场景的必需对象和绑定。 |
+| `Repair Rehab Baduanjin Video Guide` | 修复八段锦视频面板、VideoPlayer 与动作视频绑定。 |
 
----
+场景同步采用“验证已有 authored baseline → 只更新安全字段 → 有变化才保存”的策略。主入口、健康菜单和康复场景的破坏式空场景重建入口已被标记为编译期禁用；如果基线缺失，应从版本控制恢复，而不是自动覆盖。
 
-## 命令行构建与自测
+## 自动化验证
 
-适合 CI 或者本地冒烟验证。所有命令在项目根目录执行。
+核心自测都可以从 Unity 菜单或 batchmode 执行：
 
-**生成全部导航与训练场景（主导航 / 健康游戏选择 / 乒乓球 / 射箭 / 飞镖 / 康复，并写入 Build Settings）**
+菜单入口统一位于 `Tools/PICO ElderCare/Run ... Self Tests`；表格中的 `RunAll` 是供 batchmode 使用的静态方法。
 
-```powershell
-& 'C:\Program Files\Unity\Hub\Editor\2022.3.62f3\Editor\Unity.exe' -batchmode -quit -projectPath . -executeMethod RehabSceneBuilder.BuildUnifiedMvpScenes -logFile 'Logs\unity_unified_build.log'
-```
+| 测试入口 | 覆盖内容 |
+| --- | --- |
+| `PingPongPhysicsSelfTests.RunAll` | 碰撞 Solver、空气动力学、发球、旋转和高速扫掠。 |
+| `ArcherySelfTests.RunAll` | 拉弓、弹道、计分、辅助瞄准、坐姿校准、场景路由。 |
+| `DartsSelfTests.RunAll` | 速度映射、晚松手回溯、精确弹道、计分、换手和路由。 |
+| `RehabSelfTests.RunAll` | 康复动作、30 切片八段锦、太极、安全监控、结果、UI 布局、场景同步、追踪器与主入口交互。 |
+| `PicoWristObjectTrackingSelfTests.RunAll` | 设备发现、绑定、校准、丢失恢复、显式配置门控和控制器降级。 |
+| `HealthGameMenuSelfTests.RunAll` | 健康游戏菜单布局与导航。 |
+| `RemoteInputSelfTests.RunAll` | 无头显远程输入状态和控制器 Rig。 |
 
-**构建 MR 版本（仅乒乓球训练场景）**
-
-```powershell
-& 'C:\Program Files\Unity\Hub\Editor\2022.3.62f3\Editor\Unity.exe' -batchmode -quit -projectPath . -executeMethod PingPongDemoSceneBuilder.BuildMixedRealityDemoScene -logFile 'Logs\unity_mr_build.log'
-```
-
-**构建 VR 版本（仅乒乓球训练场景；单独建射箭/飞镖场景用 `ArcheryGameSceneBuilder.BuildArcheryTrainingScene` / `DartsGameSceneBuilder.BuildDartsTrainingScene`）**
-
-```powershell
-& 'C:\Program Files\Unity\Hub\Editor\2022.3.62f3\Editor\Unity.exe' -batchmode -quit -projectPath . -executeMethod PingPongDemoSceneBuilder.BuildDemoScene -logFile 'Logs\unity_vr_build.log'
-```
-
-**跑物理自测**
+示例：
 
 ```powershell
-& 'C:\Program Files\Unity\Hub\Editor\2022.3.62f3\Editor\Unity.exe' -batchmode -quit -projectPath . -executeMethod PingPongPhysicsSelfTests.RunAll -logFile 'Logs\unity_physics_tests.log'
+$Unity = 'C:\Program Files\Unity\Hub\Editor\2022.3.62f2c1\Editor\Unity.exe'
+
+& $Unity -batchmode -quit -projectPath . -executeMethod PingPongPhysicsSelfTests.RunAll -logFile 'Logs\pingpong_tests.log'
+& $Unity -batchmode -quit -projectPath . -executeMethod ArcherySelfTests.RunAll -logFile 'Logs\archery_tests.log'
+& $Unity -batchmode -quit -projectPath . -executeMethod DartsSelfTests.RunAll -logFile 'Logs\darts_tests.log'
+& $Unity -batchmode -quit -projectPath . -executeMethod RehabSelfTests.RunAll -logFile 'Logs\rehab_tests.log'
 ```
 
-**跑射箭自测**
-
-```powershell
-& 'C:\Program Files\Unity\Hub\Editor\2022.3.62f3\Editor\Unity.exe' -batchmode -quit -projectPath . -executeMethod ArcherySelfTests.RunAll -logFile 'Logs\unity_archery_tests.log'
-```
-
-**跑飞镖自测**
-
-```powershell
-& 'C:\Program Files\Unity\Hub\Editor\2022.3.62f3\Editor\Unity.exe' -batchmode -quit -projectPath . -executeMethod DartsSelfTests.RunAll -logFile 'Logs\unity_darts_tests.log'
-```
-
-自测通过时日志里会出现：
+成功日志包含：
 
 ```text
 PingPong physics self tests passed.
 Archery self tests passed.
 Darts self tests passed.
+Rehab self tests passed.
 ```
 
-如果 batchmode 直接退出并在日志里看到 `No valid Unity Editor license found`，说明 Unity 授权未激活，先在 Unity Hub 登录并激活许可证。
-
----
-
-## MR/XR 使用方式
-
-**射箭 / 飞镖 / 康复独立场景**：由 `CreateMixedRealitySceneFoundation` 统一生成 XR Origin + 视频透视 + 房间感知，进入场景即为 MR 透视背景，无需单独配置；训练区/镖盘会在启动后 0.5 秒内自动对准玩家朝向与头部高度。
-
-**乒乓球 MR 摆放**：
-
-1. 运行 `Build PingPong Mixed Reality Scene`。
-2. Build And Run 到支持视频透视的 PICO 设备。
-3. 进入后真实房间作为背景，虚拟球桌、球、球拍和 UI 叠加在真实空间中。
-4. 左手靠近球桌左前方黄色把手 `LeftTableDragHandle`。
-5. 按住左手 Grip 并移动手柄调整球桌位置；松开 Grip 位置会保存。
-6. 下次进入 MR 场景时自动加载上次保存的位置。
-7. 检测到真实地面后，`RoomPlaneAligner` 会把球桌高度对齐到地面，并同步发球高度、反弹高度和控制器限位高度。
-
----
+批处理自测覆盖可离线验证的规则、状态机和场景结构，但不能替代 PICO 实机上的透视、空间感知、震动、性能与佩戴手感验收。
 
 ## 目录结构
 
-```
+```text
 Assets/
   _Project/
-    Docs/               # 绑定指引 / VRTableTennis 迁移说明
-    External/
-      VRTableTennis/
-        Original/       # 精选复制的 FBX、音频、材质、LICENSE
-        Adapted/        # 清理后的 table/net/paddle/ball prefab
-    Materials/PingPong/ # 乒乓球材质（内置管线 Standard，含 MR 可视化材质）
-    Materials/Archery/  # 射箭弓/箭/靶材质（构建器自动生成）
-    Materials/Darts/    # 飞镖镖/盘材质（跑 Build Darts Training Scene 后生成）
-    Materials/Rehab/    # 康复训练 UI/教练材质
-    Fonts/              # NotoSansCJKsc 打包中文字体（所有 UI 与飘分共用）
-    Prefabs/PingPong/   # fallback 球 prefab
-    Scenes/             # 00_MainEntry / 02_HealthGameMenu / 01_PingPongDemo / 03_ArcheryTraining
-                        # 04_DartsTraining（跑构建器后生成）/ MR_Rehab_Main / 00_DeviceTest
+    Art/                         # 应用图标等项目美术
+    Docs/                        # Unity 绑定与第三方资产迁移说明
+    External/VRTableTennis/
+      Original/                  # 保留原始资源和许可证
+      Adapted/                   # 清理后的可用 prefab
+    Fonts/                       # Noto CJK / Noto Sans SC 与许可证
+    Materials/                   # PingPong / Archery / Darts / Rehab
+    Prefabs/                     # 玩法与 UI prefab
+    Scenes/                      # 主场景、Debug 场景、B+ UI 试验场景
     Scripts/
-      Archery/          # 弓/箭/靶/计分/会话管理（双手柄射箭）
-      Darts/            # 镖/镖盘/投掷/计分/会话管理（单手飞镖）
-      HealthGame/       # 健康游戏二级菜单的跨场景导航
-      Common/Events/    # PingPongEvents 事件总线
-      Common/Feedback/  # HitFeedbackManager 音效/特效
-      Common/Input/     # IGripInputSource / Grip+扳机迟滞输入源 / 远程调试输入
-      Common/UI/        # ElderCareUiTheme 主题 / TechModuleCardMotion 动效 / IUiHoverGuard 悬停守卫
-      Rehab/            # 太极/八段锦评估、教练、UI、MR 摆放
-      Safety/           # 摇杆位移禁用等安全防护
-      Editor/           # 场景构建器 + 物理自测
-      PingPong/
-        Ball/           # PingPongBall / BallSpawner / BallLifetime
-        Paddle/         # PaddleFollower / PaddleVelocityTracker
-        Interaction/    # 抓球、拖桌、桌子锁定、穿桌限位、视角对齐
-        MR/             # MR 管理器 + 地面对齐
-        UI/             # ScoreManager
-        PingPongGeometry.cs / PingPongHitSolver.cs / PingPongSurface.cs
-  Resources/            # PICO Debugger / ProjectSetting / PlatformSetting
-  XR/ + XRI/            # XR Management 与 XRI 设置
+      Archery/                   # 射箭交互、弹道、计分与反馈
+      Darts/                     # 飞镖投掷、弹道、计分与反馈
+      HealthGame/                # 二级菜单与场景导航
+      PingPong/                  # 球、球拍、发球、MR、UI 与物理解算
+      Rehab/                     # 会话、动作评估、视频、结果和空间布局
+        Tracking/                # 统一姿态模型、Provider 选择和控制器实现
+          Pico/                  # Body Tracking 适配
+            Object/              # 腕部 Object Tracking、绑定、校准与诊断
+      Common/                    # 输入、事件、反馈与共享 UI
+      Safety/                    # 禁用摇杆移动等运行时安全守卫
+      Editor/                    # 场景同步、构建、验证和截图工具
+  Resources/                    # PICO 项目设置和 UI 图标
+  XR/ + XRI/                    # XR Management / XRI 配置
+Packages/                       # Unity Package 依赖
+ProjectSettings/                # Unity、Android、XR 与 Build Settings
+scripts/                        # PowerShell 辅助脚本
+Tools/RehabVideo/               # 康复视频导入工具
 ```
 
----
+## 关键代码入口
 
-## 关键脚本
-
-**玩法核心**
-
-| 脚本 | 职责 |
+| 文件 | 职责 |
 | --- | --- |
-| `PingPong/PingPongGeometry.cs` | 球桌、球网、球、球拍的统一尺寸与物理常量。 |
-| `PingPong/PingPongSurface.cs` | 表面类型（Table/Net/Paddle/Floor）标注、法线估计、PhysicMaterial 缓存。 |
-| `PingPong/PingPongHitSolver.cs` | 纯函数碰撞解算器（法向反弹、切向摩擦、自旋、方向约束）。 |
-| `PingPong/Ball/PingPongBall.cs` | 球物理、空气动力学、碰撞回弹、扫掠 fallback。 |
-| `PingPong/Ball/BallSpawner.cs` | 自动发球、弹道求解、profile 选择、旋转轴构造。 |
-| `PingPong/Ball/BallLifetime.cs` | 球体生命周期与 miss 上报。 |
-| `PingPong/Paddle/PaddleFollower.cs` | 球拍跟随控制器 Transform。 |
-| `PingPong/Paddle/PaddleVelocityTracker.cs` | 差分速度、角速度、接触点速度、击球点局部坐标。 |
+| `Rehab/UnifiedEntryMenu.cs` | 主入口导航、追踪器设置和退出。 |
+| `HealthGame/HealthGameMenuController.cs` | 健康游戏跨场景导航与防连点。 |
+| `PingPong/PingPongHitSolver.cs` | 乒乓球纯函数碰撞/自旋解算。 |
+| `PingPong/Ball/PingPongBall.cs` | 球体空气动力学、碰撞和扫掠 fallback。 |
+| `Archery/ArcherySolver.cs` | 射箭拉弓、弹道、计分和辅助瞄准。 |
+| `Darts/DartsSolver.cs` | 飞镖速度、晚松手和精确低速弹道。 |
+| `Rehab/RehabSessionManager.cs` | 康复训练流程、安全暂停、视频与结果收束。 |
+| `Rehab/MovementEvaluator.cs` | 动作序列、基线、完成度和结果聚合。 |
+| `Rehab/BaduanjinGuotiDetailedEvaluator.cs` | 30 个八段锦切片的可观测动作判定。 |
+| `Rehab/RehabSessionFrame.cs` | 用户相对坐标系与初始朝向冻结。 |
+| `Rehab/Tracking/IRehabPoseProvider.cs` | 设备无关的姿态来源接口。 |
+| `Rehab/Tracking/RehabPoseProviderSelector.cs` | 腕部追踪/控制器选择和自动降级。 |
+| `Rehab/Tracking/Pico/Object/WristTrackingRuntime.cs` | Object Tracking 生命周期、绑定、校准和跨场景管理。 |
+| `Editor/RehabSceneBuilder.cs` | 主入口、健康菜单、康复场景的安全同步。 |
 
-**射箭玩法**
+以上路径均相对于 `Assets/_Project/Scripts/`。
 
-| 脚本 | 职责 |
-| --- | --- |
-| `Archery/ArcheryGeometry.cs` | 弓、箭、靶、拉距、速度、靶距、坐姿高度限位的统一常量。 |
-| `Archery/ArcherySolver.cs` | 纯函数解算：拉弓状态、出箭速度、环数计分、弹道预测、坐姿高度校准、箭道朝向。 |
-| `Archery/ArcheryEvents.cs` | 拉弓/放箭/命中/脱靶/训练开始结束事件与结构体。 |
-| `Archery/BowController.cs` | 左手持弓跟随、右手 Grip/扳机搭弦拉弓、松手放箭、弓弦视觉与震动反馈。 |
-| `Archery/ArrowProjectile.cs` | 箭矢弹道积分（重力 + 阻力）、SphereCast 扫掠命中、插靶与脱靶上报。 |
-| `Archery/ArcheryTarget.cs` | 靶面命中点换算环数并广播事件。 |
-| `Archery/ArcheryGameManager.cs` | 训练会话：每轮箭数、总分、星级评价、历史最佳持久化、难度靶距、坐姿校准、辅助瞄准/利手设置。 |
-| `Archery/ArcheryScorePanel.cs` | 世界空间计分板：总分/剩余箭数/上一箭/历史最佳/难度/辅助瞄准/持弓手/重新对准/返回健康游戏菜单。 |
-| `Archery/ArcheryAudioManager.cs` | 程序合成音效（零资源依赖）：搭弦、拉弓渐紧、弦响、命中、环数钟声、金环与破纪录提示音。 |
-| `Archery/ArcheryTrajectoryHint.cs` | 拉弓时的弹道预览弧线（辅助瞄准开启时显示）。 |
-| `Archery/ArcheryScorePopup.cs` | 命中点 3D 飘分文字（面向玩家、上浮渐隐）。 |
-| `Common/Input/PicoGripOrTriggerInputSource.cs` | Grip 或扳机任一按下即可拉弓的输入源（老年用户友好）。 |
-| `Editor/ArcheryGameSceneBuilder.cs` | 独立射箭训练场景的一键生成与保存（含主题化计分板）。 |
-| `Editor/ArcherySelfTests.cs` | 拉弓/弹道/计分/校准/独立路由批处理自测。 |
+## 实机验收重点
 
-**飞镖玩法**
-
-| 脚本 | 职责 |
-| --- | --- |
-| `Darts/DartsGeometry.cs` | 镖、镖盘、投掷速度映射、盘距、坐姿高度限位的统一常量。 |
-| `Darts/DartsSolver.cs` | 纯函数解算：出手速度重映射（无死区）、晚松手峰值回溯、**精确弹道二次方程辅助瞄准**（低速域必须，直线时间近似误差达 4°-15°）。 |
-| `Darts/DartsEvents.cs` | 拿镖/投出/命中/脱靶/回合结束事件与结构体（与射箭事件总线互不串扰）。 |
-| `Darts/HandDartThrower.cs` | 单手握持-挥臂-松手投掷：时间窗平均测速抗手抖、峰值速度回溯宽容晚松手、悬停守卫防误投、换手。 |
-| `Darts/DartProjectile.cs` | 镖矢弹道积分 + SphereCast 扫掠（首帧全程扫掠、内部状态积分防重对准瞬移）。 |
-| `Darts/DartsBoard.cs` | 盘面命中点换算环数并广播事件。 |
-| `Darts/DartsGameManager.cs` | 训练会话：每轮镖数、星级、历史最佳、盘距难度、坐姿校准、启动重对准、设置持久化。 |
-| `Darts/DartsScorePanel.cs` | 主题化计分板 + 悬停守卫 + 挥臂屏蔽射线 + 异步返回健康游戏菜单。 |
-| `Darts/DartsAudioManager.cs` | 复用程序合成器：拿镖咔哒、出手破空、命中、环数钟声、金心与破纪录提示音。 |
-| `Editor/DartsGameSceneBuilder.cs` | 独立飞镖训练场景的一键生成与保存（含 Build Settings 注册）。 |
-| `Editor/DartsSelfTests.cs` | 速度映射/弹道纠偏落点/晚松手回溯/换手/场景路由批处理自测。 |
-
-**导航与共享**
-
-| 脚本 | 职责 |
-| --- | --- |
-| `HealthGame/HealthGameMenuController.cs` | 健康游戏二级菜单跨场景导航（异步加载 + Build Settings 校验 + 防连点）。 |
-| `Common/UI/ElderCareUiTheme.cs` | 全项目统一配色/字号/尺寸主题。 |
-| `Common/UI/TechModuleCardMotion.cs` | 卡片/按钮悬停缩放、发光、入场渐显动效。 |
-| `Common/UI/IUiHoverGuard.cs` | 面板悬停状态出口：悬停 UI 时玩法交互让位给按钮点击。 |
-| `Common/Input/PicoGripOrTriggerInputSource.cs` | Grip 或扳机任一按下即可交互，双阈值迟滞防抖。 |
-| `Archery/ArcheryScorePopup.cs` | 3D 飘分文字（两游戏共用，打包 CJK 字体）。 |
-| `Editor/RehabSceneBuilder.cs` | 主导航/健康菜单/康复场景生成 + 统一构建链 + Build Settings。 |
-
-**交互与 MR**
-
-| 脚本 | 职责 |
-| --- | --- |
-| `PingPong/Interaction/ControllerBallGrabber.cs` | 左手 Grip 抓球、释放速度估计、挡出冷却。 |
-| `PingPong/Interaction/TableDragHandle.cs` | 左手拖桌、PlayerPrefs 存档、同步发球点和桌面高度。 |
-| `PingPong/Interaction/TablePassiveMotionLock.cs` | 非拖动期间锁定桌子。 |
-| `PingPong/Interaction/ControllerTableCollisionLimiter.cs` | 限制手柄/球拍视觉穿入桌面。 |
-| `PingPong/Interaction/PlayerTableBoundary.cs` | 头部/XR Rig 不进入桌内。 |
-| `PingPong/Interaction/GrabHandPoseAnimator.cs` | 根据 Grip 值驱动手指张合动画。 |
-| `PingPong/Interaction/VrInitialViewAligner.cs` | 进入 VR 时对齐相机朝向球桌。 |
-| `PingPong/MR/PingPongMixedRealityManager.cs` | PICO 视频透视、透明主相机、隐藏虚拟环境。 |
-| `PingPong/MR/PingPongRoomPlaneAligner.cs` | 地面检测、桌子对齐、高度相关数据同步。 |
-
-**事件与反馈**
-
-| 脚本 | 职责 |
-| --- | --- |
-| `Common/Events/PingPongEvents.cs` | 发球、击打、反弹、miss、训练开始/结束事件与结构体。 |
-| `Common/Feedback/HitFeedbackManager.cs` | 按速度播放击打/反弹音效与特效。 |
-| `PingPong/UI/ScoreManager.cs` | 命中、发球、miss、命中率、速度、旋转的 TMP 文本。 |
-
-**工具链**
-
-| 脚本 | 职责 |
-| --- | --- |
-| `Editor/PingPongDemoSceneBuilder.cs` | 乒乓球 VR/MR 场景生成、prefab 装配、PICO 项目设置切换、修复工具。 |
-| `Editor/PingPongPhysicsSelfTests.cs` | Solver、发球、空气动力学、旋转上限的批处理自测。 |
-| `Editor/RehabSceneBuilder.cs` | `Build Unified MVP Scenes` 统一构建链入口。 |
-
----
-
-## 实机检查清单
-
-**导航链路**
-- 主导航四张卡片是否正常显示（健康游戏/康复运动可进入，旅游/视频为"待接入"灰态）。
-- `健康游戏` → 二级菜单三个训练入口 + 返回是否都能点击并异步切换场景（无长时间黑屏冻结）。
-- 各训练场景的 `返回健康游戏` 是否回到二级菜单；连点按钮不应重复加载。
-- 若某入口点击无反应，通常是 Build Settings 缺场景：重跑 `Build Unified MVP Scenes`。
-
-**乒乓球：进入场景**
-- 初始视角是否正对球桌。
-- 右手球拍是否跟随控制器。
-- 左手是否显示握持视觉并随 Grip 张合。
-
-**乒乓球：击球与发球**
-- 击球方向和力量是否符合挥拍动作。
-- 左手 Grip 是否可以抓球、释放球。
-- 发球是否能过网并落到桌面。
-- 上旋、下旋、侧旋是否有明显轨迹差异。
-
-**乒乓球：物理安全**
-- 球是否不再穿透桌面或球拍。
-- 球网是否没有明显空气墙。
-- 左右手和球拍是否不会明显穿进桌体。
-
-**射箭训练**
-- 主导航选择 `健康游戏`，再选择 `射箭训练` 后，箭道是否朝向当前视线方向、靶心高度是否与视线齐平（坐姿也应如此）。
-- 拉弦手靠近弓身握 Grip 或扳机是否能搭弦（有咔哒声与轻震），向后拉时弓弦、搭箭、弓臂弯曲是否跟手。
-- 辅助瞄准开启时拉弓是否显示弹道预览弧线，关闭后弧线是否消失。
-- 松手后箭是否沿瞄准方向飞出并带拖尾，命中靶面是否插靶、飘分、播放环数音；金环是否有金色粒子和三连音。
-- 近/中/远切换后靶距是否变化，`再来一轮` 是否清空靶上旧箭并重置计分。
-- 一轮 10 箭结束后是否显示星级与鼓励语，破纪录时历史最佳是否更新并有提示音。
-- `持弓手` 切换后左右手职责是否互换（引导文案也应跟着换），`重新对准` 是否把箭道转回正前方。
-- 拉弓过程中双手柄是否有渐进震动（拉弦手更强），放箭瞬间是否有明显震动；拉弓不足松手应有轻微“失败”震动且不放箭。
-- 输入互斥：深拉弓（超过 1/3）时面板按钮应点不动；点面板按钮松开扳机时不应误射出一支箭。
-- 飘分文字中文应正常显示（打包 Noto 字体），并且浮在靶面前方不与靶板穿插。
-- MR 模式：箭不应在半空撞上看不见的房间感知网格凭空消失（RoomSensing 层已从命中掩码剔除）。
-
-**飞镖训练**
-- 二级菜单选择 `飞镖训练` 后，镖盘是否朝向当前视线方向、盘心与视线齐平（坐姿也应如此）。
-- 握紧 Grip 或扳机手中是否出现镖（有咔哒声与轻震）；指向面板按钮时按扳机不应出现拿镖反馈。
-- 朝盘挥臂松手是否投出（带破空声与拖尾）；慢慢松手应视为放回、只有轻微提示震动。
-- 晚松手（挥到底才松）镖是否仍朝盘飞（峰值回溯生效），而不是插向地面。
-- 辅助瞄准开启时，接近正确的抛物线轻投是否能上盘甚至进金心；关闭后全凭真实弹道。
-- 近/标准/远切换后盘距是否变化且本轮重开；`再来一轮` 是否清空盘上旧镖。
-- 一轮 10 镖结束是否显示星级与鼓励语，破纪录时历史最佳是否更新并有提示音。
-- `投掷手` 切换后左右手是否互换（引导文案跟随）；`重新对准` 是否把镖盘转回正前方。
-- MR 模式：镖不应在半空撞上看不见的房间感知网格凭空消失。
-
-**乒乓球 MR 与摆放**
-- 拖拽球桌后，发球点、目标点、UI、碰撞限位是否同步。
-- MR 模式下真实房间是否可见，虚拟地面和背景墙是否隐藏。
-- MR 地面对齐后，球桌高度和发球高度是否合理。
-- 退出再进入 MR 场景，上次桌子位置是否正确恢复。
-
----
+- 主入口高度、距离和朝向在 HMD 稳定后是否舒适，健康游戏/康复/设置/退出是否可用。
+- 健康游戏各入口与返回链路是否正确，连点是否会重复加载。
+- 坐姿下靶心、镖盘、康复面板是否仍接近视线高度。
+- UI hover 时是否不会误射箭、误投镖；深拉弓或高速挥臂时 UI 是否暂时让位给玩法。
+- 腕部追踪器是否必须由用户主动配置；左右绑定、校准、丢失、恢复和控制器降级是否符合状态面板。
+- 康复训练离开训练圈时是否暂停，返回后是否恢复；追踪来源切换时是否只重置当前动作。
+- 八段锦视频是否与动作对应，暂停时画面是否保留，训练结果 JSON 是否正常写入。
+- MR 下真实环境是否可见，虚拟背景是否隐藏，投射物是否不会碰撞不可见 RoomSensing 网格。
+- 中文字体、音效、震动、粒子和 PlayerPrefs 持久化是否在 Android 实机正常。
 
 ## 常见问题
 
-**Unity 打不开或包导入失败**
-确认使用 `2022.3.62f3`，让 Package Manager 完整拉取 PICO SDK。PICO SDK 来自 Git URL，首次导入需要网络。
+### Unity 打不开或 PICO 包解析失败
 
-**batchmode 直接退出**
-日志出现 `No valid Unity Editor license found` 时，先在 Unity Hub 激活许可证，再重新运行 batchmode 命令。
+确认编辑器版本与 `ProjectSettings/ProjectVersion.txt` 一致，并等待 Git Package 拉取完成。网络不可访问 GitHub 时，PICO SDK 依赖会解析失败。
 
-**右手球拍不跟随**
-选择 `PingPong/Paddle_Right`，把 XR Origin 的右手控制器 Transform 手动拖到 `PaddleFollower.controllerTransform`。
+### batchmode 直接退出
 
-**左手无法拖拽球桌**
-确认场景里存在 `LeftTableDragHandle`，并且左手控制器靠近黄色球形把手时按住 Grip。
+日志出现 `No valid Unity Editor license found` 时，先在 Unity Hub 登录并激活许可证。找不到 Unity 时，设置 `UNITY_EXE` 或在命令中传入绝对路径。
 
-**MR 模式仍显示虚拟地面或背景墙**
-重新运行 `Tools/PICO ElderCare/Build PingPong Mixed Reality Scene`，MR 构建路径会禁用 `Floor` 和 `BackWall` 并启用透明相机。
+### Build Unified MVP Scenes 没有重新生成三个游戏
 
-**普通 VR 模式仍开启透视**
-重新运行 `Tools/PICO ElderCare/Build PingPong Demo Scene`，VR 构建路径会移除 MR 对象、关闭 PICO MR 设置并恢复主相机背景。
+这是当前设计。该命令只安全同步已有的主入口、健康菜单和康复场景，不再破坏性重建全部场景，也不更新 Build Settings。乒乓球、射箭、飞镖使用各自的 Build/Repair 菜单。
 
-**射箭/飞镖入口点了没反应**
-Build Settings 缺少对应场景。重跑 `Tools/PICO ElderCare/Build Unified MVP Scenes`（或对应单场景构建菜单），确认 `02_HealthGameMenu`、`03_ArcheryTraining`、`04_DartsTraining` 都在 Build Settings 列表里。
+### 腕部追踪器没有弹出配置
 
-**拉弓/挥臂时面板按钮点不动**
-这是防误触设计：深拉弓（>1/3 拉距）或挥臂超过起投手速时会临时屏蔽面板射线，松开后恢复。静止状态下点按钮不受影响。
+应用不会自动打开 PICO 配置程序。请在首页打开“设置”，由用户主动开始配置。若选择 `Auto` 且追踪器未就绪，系统会使用控制器输入。
 
-**飞镖投不出去**
-慢速松手会被视为"把镖放回"（防点按钮误投）。朝镖盘方向挥臂再松手即可；出手轻重由挥臂速度决定。
+### 射箭/飞镖入口没有反应
 
-**球太快或太难接**
-调整 `Managers/BallSpawner`：
-- `serveSpeed`：发球速度。
-- `serveInterval`：发球间隔。
-- `upwardArc`：弹道高度。
-- `PingPongBall` 的 `paddleVelocityMultiplier / forwardBoost / upwardBoost / maxSpeed` 控制回球。
+检查 `ProjectSettings/EditorBuildSettings.asset` 是否包含并启用 `02_HealthGameMenu`、`03_ArcheryTraining`、`04_DartsTraining`。必要时运行对应玩法 Builder 刷新 Build Settings。
 
----
+### 拉弓或挥臂时按钮暂时点不动
+
+这是防误触策略。深拉弓或有效挥臂阶段会屏蔽 UI 射线，操作结束后恢复；静止状态不受影响。
+
+### 飞镖投不出去
+
+慢速松手被视为放回。朝镖盘方向挥臂并在动作结束前后松手；晚松手容错只回溯很短时间内的速度峰值。
+
+### MR 仍显示虚拟背景，或 VR 意外开启透视
+
+分别重新运行 `Build PingPong Mixed Reality Scene` 或 `Build PingPong Demo Scene`。这些命令会切换 PICO MR 设置和乒乓球场景背景，不应交替混用后直接打包而不检查目标模式。
 
 ## 开发约定
 
-- 不要直接导入参考项目的完整场景，避免旧 XR/Oculus/SteamVR/Photon 依赖污染当前 PICO 工程。
-- 修改场景生成逻辑后，优先跑对应的 Builder 菜单，而不是手工批量改场景对象。
-- 新增 Unity 资源时必须同时提交对应的 `.meta` 文件。
-- 提交前建议跑一次 `git diff --check`，避免 YAML/meta 尾随空格产生 review 噪声。
-- MR 相关设置会写入 `Assets/Resources/PXR_ProjectSetting.asset`，切换 VR/MR 场景前后确认当前目标模式。
-- 物理/Solver 相关改动建议配套更新对应自测（`PingPongPhysicsSelfTests` / `ArcherySelfTests` / `DartsSelfTests`），保留可回归覆盖。
-- 低速抛体（飞镖类）的辅助瞄准必须用精确弹道解，禁止照搬射箭的直线时间近似（低速域误差 4°-15°，会把正确出手拉偏）。
-
----
+- 不直接导入参考项目的完整场景，避免旧 Oculus/SteamVR/Photon 依赖污染当前 PICO 工程。
+- 主入口、健康菜单和康复场景是 authored scene；同步工具不得重建其层级或覆盖空间布局。
+- 玩法参数优先集中在 Geometry/Solver/Manager，避免把常量散落在碰撞回调和 UI 脚本中。
+- 修改纯函数 Solver、追踪状态机、场景同步或动作评估时，必须同步增加或更新自测。
+- Object Tracking 和 Body Tracking 不得同时启动；当前运行时由 `WristTrackingRuntime` 管理互斥关系。
+- 追踪器系统配置必须来自显式用户操作，禁止在启动、轮询、重连或打开普通页面时自动拉起系统配置应用。
+- 低速飞镖辅助必须使用精确弹道解，不能直接复用高速箭矢的飞行时间近似。
+- 新增 Unity 资源时同时提交 `.meta`；提交前运行 `git diff --check`，并检查 `.unity`/`.prefab` 是否出现意外大范围重写。
+- MR 设置会写入 `Assets/Resources/PXR_ProjectSetting.asset`，切换 VR/MR 后确认目标场景和项目配置再打包。
 
 ## 第三方与许可
 
-本项目参考并复用了以下项目的设计方向或资源：
+项目参考或复用了以下资源/设计方向：
 
-- [`kushal-goenka/VRTableTennis`](https://github.com/kushal-goenka/VRTableTennis)
-- [`tomgoddard/PingPang`](https://github.com/tomgoddard/PingPang)
-- [`Pico-Developer/InteractionSample-Unity`](https://github.com/Pico-Developer/InteractionSample-Unity)
+- [`kushal-goenka/VRTableTennis`](https://github.com/kushal-goenka/VRTableTennis)：乒乓球结构与部分本地演示资源。
+- [`tomgoddard/PingPang`](https://github.com/tomgoddard/PingPang)：击球/速度物理设计参考。
+- [`Pico-Developer/InteractionSample-Unity`](https://github.com/Pico-Developer/InteractionSample-Unity)：PICO 交互模式参考。
+- Noto Sans CJK SC / Noto Sans SC：设备端中文字体，按 SIL Open Font License 1.1 使用。
 
-详细边界见 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)。重新分发构建包或源代码前，请确认复制资源的原始授权（特别是 `BarcadeGamesAssetPack` 相关资产可能标注 `licenseType: Store`）。
+原始与清理后资源分别存放在 `Assets/_Project/External/VRTableTennis/Original` 和 `Adapted`，避免旧 XR/Oculus/SteamVR/Photon 脚本进入当前运行时。
+
+详细边界见 [`THIRD_PARTY_NOTICES.md`](THIRD_PARTY_NOTICES.md)。重新分发构建包或源码前，必须再次确认复制资源的原始授权；部分 FBX `.meta` 标记为 `licenseType: Store`，不应仅依据上游仓库许可证判断可再分发性。
